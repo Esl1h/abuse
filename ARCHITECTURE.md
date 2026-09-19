@@ -291,15 +291,27 @@ The strip is the default. `hud=modern` switches, and the Original mode overrides
 
 `src/sdlport/sound.cpp`, already on the new SDL3_mixer API:
 
-- A single `MIX_Mixer` created at `:185`
-- Voices are `MIX_Track` in a vector (`:49`), allocated by `find_available_track()`
-  (`:107`), which scans for the first stopped one
-- Volume through `MIX_SetTrackGain` (`:287`) and position through `MIX_StereoGains`
-  (`:288`)
+- A single `MIX_Mixer`, with 50 `MIX_Track` voices
+- Volume through `MIX_SetTrackGain` and position through `MIX_StereoGains`
 
-There are no separate buses for sfx, music and UI, no limiter on the master, and no
-runtime device switching. That is what phase 5 adds; the backend itself does not need
-to change.
+Three decisions moved out of it into `src/audio/`, which is free of SDL and unit
+tested:
+
+| Module | What it decides |
+| --- | --- |
+| `audio/buses.cpp` | Gain per bus (sfx, music, UI) and a master over them, as percentages in abuserc |
+| `audio/voices.cpp` | Which track a sound gets, and who loses one when they are all busy: free voice first, otherwise the weakest playing, and only if the newcomer outranks it |
+| `audio/limiter.cpp` | The master limiter, installed as the mixer's post-mix callback. Both channels move together; never applied in the Original mode |
+
+Priority is the sound's own volume, which the engine has already attenuated by
+distance, so a shot across the level does not silence one at the player's feet. The
+named priorities in `voices.h` are for callers that know more than the volume says;
+the music track uses the highest, since the score should not be what gets stolen.
+
+`limiter().process()` runs on the audio thread. Nothing else in that module is
+synchronised, because it is all called at startup before the callback is installed.
+
+Still open in phase 5: runtime device switching, and the free sound set itself.
 
 The sound directory is looked up through the classic-data overlay when one is set, so
 the Original mode plays as soon as that data is installed. The Remastered mode has no
