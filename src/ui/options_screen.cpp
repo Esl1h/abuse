@@ -35,6 +35,7 @@
 #include "sbar.h"
 #include "keys.h"
 #include "overlay.h"
+#include "render/lightmap.h"
 #include "render/options.h"
 #include "video.h"
 
@@ -128,6 +129,28 @@ void smooth_show(char *buf, size_t n)
 void smooth_value(char *buf, size_t n)
 {
     snprintf(buf, n, "%s", render::options().interpolate ? "on" : "off");
+}
+
+// ---- lighting -------------------------------------------------------------
+
+// Whether the frame is lit by remapping palette indices, as it has been since
+// 1995, or in RGB on the way to the window. Same curve either way; what the
+// second one drops is the snap to the nearest of 256 colours, which is what
+// bands every dark corner. Takes effect on the next frame drawn.
+void light_step(int)
+{
+    render::set_rgb_lighting(!render::rgb_lighting());
+}
+
+void light_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", say(render::rgb_lighting()
+                                   ? i18n::kLightRgb : i18n::kLightClassic));
+}
+
+void light_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::rgb_lighting() ? "on" : "off");
 }
 
 // ---- language -------------------------------------------------------------
@@ -292,6 +315,7 @@ Item const kItems[] = {
     { i18n::kOptMode,        "mode",        true,  mode_step,     mode_show,     mode_value },
     { i18n::kOptHud,         "hud",         false, hud_step,      hud_show,      hud_value },
     { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
+    { i18n::kOptLighting,    "rgblight",    false, light_step,    light_show,    light_value },
     { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },
     { i18n::kOptFont,        "font",        true,  font_step,     font_show,     NULL },
     { i18n::kOptScaleMode,   "scalemode",   false, scale_step,    scale_show,    NULL },
