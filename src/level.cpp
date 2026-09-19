@@ -678,14 +678,20 @@ int level::tick()
 
     if (c->local_player())
     {
+      // Frame pacing must not reach what gets drawn during a demo. clisp.cpp
+      // already hides frame_panic from the lisp side for the same reason; a
+      // recorded demo that dims itself on a busy machine is not reproducible.
+      int panic = (demo_man.current_state()!=demo_manager::NORMAL)
+                  ? 0 : massive_frame_panic;
+
       if (!shutdown_lighting)       // should we initiate a lighting shutdown?
       {
-        if (massive_frame_panic>30)
+        if (panic>30)
         {
           shutdown_lighting=100;
           shutdown_lighting_value=c->ambient;
         }
-      } else if (massive_frame_panic)  // do we need brighten towards 63?
+      } else if (panic)  // do we need brighten towards 63?
       {
         if (shutdown_lighting_value<63)
           shutdown_lighting_value++;

@@ -3043,10 +3043,16 @@ LObject *LSymbol::EvalUserFunction(LList *arg_list)
     return ret;
 }
 
-/* PtrRef check: OK */
 LObject *LObject::Eval()
 {
-    PtrRef ref1(this);
+    // `this` is a prvalue. Passing it to PtrRef selected the const-reference
+    // overload, which registered the address of a temporary copy that died at
+    // the end of this very statement. The collector then wrote the relocated
+    // pointer into dead stack memory, and `this` itself was never updated, so
+    // a collection triggered from anywhere below left it dangling.
+    // Register a named local and use that instead.
+    LObject *self = this;
+    PtrRef ref1(self);
 
     maxevaldepth = Max(maxevaldepth, ++evaldepth);
 
@@ -3059,7 +3065,7 @@ LObject *LObject::Eval()
             dprintf("%d (%d, %d, %d) TRACE : ", trace_level,
                     LSpace::Perm.GetFree(), LSpace::Tmp.GetFree(),
                     PtrRef::stack.m_size);
-            Print();
+            self->Print();
             dprintf("\n");
         }
         trace_level++;
@@ -3067,9 +3073,9 @@ LObject *LObject::Eval()
 
     LObject *ret = NULL;
 
-    if (!ptr_is_null(this))
+    if (!ptr_is_null(self))
     {
-        switch (item_type(this))
+        switch (item_type(self))
         {
         case L_BAD_CELL:
             lbreak("error: eval on a bad cell\n");
@@ -3080,20 +3086,20 @@ LObject *LObject::Eval()
         case L_NUMBER:
         case L_POINTER:
         case L_FIXED_POINT:
-            ret = this;
+            ret = self;
             break;
         case L_SYMBOL:
-            if (this == true_symbol)
-                ret = this;
+            if (self == true_symbol)
+                ret = self;
             else
             {
-                ret = ((LSymbol *)this)->GetValue();
+                ret = ((LSymbol *)self)->GetValue();
                 if (item_type(ret) == L_OBJECT_VAR)
                     ret = (LObject *)l_obj_get(((LObjectVar *)ret)->m_index);
             }
             break;
         case L_CONS_CELL:
-            ret = ((LSymbol *)CAR(this))->EvalFunction(CDR(this));
+            ret = ((LSymbol *)CAR(self))->EvalFunction(CDR(self));
             break;
         default :
             fprintf(stderr, "shouldn't happen\n");

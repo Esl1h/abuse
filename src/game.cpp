@@ -62,9 +62,17 @@
 #include "compiled.h"
 #include "pmenu.h"
 #include "chat.h"
+#include "ui/hexfont.h"
+#include "ui/options_screen.h"
+#include "ui/classic_data_screen.h"
+#include "ui/language_screen.h"
+#include "ui/overlay.h"
+#include "input/gamepad.h"
 #include "demo.h"
 #include "netcfg.h"
 #include "sdlport/util.h"
+#include "harness.h"
+#include "timing/pacer.h"
 
 #define SHIFT_RIGHT_DEFAULT 0
 #define SHIFT_DOWN_DEFAULT 30
@@ -107,7 +115,7 @@ FILE *open_FILE(char const *filename, char const *mode)
     if(get_filename_prefix() && filename[0] != '/')
 #endif
     {
-        snprintf(tmp_name, 200, "%s %s", get_filename_prefix(), filename);
+        snprintf(tmp_name, 200, "%s%s", get_filename_prefix(), filename);
     }
     else
         strcpy(tmp_name, filename);
@@ -1265,6 +1273,30 @@ void Game::request_end()
   req_end = 1;
 }
 
+// Phase 4, task 4.2: the art fonts are CP437 and cannot spell Portuguese.
+// JCFont only ever sees an image, so the replacement is an image too, and
+// nothing downstream of here knows the difference.
+void Game::build_fonts()
+{
+  if(font_pict == -1)
+    return;
+
+  delete game_font;
+  delete console_font;
+
+  image *atlas = abuse::ui::build_extended_atlas();
+  game_font = new JCFont(atlas ? atlas : cache.img(font_pict));
+  console_font = new JCFont(atlas ? atlas : cache.img(console_font_pict_used));
+  delete atlas;
+
+  // The window manager holds the font it draws its widgets with, and the chat
+  // console holds the other one. Both outlive a language change.
+  if(wm)
+    wm->set_font(game_font);
+  if(chat)
+    chat->set_font(console_font);
+}
+
 Game::Game(int argc, char **argv)
 {
   int i;
@@ -1368,9 +1400,12 @@ Game::Game(int argc, char **argv)
   } else font_pict = small_font_pict;
 
   if(console_font_pict == -1) console_font_pict = font_pict;
-  game_font = new JCFont(cache.img(font_pict));
 
-  console_font = new JCFont(cache.img(console_font_pict));
+  this->font_pict = font_pict;
+  this->console_font_pict_used = console_font_pict;
+  game_font = NULL;
+  console_font = NULL;
+  build_fonts();
 
   wm = new WindowManager(main_screen, pal, bright_color,
                          med_color, dark_color, game_font);
@@ -1393,12 +1428,22 @@ Game::Game(int argc, char **argv)
 
   // load_data loaded the mouse cursor, use it in case gamma_correct needs to show UI
   wm->SetMouseShape(cache.img(c_normal)->copy(), ivec2(1));
+
+  // First of everything, and before the gamma calibration in particular: that
+  // screen asks a question in words too. Only when nobody has said what the
+  // language is, so it runs once in the life of an install and the choice
+  // then lives in abuserc.
+  if(!start_edit && !abuse::harness::headless()
+     && abuse::ui::language_unchosen())
+    abuse::ui::run_language_screen();
+
   gamma_correct(pal);
 
   if(main_net_cfg == NULL || (main_net_cfg->state != net_configuration::SERVER &&
                  main_net_cfg->state != net_configuration::CLIENT))
   {
-    if(!start_edit && !net_start())
+    // The intro waits for a keypress; headless runs have no keyboard.
+    if(!start_edit && !net_start() && !abuse::harness::headless())
       do_title();
   } else if(main_net_cfg && main_net_cfg->state == net_configuration::SERVER)
   {
@@ -1503,14 +1548,36 @@ void Game::update_screen()
   if(state == RUN_STATE && cache.prof_is_on())
     cache.prof_poll_end();
 
+  // After the game has drawn, not before: a capture may paint over the 320x200
+  // buffer as well as the overlay, and doing it first would just be overwritten.
+  // The overlay is cleared every frame and refilled by whoever wants it, so a
+  // screen that draws nothing into it costs nothing: an untouched overlay is
+  // not uploaded at all.
+  if(abuse::harness::draw_overlay_for_capture())
+    ;                           // a scripted capture owns it this frame
+  else if(state == PAUSE_STATE && abuse::ui::draw_pad_lost_notice())
+    ;                           // the notice drew itself
+  else if(state == MENU_STATE)
+    abuse::ui::draw_options_hint();
+  else
+    abuse::ui::overlay().Clear();
+
   wm->flush_screen();
 
 }
 
-// FIXME: refactor this to use the Lol Engine main fixed-framerate loop?
+// Called once per logical tick, not once per frame. Before the fixed timestep
+// the two were the same thing, and this function both paced the loop to 15 Hz
+// and derived the panic counters from how long a loop iteration took.
+//
+// The pacing moved to abuse::timing::Pacer. What is left is the measurement,
+// and it now measures whether the world can advance fifteen times a second,
+// not whether the drawing keeps up with the display. frame_panic is read by the lisp
+// (src/clisp.cpp:446) and massive_frame_panic dims the lighting
+// (src/level.cpp:683), so they stay tied to simulation, as in 1995.
 int Game::calc_speed()
 {
-    static Timer frame_timer;
+    static Timer tick_timer;
     static int first = 1;
 
     if (first)
@@ -1519,8 +1586,7 @@ int Game::calc_speed()
         return 0;
     }
 
-    // Find average fps for last 10 frames
-    float deltams = Max(1.0f, frame_timer.PollMs());
+    float deltams = Max(1.0f, tick_timer.PollMs());
 
     avg_ms = 0.9f * avg_ms + 0.1f * deltams;
     possible_ms = 0.9f * possible_ms + 0.1f * deltams;
@@ -1530,50 +1596,64 @@ int Game::calc_speed()
 
     int ret = 0;
 
-    if (dev & EDIT_MODE)
+    if (avg_ms > 1000.0f / 14)
     {
-        // ECS - Added this case and the wait.  It's a cheap hack to ensure
-        // that we don't exceed 30FPS in edit mode and hog the CPU.
-        frame_timer.WaitMs(33);
-    }
-    else if (avg_ms < 1000.0f / 15 && need_delay)
-    {
-        frame_panic = 0;
-        if (!no_delay)
-        {
-            frame_timer.WaitMs(1000.0f / 15);
-            avg_ms -= 0.1f * deltams;
-            avg_ms += 0.1f * 1000.0f / 15;
-        }
-    }
-    else if (avg_ms > 1000.0f / 14)
-    {
-        if(avg_ms > 1000.0f / 10)
+        if (avg_ms > 1000.0f / 10)
             massive_frame_panic++;
         frame_panic++;
-        // All is lost, don't sleep during this frame
         ret = 1;
     }
+    else
+        frame_panic = 0;
 
-    // Ignore our wait time, we're more interested in the frame time
-    frame_timer.GetMs();
+    tick_timer.GetMs();
     return ret;
 }
 
 extern int start_edit;
 
+// Applies a weapon change to whoever the local player is. Called from the
+// event loop and once per tick; see consume_weapon_change.
+static void apply_weapon_change()
+{
+    int dir = consume_weapon_change();
+    if(!dir)
+        return;
+
+    for(view *v = player_list; v; v = v->next)
+        if(v->local_player() && total_weapons)
+        {
+            if(dir < 0)
+                v->last_weapon();
+            else
+                v->next_weapon();
+        }
+}
+
 void Game::get_input()
 {
     Event ev;
     idle_ticks++;
+    apply_weapon_change();
     while(event_waiting())
     {
         get_event(ev);
+
+        // F2 and F3 run their own event loops, so the key is swallowed here
+        // rather than left to be queued into the input packet below.
+        if(abuse::ui::handle_global_key(ev))
+        {
+            reset_keymap();
+            continue;
+        }
 
         if(ev.type == EV_MOUSE_MOVE)
         {
             last_input = ev.window;
         }
+
+        // After each event, so a tap shorter than a tick is still seen.
+        apply_weapon_change();
         // don't process repeated keys in the main window, it will slow down the game to handle such
         // useless events. However in other windows it might be useful, such as in input windows
         // where you want to repeatedly scroll down...
@@ -1686,7 +1766,13 @@ void Game::get_input()
                 } break;
                 case PAUSE_STATE:
                 {
-                    if(ev.type == EV_KEY && (ev.key == JK_SPACE || ev.key == JK_ENTER))
+                    // 'p' is what paused it, from the keyboard or from the
+                    // pad's Back button, so 'p' has to be what resumes: a
+                    // button that pauses and then does nothing reads as the
+                    // pause being stuck.
+                    if(ev.type == EV_KEY && (ev.key == JK_SPACE
+                                             || ev.key == JK_ENTER
+                                             || ev.key == 'p'))
                     {
                         set_state(RUN_STATE);
                     }
@@ -1890,6 +1976,14 @@ void net_receive()
 void Game::step()
 {
   LSpace::Tmp.Clear();
+
+  // The right stick orbits the player while a level is being played, and is a
+  // plain mouse everywhere else, which is how the menus are navigated. Nothing
+  // ever put it back: one visit to a level left the stick locked to a player
+  // who was no longer on screen, and the stick stopped working in the menus
+  // for the rest of the session.
+  bool aiming = false;
+
   if(current_level)
   {
     current_level->unactivate_all();
@@ -1900,7 +1994,11 @@ void Game::step()
       {
     f->update_scroll();
     // Center the control here
-    wm->SetRightStickCenter(f->m_focus->x - f->xoff(), f->m_focus->y - f->yoff());
+    if(state == RUN_STATE)
+    {
+      wm->SetRightStickCenter(f->m_focus->x - f->xoff(), f->m_focus->y - f->yoff());
+      aiming = true;
+    }
     int w, h;
 
     w = (f->m_bb.x - f->m_aa.x + 1);
@@ -1908,6 +2006,33 @@ void Game::step()
         total_active += current_level->add_actives(f->xoff()-w / 4, f->yoff()-h / 4,
                          f->xoff()+w + w / 4, f->yoff()+h + h / 4);
       }
+    }
+  }
+
+  if(!aiming)
+  {
+    wm->SetRightStickMouse();
+
+    // Drive the menu cursor from the stick position once a tick. Either stick
+    // does it, so the hand that navigates a menu is the hand the player
+    // already has on the pad.
+    abuse::input::Deadzone const &dz = abuse::input::deadzone_for_axis(2);
+    float rx = abuse::input::pad_state().axis_scaled(2, dz);
+    float ry = abuse::input::pad_state().axis_scaled(3, dz);
+    if(rx == 0.0f && ry == 0.0f)
+    {
+      abuse::input::Deadzone const &ldz = abuse::input::deadzone_for_axis(0);
+      rx = abuse::input::pad_state().axis_scaled(0, ldz);
+      ry = abuse::input::pad_state().axis_scaled(1, ldz);
+    }
+
+    if(rx != 0.0f || ry != 0.0f)
+    {
+      abuse::input::CursorStep step = abuse::input::menu_cursor_step(
+          rx, ry, abuse::input::cursor_settings().speed);
+      // SetMousePos and not SetCursorPos: the menus decide what is under the
+      // cursor from mouse move events, and warping is what produces one.
+      wm->SetMousePos(wm->CursorPos() + ivec2(step.x, step.y));
     }
   }
 
@@ -2286,6 +2411,10 @@ int main(int argc, char *argv[])
     start_argc = argc;
     start_argv = argv;
 
+    // Before setup(), which calls SDL_Init: --headless selects the dummy
+    // video and audio drivers.
+    abuse::harness::parse_args(argc, argv);
+
     for (int i = 0; i < argc; i++)
     {
         if (!strcmp(argv[i], "-cprint"))
@@ -2348,6 +2477,7 @@ int main(int argc, char *argv[])
         set_save_filename_prefix(getenv("ABUSE_SAVE_PATH"));
 
     jrand_init();
+    abuse::harness::apply_seed();   // jrand_init() seeds rand_on from the clock
     jrand(); // so compiler doesn't complain
 
     set_spec_main_file("abuse.spe");
@@ -2366,12 +2496,24 @@ int main(int argc, char *argv[])
 
         dev_init(argc, argv);
 
+        abuse::harness::before_game();
+
         Game *g = new Game(argc, argv);
 
         dev_cont = new dev_controll();
         dev_cont->load_stuff();
 
+        // The Original mode without its sound is the one startup condition
+        // worth stopping for: everything else about it works, and a player who
+        // picked that mode picked it for the original audio. Not under the
+        // harness, which has no one to read it.
+        if (!abuse::harness::headless() && abuse::ui::classic_data_missing())
+            abuse::ui::run_classic_data_screen();
+
         g->get_input(); // prime the net
+
+        if (!abuse::harness::start_demo())
+            exit(3);
 
         for (int i = 1; i + 1 < argc; i++)
         {
@@ -2397,8 +2539,19 @@ int main(int argc, char *argv[])
             g->update_screen(); // redraw the screen with any changes
         }
 
+        // Phase 2, task 2.4: the logical tick is fixed at 15 Hz and the frame is
+        // free. A scripted run keeps one tick per iteration, so the replay and
+        // snapshot suites measure exactly what they measured before, and a
+        // playback still consumes one recorded packet per tick.
+        abuse::timing::Pacer pacer;
+        Timer frame_clock;
+        bool const fixed_timestep = !abuse::harness::headless();
+
         while (!g->done())
         {
+            if (!abuse::harness::tick())
+                break;
+
             music_check();
 
             if (req_end)
@@ -2409,38 +2562,61 @@ int main(int argc, char *argv[])
 
                 the_game->set_state(MENU_STATE);
                 req_end = 0;
+                pacer.reset();
             }
 
-            if (demo_man.current_state() == demo_manager::NORMAL)
-                net_receive();
-
-            // see if a request for a level load was made during the last tick
-            if (req_name[0])
+            int ticks = 1;
+            if (fixed_timestep)
             {
-                g->load_level(req_name);
-                req_name[0] = 0;
-                g->draw(g->state == SCENE_STATE);
+                ticks = pacer.advance(frame_clock.PollMs());
+                frame_clock.GetMs();
             }
 
-            //if (demo_man.current_state() != demo_manager::PLAYING)
-                g->get_input();
+            for (int t = 0; t < ticks; t++)
+            {
+                if (demo_man.current_state() == demo_manager::NORMAL)
+                    net_receive();
 
-            if (demo_man.current_state() == demo_manager::NORMAL)
-                net_send();
-            else
-                demo_man.do_inputs();
+                // see if a request for a level load was made during the last tick
+                if (req_name[0])
+                {
+                    g->load_level(req_name);
+                    req_name[0] = 0;
+                    g->draw(g->state == SCENE_STATE);
+                    // Loading blocks for a while; chasing that pause would run
+                    // a burst of ticks the player never played.
+                    pacer.reset();
+                }
 
-            service_net_request();
+                //if (demo_man.current_state() != demo_manager::PLAYING)
+                    g->get_input();
 
-            // process all the objects in the world
-            g->step();
-            server_check();
-            g->calc_speed();
+                if (demo_man.current_state() == demo_manager::NORMAL)
+                    net_send();
+                else
+                    demo_man.do_inputs();
+
+                service_net_request();
+
+                // process all the objects in the world
+                g->step();
+                server_check();
+                g->calc_speed();
+
+                if (req_name[0])
+                    break;      // level change: draw before stepping further
+            }
 
             // see if a request for a level load was made during the last tick
             if (!req_name[0])
+            {
+                abuse::harness::before_frame();
                 g->update_screen(); // redraw the screen with any changes
+                abuse::harness::after_frame();
+            }
         }
+
+        abuse::harness::finish();
 
         net_uninit();
 

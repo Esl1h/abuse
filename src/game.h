@@ -81,11 +81,29 @@ private:
 
   Jwindow *top_menu,*joy_win,*last_input;
   JCFont *game_font;
+
+  // Which art images the fonts came from, remembered so they can be rebuilt
+  // when the language changes and the glyph set has to change with it.
+  int font_pict, console_font_pict_used;
   uint8_t keymap[512/8];
 
 public :
-  int key_down(int key) { return keymap[key/8]&(1<<(key%8)); }
-  void set_key_down(int key, int x) { if (x) keymap[key/8]|=(1<<(key%8)); else keymap[key/8]&=~(1<<(key%8)); }
+  // Rebuilds game_font and console_font for the language in force. Called at
+  // startup and again whenever the language changes, because the glyph set
+  // changes with it.
+  void build_fonts();
+
+  // Out of range is not an error worth reporting: src/sdlport/event.cpp uses
+  // -1 for a gamepad button with nothing bound to it, deliberately, so the
+  // controller can still dismiss the intro. Reaching the shift with it is
+  // undefined behaviour ("shift exponent -1 is negative"), so it stops here.
+  static bool key_in_range(int key) { return key >= 0 && key < 512; }
+  int key_down(int key) { return key_in_range(key) ? (keymap[key/8]&(1<<(key%8))) : 0; }
+  void set_key_down(int key, int x)
+  {
+    if (!key_in_range(key)) return;
+    if (x) keymap[key/8]|=(1<<(key%8)); else keymap[key/8]&=~(1<<(key%8));
+  }
   void reset_keymap() { memset(keymap,0,sizeof(keymap)); }
 
   int nplayers;

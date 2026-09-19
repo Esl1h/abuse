@@ -31,6 +31,11 @@ public:
         stack.push((void **)&ref);
     }
 
+    // Registering an rvalue stores the address of a temporary that dies at the
+    // end of the declaration, leaving the collector writing to dead stack.
+    // `PtrRef ref(this)` used to compile and do exactly that.
+    template<typename T> PtrRef(T *&&) = delete;
+
     inline ~PtrRef()
     {
         stack.pop(1);
