@@ -86,6 +86,10 @@ void set_spec_main_file(char const *filename, int search_order=SPEC_SEARCH_OUTSI
 
 void set_filename_prefix(char const *prefix);
 char *get_filename_prefix();
+
+// Secondary read-only search path, tried when the main prefix misses.
+void set_fallback_filename_prefix(char const *prefix);
+char *get_fallback_filename_prefix();
 void set_save_filename_prefix(char const *prefix);
 char *get_save_filename_prefix();
 #define JFILE_CLONED 1

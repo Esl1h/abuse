@@ -1,0 +1,14 @@
+# The original Abuse data, verified when the Original mode is installed.
+# Source: http://abuse.zoy.org/wiki/download
+#
+# None of this enters the repository or the official package (AGENTS.md rule 2).
+# The user downloads the files and they land in $XDG_DATA_HOME/abuse/classic/.
+#
+# abuse-sfx-2.00.tar.gz  81 .wav effects by Bobby Prince, covering the 73 the
+#                        game references. Redistribution with Abuse-SDL is
+#                        allowed; modification is not.
+# abuse-data-2.00.tar.gz The registered set, of which only the 14 .hmi music
+#                        tracks are used. The source itself describes the
+#                        licence as undefined.
+042af3e5ae2b0d402593d375c31d643d91da9e83180e8971d563c0878f570c60  abuse-sfx-2.00.tar.gz
+89687ace7805a8d1b5a0179953ffb86d09fe57c26df4b55ec050c0414e535196  abuse-data-2.00.tar.gz

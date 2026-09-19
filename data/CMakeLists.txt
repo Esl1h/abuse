@@ -32,6 +32,7 @@ INSTALL(FILES
     lisp/options.lsp
     lisp/people.lsp
     lisp/platform.lsp
+    lisp/portuguese.lsp
     lisp/playwav.lsp
     lisp/powerup.lsp
     lisp/sfx.lsp
@@ -43,6 +44,11 @@ INSTALL(FILES
     lisp/version.lsp
     lisp/weapons.lsp
 DESTINATION ${ASSETDIR}/lisp)
+
+# Glyph set for the languages the art fonts cannot spell.
+INSTALL(FILES
+    fonts/unscii-8-thin.hex
+DESTINATION ${ASSETDIR}/fonts)
 
 # bong - example from crack.com
 INSTALL(FILES

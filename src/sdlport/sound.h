@@ -34,7 +34,10 @@ public:
     void play(int volume = 127, int pitch = 128, int panpot = 128);
 
 private:
-    MIX_Audio* m_chunk;
+    // Must start null: the constructor returns early when sound is off or the
+    // file is missing, and an uninitialised pointer reaching MIX_SetTrackAudio
+    // crashes inside SDL_mixer.
+    MIX_Audio* m_chunk = NULL;
 };
 
 class song

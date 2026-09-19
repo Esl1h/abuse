@@ -35,6 +35,8 @@
 #endif
 
 #include "sound.h"
+
+#include "data/paths.h"
 #include "hmi.h"
 #include "specs.h"
 #include "setup.h"
@@ -154,7 +156,11 @@ int sound_init( int argc, char **argv )
 #endif
 
     // Check for the sfx directory, disable sound if we can't find it.
-    datadir = get_filename_prefix();
+    // In Original mode the sounds live in the overlay, not in the data
+    // directory, so look there first when one is set.
+    datadir = get_fallback_filename_prefix();
+    if( datadir == NULL )
+        datadir = get_filename_prefix();
     size_t len = SDL_strlen( datadir ) + 4;
     sfxdir = (char *)SDL_malloc( len );
     if (sfxdir == NULL)
@@ -173,8 +179,16 @@ int sound_init( int argc, char **argv )
     if( (fd = fopen( sfxdir,"r" )) == NULL )
 #endif
     {
-        // Didn't find the directory, so disable sound.
-        printf( "Sound: Disabled (couldn't find the sfx directory %s)\n", sfxdir );
+        // Didn't find the directory, so disable sound. Not an error: the
+        // Remastered mode has no free sound set yet, which is phase 5, and
+        // the Original mode has one the moment its data is installed.
+        if( abuse::data::mode() == abuse::data::Mode::Original )
+            printf( "Sound: none yet. Original mode looks in %s;\n"
+                    "       run scripts/fetch-classic-data.sh to install it.\n",
+                    sfxdir );
+        else
+            printf( "Sound: none yet. The Remastered mode has no free sound\n"
+                    "       set so far; --mode original uses the classic one.\n" );
         return 0;
     }
     free( sfxdir );
@@ -230,15 +244,40 @@ sound_effect::sound_effect(char const *filename)
     if (!sound_enabled)
         return;
 
-    jFILE fp(filename, "rb");
-    if (fp.open_failure())
+    // open_file, not jFILE: the Original mode serves its sounds from the
+    // overlay, and only open_file consults it. Going straight to jFILE looked
+    // in the data directory alone, found nothing, and left every sound without
+    // a chunk, which is why the Original mode was silent and then crashed on
+    // the first shot.
+    bFILE *file = open_file(filename, "rb");
+    if (file->open_failure())
+    {
+        delete file;
         return;
+    }
+    bFILE &fp = *file;
 
     void *temp_data = SDL_malloc(fp.file_size());
+    if (!temp_data)
+    {
+        delete file;
+        return;
+    }
     fp.read(temp_data, fp.file_size());
     SDL_IOStream *ios = SDL_IOFromMem(temp_data, fp.file_size());
-    m_chunk = MIX_LoadAudio_IO(mixer, ios, 1, 1);
+    if (!ios)
+    {
+        SDL_free(temp_data);
+        delete file;
+        return;
+    }
+
+    // predecode = true, so the samples are copied out and temp_data can go.
+    m_chunk = MIX_LoadAudio_IO(mixer, ios, true, true);
+    if (!m_chunk)
+        printf("Sound: could not decode %s: %s\n", filename, SDL_GetError());
     SDL_free(temp_data);
+    delete file;
 }
 
 //
@@ -280,10 +319,16 @@ void sound_effect::play(int volume, int pitch, int panpot)
 {
     if (!sound_enabled)
         return;
+    // A sound whose file was missing or failed to decode has no chunk; playing
+    // it must be a no-op, not a crash inside SDL_mixer.
+    if (m_chunk == NULL)
+        return;
+
     MIX_Track* track = find_available_track();
     if (track == NULL)
         return;
-    MIX_SetTrackAudio(track, m_chunk);
+    if (!MIX_SetTrackAudio(track, m_chunk))
+        return;
     MIX_SetTrackGain(track, volume / 255.0f);
     MIX_StereoGains stereo;
     stereo.left = panpot / 255.0f;
@@ -307,10 +352,25 @@ song::song(char const * filename)
     rw = NULL;
     music = NULL;
 
+    // Built by hand instead of going through open_file, so the overlay has to
+    // be applied here too: in Original mode the music lives with the sounds.
     char* realname = join_strings(get_filename_prefix(), filename);
 
     uint32_t data_size;
     data = load_hmi(realname, data_size);
+
+    if (!data && get_fallback_filename_prefix())
+    {
+        char* alt = join_strings(get_fallback_filename_prefix(), filename);
+        data = load_hmi(alt, data_size);
+        if (data)
+        {
+            SDL_free(realname);
+            realname = alt;
+        }
+        else
+            SDL_free(alt);
+    }
 
     if (!data)
     {

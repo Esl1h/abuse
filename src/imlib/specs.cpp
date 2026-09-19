@@ -74,6 +74,10 @@ char spec_main_file[100];
 
 static char *spec_prefix=NULL;
 static char *save_spec_prefix=NULL;
+// Searched only when the main prefix does not have the file. The Original
+// mode uses it to overlay the user-supplied sound and music on top of the
+// free data, instead of replacing the whole tree.
+static char *fallback_spec_prefix=NULL;
 
 static jFILE spec_main_jfile((FILE*)0);
 static int spec_main_fd = -1;
@@ -106,6 +110,32 @@ void set_filename_prefix(char const *prefix)
 char *get_filename_prefix()
 {
     return spec_prefix;
+}
+
+void set_fallback_filename_prefix(char const *prefix)
+{
+    if( fallback_spec_prefix )
+    {
+        free( fallback_spec_prefix );
+        fallback_spec_prefix = NULL;
+    }
+
+    if( prefix && *prefix )
+    {
+        int len = strlen( prefix );
+        fallback_spec_prefix = (char *)malloc( len + 2 );
+        strcpy( fallback_spec_prefix, prefix );
+        if( prefix[len - 1] != '\\' && prefix[len - 1] != '/' )
+        {
+            fallback_spec_prefix[len] = PATH_SEPARATOR_CHAR;
+            fallback_spec_prefix[len + 1] = 0;
+        }
+    }
+}
+
+char *get_fallback_filename_prefix()
+{
+    return fallback_spec_prefix;
 }
 
 
@@ -375,18 +405,50 @@ void set_file_opener(bFILE *(*open_fun)(char const *, char const *))
   open_file_fun=open_fun;
 }
 
+namespace {
+
+bool is_read_only(char const *mode)
+{
+  for (char const *s = mode; s && *s; s++)
+    if (*s == 'w' || *s == 'W' || *s == 'a' || *s == 'A' || *s == '+')
+      return false;
+  return true;
+}
+
+}
+
 bFILE *open_file(char const *filename, char const *mode)
 {
   if (!verify_file_fun || verify_file_fun(filename,mode))
   {
+    bFILE *fp;
     if (open_file_fun)
-    {
-      return open_file_fun(filename,mode);
-    }
+      fp = open_file_fun(filename,mode);
     else
+      fp = new jFILE(filename,mode);
+
+    // Overlay: a read the main tree does not satisfy is retried under the
+    // fallback prefix. Used by the Original mode to supply the sound and
+    // music that the free data set lacks, without replacing the tree and
+    // losing the levels and art that come with it.
+    //
+    // Hooked here rather than inside jFILE because the network file opener
+    // replaces jFILE entirely, and the overlay has to apply to both.
+    if (fallback_spec_prefix && fp && fp->open_failure()
+        && is_read_only(mode) && filename[0] != '/')
     {
-      return new jFILE(filename,mode);
+      char alt_name[512];
+      snprintf(alt_name, sizeof(alt_name), "%s%s", fallback_spec_prefix, filename);
+      bFILE *alt = new jFILE(alt_name, mode);
+      if (!alt->open_failure())
+      {
+        delete fp;
+        return alt;
+      }
+      delete alt;
     }
+
+    return fp;
   }
   else
   {
@@ -835,13 +897,12 @@ long spec_directory::data_start_offset()
 
 long spec_directory::data_end_offset()
 {
-    /* FIXME: no need for a for loop here! */
-  spec_entry **e;
-  long i;
-  for (i=total-1,e=entries; i>=0; i--,e++)
-    return (*e)->offset+(*e)->size;
+  // If no entries, return where data would start anyway
+  if (total == 0)
+    return SPEC_SIG_SIZE + 2;
 
-  return SPEC_SIG_SIZE+2;
+  // Return the end of the last entry
+  return entries[total - 1]->offset + entries[total - 1]->size;
 }
 
 int spec_directory::write(bFILE *fp)
