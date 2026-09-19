@@ -28,6 +28,9 @@
 
 #include "filter.h"
 #include "video.h"
+#include "render/options.h"
+#include "ui/overlay.h"
+#include "harness.h"
 #include "image.h"
 #include "setup.h"
 #include "errorui.h"
@@ -42,6 +45,64 @@ int xres, yres;
 
 extern palette *lastl;
 extern flags_struct flags;
+
+namespace {
+
+SDL_RendererLogicalPresentation presentation_for(abuse::render::ScaleMode m)
+{
+    switch (m)
+    {
+    case abuse::render::ScaleMode::Integer: return SDL_LOGICAL_PRESENTATION_INTEGER_SCALE;
+    case abuse::render::ScaleMode::Stretch: return SDL_LOGICAL_PRESENTATION_STRETCH;
+    case abuse::render::ScaleMode::Fit:     break;
+    }
+    return SDL_LOGICAL_PRESENTATION_LETTERBOX;
+}
+
+SDL_ScaleMode scale_mode_for(abuse::render::Filter f)
+{
+    switch (f)
+    {
+    case abuse::render::Filter::Nearest: return SDL_SCALEMODE_NEAREST;
+    case abuse::render::Filter::Linear:  return SDL_SCALEMODE_LINEAR;
+    case abuse::render::Filter::PixelArt: break;
+    }
+    return SDL_SCALEMODE_PIXELART;
+}
+
+}
+
+// The 320x200 mode is presented as 320x240 on purpose: the original pixels are
+// not square, and lying about the logical height restores the intended shape.
+void apply_presentation()
+{
+    if (renderer == NULL)
+        return;
+
+    SDL_RendererLogicalPresentation mode = presentation_for(abuse::render::options().scale);
+
+    if (xres == 320 && yres == 200)
+    {
+        SDL_SetRenderLogicalPresentation(renderer, 320, 240, mode);
+        mouse_yscale = 200.0f / 240.0f;
+    }
+    else
+    {
+        SDL_SetRenderLogicalPresentation(renderer, xres, yres, mode);
+        mouse_yscale = 1.0f;
+    }
+
+    // There is no display to sync to in a scripted run, and waiting for one
+    // costs about 45% of the wall time of a replay.
+    bool vsync = abuse::render::options().vsync && !abuse::harness::headless();
+    SDL_SetRenderVSync(renderer, vsync ? 1 : SDL_RENDERER_VSYNC_DISABLED);
+}
+
+void apply_filter()
+{
+    if (texture != NULL)
+        SDL_SetTextureScaleMode(texture, scale_mode_for(abuse::render::options().filter));
+}
 
 //
 // set_mode()
@@ -60,14 +121,44 @@ void set_mode(int argc, char **argv)
         // Correct for the weird 320x200 aspect ratio
         win_width = 640;
         win_height = 480;
+
+        // 640x480 was the whole screen in 1996 and is a postage stamp on a
+        // modern display. Take the largest whole multiple that leaves room
+        // for the desktop's own furniture, so the pixels stay square and the
+        // window still fits: 1280x960 at 1080p, 1920x1440 at 1440p.
+        SDL_DisplayID display = SDL_GetPrimaryDisplay();
+        SDL_Rect usable;
+        if (display && SDL_GetDisplayUsableBounds(display, &usable))
+        {
+            int by_width = usable.w * 9 / 10 / 320;
+            int by_height = usable.h * 9 / 10 / 240;
+            int multiple = by_width < by_height ? by_width : by_height;
+            if (multiple > 6)
+                multiple = 6;
+            if (multiple > 2)
+            {
+                win_width = 320 * multiple;
+                win_height = 240 * multiple;
+            }
+        }
     }
+
+    // A scripted run pins the window: the window snapshots compare what was
+    // presented, and the scale mode, the filter and the letterbox all depend
+    // on the shape of the window it was presented into.
+    bool pinned = abuse::harness::window_size(win_width, win_height);
 
     // FIXME: Set the icon for this window.  Looks nice on taskbars etc.
     //SDL_WM_SetIcon(SDL_LoadBMP("abuse.bmp"), NULL);
 
-    window = SDL_CreateWindow("Abuse",
-        win_width, win_height,
-        flags.fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+    // HIGH_PIXEL_DENSITY lets the renderer use the full backing resolution on a
+    // scaled display; the logical presentation set below keeps the game at
+    // 320x200 regardless, so this only sharpens the upscale.
+    SDL_WindowFlags window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    if (flags.fullscreen && !pinned)
+        window_flags |= SDL_WINDOW_FULLSCREEN;
+
+    window = SDL_CreateWindow("Abuse", win_width, win_height, window_flags);
     if(window == NULL)
     {
         show_startup_error("Video : Unable to create window : %s", SDL_GetError());
@@ -79,14 +170,7 @@ void set_mode(int argc, char **argv)
         show_startup_error("Video : Unable to create renderer : %s", SDL_GetError());
         exit(1);
     }
-    if (xres == 320 && yres == 200) {
-        // Lie. This fixes the aspect ratio for us.
-        SDL_SetRenderLogicalPresentation(renderer, 320, 240, SDL_LOGICAL_PRESENTATION_LETTERBOX);
-        mouse_yscale = 200.0f / 240.0f;
-    } else {
-        SDL_SetRenderLogicalPresentation(renderer, xres, yres, SDL_LOGICAL_PRESENTATION_LETTERBOX);
-        mouse_yscale = 1.0f;
-    }
+    apply_presentation();
 
     // Create the screen image
     main_screen = new image(ivec2(xres, yres), NULL, 2);
@@ -116,14 +200,15 @@ void set_mode(int argc, char **argv)
         show_startup_error("Video : Unable to create texture: %s", SDL_GetError());
         exit(1);
     }
-    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
+    apply_filter();
 
     const SDL_DisplayMode* mode;
     mode = SDL_GetWindowFullscreenMode(window);
     if (mode == NULL)
     {
         // Mode can be NULL meaning "not full screen"
-        printf("Video : windowed (renderer: %s)\n", SDL_GetRendererName(renderer));
+        printf("Video : %dx%d windowed (renderer: %s)\n", win_width, win_height,
+               SDL_GetRendererName(renderer));
     }
     else
     {
@@ -286,6 +371,104 @@ void palette::load_nice()
 
 // ---- support functions ----
 
+bool save_frame_bmp(char const *path)
+{
+    if (surface == NULL)
+        return false;
+    return SDL_SaveBMP(surface, path);
+}
+
+bool game_rect_to_window(int gx, int gy, int gw, int gh,
+                         int &x, int &y, int &w, int &h)
+{
+    if (renderer == NULL)
+        return false;
+
+    int logical_w = 0, logical_h = 0;
+    SDL_RendererLogicalPresentation mode;
+    if (!SDL_GetRenderLogicalPresentation(renderer, &logical_w, &logical_h, &mode)
+        || logical_w < 1 || logical_h < 1)
+        return false;
+
+    SDL_FRect dst;
+    if (!SDL_GetRenderLogicalPresentationRect(renderer, &dst))
+        return false;
+
+    // The game's buffer is stretched over the whole logical area, which for
+    // 320x200 is 320x240: that is the aspect correction, and it applies to
+    // anything measured against what the game drew.
+    float sx = dst.w / (float)xres;
+    float sy = dst.h / (float)yres;
+
+    x = (int)(dst.x + gx * sx);
+    y = (int)(dst.y + gy * sy);
+    w = (int)(gw * sx);
+    h = (int)(gh * sy);
+    return true;
+}
+
+static SDL_Texture *overlay_texture = NULL;
+static int overlay_tex_w = 0;
+static int overlay_tex_h = 0;
+
+bool window_pixel_size(int &w, int &h)
+{
+    if (renderer == NULL)
+        return false;
+
+    // SDL_GetRenderOutputSize and not SDL_GetCurrentRenderOutputSize: the
+    // second one answers with the *logical* size whenever a logical
+    // presentation is set, which here is 320x240. The overlay is composited
+    // with that presentation turned off, so a buffer built to the logical
+    // size was stretched across the window: at 1280x720 every glyph came out
+    // a third wider than tall.
+    return SDL_GetRenderOutputSize(renderer, &w, &h);
+}
+
+// Draws the native resolution layer over the scaled game frame. The logical
+// presentation has to be off while it happens: with it on the overlay would be
+// scaled like the 320x200 buffer and lose the sharpness it exists for.
+static void draw_overlay()
+{
+    abuse::ui::Overlay &ov = abuse::ui::overlay();
+    if (!ov.Dirty())
+        return;
+
+    if (overlay_texture == NULL || overlay_tex_w != ov.Width()
+        || overlay_tex_h != ov.Height())
+    {
+        if (overlay_texture)
+            SDL_DestroyTexture(overlay_texture);
+        overlay_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                            SDL_TEXTUREACCESS_STREAMING,
+                                            ov.Width(), ov.Height());
+        if (overlay_texture == NULL)
+            return;
+        SDL_SetTextureBlendMode(overlay_texture, SDL_BLENDMODE_BLEND);
+        // One overlay pixel is one window pixel, so nothing to filter.
+        SDL_SetTextureScaleMode(overlay_texture, SDL_SCALEMODE_NEAREST);
+        overlay_tex_w = ov.Width();
+        overlay_tex_h = ov.Height();
+    }
+
+    SDL_UpdateTexture(overlay_texture, NULL, ov.Pixels(), ov.Pitch());
+
+    SDL_SetRenderLogicalPresentation(renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    SDL_RenderTexture(renderer, overlay_texture, NULL, NULL);
+    apply_presentation();
+}
+
+static char g_window_capture[512] = "";
+
+void request_window_capture(char const *path)
+{
+    if (!path)
+        g_window_capture[0] = 0;
+    else
+        SDL_strlcpy(g_window_capture, path, sizeof(g_window_capture));
+}
+
 void update_window_done()
 {
     // Convert to match the display texture
@@ -296,7 +479,37 @@ void update_window_done()
         SDL_BlitSurface(surface, NULL, screen, NULL);
         SDL_UnlockTexture(texture);
     }
+    uint8_t const *bar = abuse::render::options().letterbox;
+    SDL_SetRenderDrawColor(renderer, bar[0], bar[1], bar[2], 255);
     SDL_RenderClear(renderer);
     SDL_RenderTexture(renderer, texture, NULL, NULL);
+    draw_overlay();
+
+    // Before the present: on several backends the target is no longer
+    // readable once it has been presented.
+    if (g_window_capture[0])
+    {
+        // Readback is clipped to the viewport, and the logical presentation
+        // makes the viewport the letterboxed content area. Turning it off for
+        // the read is what puts the bars in the picture, which is half of
+        // what these captures exist to check.
+        SDL_SetRenderLogicalPresentation(renderer, 0, 0,
+                                         SDL_LOGICAL_PRESENTATION_DISABLED);
+        SDL_Surface *shot = SDL_RenderReadPixels(renderer, NULL);
+        apply_presentation();
+
+        if (shot)
+        {
+            if (!SDL_SaveBMP(shot, g_window_capture))
+                fprintf(stderr, "unable to write '%s': %s\n",
+                        g_window_capture, SDL_GetError());
+            SDL_DestroySurface(shot);
+        }
+        else
+            fprintf(stderr, "unable to read the window back: %s\n",
+                    SDL_GetError());
+        g_window_capture[0] = 0;
+    }
+
     SDL_RenderPresent(renderer);
 }

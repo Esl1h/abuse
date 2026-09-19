@@ -29,6 +29,33 @@ void set_mode(int argc=0, char **argv=NULL);
 void close_graphics();
 void update_window_done();
 
+// Writes the current 8-bit frame, palette included, as a BMP.
+// Returns false if the file could not be written.
+bool save_frame_bmp(char const *path);
+
+// Asks for the next presented frame to be written to `path`, at window size
+// and after scaling, filtering and letterboxing. The 8-bit dump above is taken
+// from the buffer the game draws into, before any of that happens, so it
+// cannot see a wrong scale mode, a wrong filter or a misplaced letterbox.
+// Reading has to happen before the present, which is why this is a request and
+// not a call.
+void request_window_capture(char const *path);
+
+// The size in real pixels the overlay has to be, which is the window's and not
+// the game's 320x200. False before the video is up.
+bool window_pixel_size(int &w, int &h);
+
+// Where a rectangle of the game's own 320x200 buffer lands in window pixels,
+// after the logical presentation has scaled and letterboxed it. The overlay is
+// in window pixels and the game is not, so anything that has to line up with
+// what the game drew goes through here. False before the video is up.
+bool game_rect_to_window(int gx, int gy, int gw, int gh,
+                         int &x, int &y, int &w, int &h);
+
+// Re-apply the presentation and filter options to the live renderer.
+void apply_presentation();
+void apply_filter();
+
 void update_dirty(image *im, int xoff=0, int yoff=0);
 void put_part_image(image *im, int x, int y, int x1, int y1, int x2, int y2);
 void put_image(image * im, int x, int y);
