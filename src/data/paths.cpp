@@ -81,7 +81,36 @@ bool parse_mode(char const *name, Mode &out)
 
 std::string mode_file(const Env &env)
 {
+    // Wherever the rest of the configuration is. An install that still has
+    // the legacy directory keeps everything inside it, so that deleting that
+    // one directory still uninstalls the game's state.
+    if (legacy_dir_exists(env))
+        return legacy_dir(env) + "mode";
     return config_home(env) + "/abuse/mode";
+}
+
+namespace {
+
+// mkdir -p for the directory a file is going into. On a machine with the
+// legacy ~/.abuse the XDG tree is never created, because nothing else the
+// game writes goes there, so the first thing to write has to create it.
+bool make_parent(std::string const &file)
+{
+    std::string::size_type slash = file.rfind('/');
+    if (slash == std::string::npos)
+        return true;
+
+    std::string dir = file.substr(0, slash);
+    for (std::string::size_type i = 1; i <= dir.size(); i++)
+    {
+        if (i < dir.size() && dir[i] != '/')
+            continue;
+        if (!abuse::make_directory(dir.substr(0, i).c_str()))
+            return false;
+    }
+    return true;
+}
+
 }
 
 bool load_saved_mode(const Env &env, Mode &out)
@@ -104,6 +133,9 @@ bool load_saved_mode(const Env &env, Mode &out)
 bool save_mode(const Env &env, Mode m)
 {
     std::string path = mode_file(env);
+    if (!make_parent(path))
+        return false;
+
     FILE *f = fopen(path.c_str(), "wb");
     if (!f)
         return false;

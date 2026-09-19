@@ -111,6 +111,17 @@ void step_difficulty(int dir)
 
 // ---- the rows -------------------------------------------------------------
 
+// The row writes the choice down as it is made: the menu has no OK button,
+// and a mode that only applies next time has to survive being chosen.
+void toggle_mode()
+{
+    data::Env env = data::system_env();
+    data::set_mode(data::mode() == data::Mode::Original
+                       ? data::Mode::Remaster : data::Mode::Original);
+    if (!data::save_mode(env, data::mode()))
+        printf("Mode: could not write %s\n", data::mode_file(env).c_str());
+}
+
 char const *mode_label()
 {
     return say(data::mode() == data::Mode::Original
@@ -354,10 +365,7 @@ StartAction run_start_menu()
                 step_difficulty(dir);
             else if (acts[selected] == ActMode)
             {
-                data::set_mode(data::mode() == data::Mode::Original
-                                   ? data::Mode::Remaster : data::Mode::Original);
-                if (!data::save_mode(data::system_env(), data::mode()))
-                    printf("Mode: %s\n", say(i18n::kNotSaved));
+                toggle_mode();
             }
             continue;
         }
@@ -390,10 +398,7 @@ StartAction run_start_menu()
             step_difficulty(1);
             break;
         case ActMode:
-            data::set_mode(data::mode() == data::Mode::Original
-                               ? data::Mode::Remaster : data::Mode::Original);
-            if (!data::save_mode(data::system_env(), data::mode()))
-                printf("Mode: %s\n", say(i18n::kNotSaved));
+            toggle_mode();
             break;
         case ActBrightness:
             overlay().Clear();

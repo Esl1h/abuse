@@ -706,10 +706,14 @@ void run_options_screen()
         // own, a level above them.
         if (strcmp(changed_keys[i], "mode") == 0)
         {
-            if (data::save_mode(data::system_env(), data::mode()))
+            data::Env env = data::system_env();
+            if (data::save_mode(env, data::mode()))
                 wrote = true;
             else
-                failed = true;
+                // Reported here rather than through `failed`, which would
+                // name abuserc: this is a different file.
+                printf("Mode: could not write %s\n",
+                       data::mode_file(env).c_str());
             continue;
         }
 
