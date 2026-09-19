@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "data/config_file.h"
+#include "data/paths.h"
 #include "sdlport/setup.h"
 #include "hexfont.h"
 #include "i18n/language.h"
@@ -59,6 +60,29 @@ int clamp_step(int v, int dir, int step, int lo, int hi)
     if (v < lo) v = lo;
     if (v > hi) v = hi;
     return v;
+}
+
+// ---- mode -----------------------------------------------------------------
+
+// Which set of data and rules the game runs on. It only takes effect on the
+// next run: the data prefix, the sound and the save directory are all chosen
+// during startup, and re-pointing them with a level loaded is a good deal
+// more than a settings row should attempt.
+void mode_step(int)
+{
+    data::set_mode(data::mode() == data::Mode::Original
+                       ? data::Mode::Remaster : data::Mode::Original);
+}
+
+void mode_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", say(data::mode() == data::Mode::Original
+                                   ? i18n::kModeOriginal : i18n::kModeRemaster));
+}
+
+void mode_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", data::mode_name(data::mode()));
 }
 
 // ---- language -------------------------------------------------------------
@@ -220,6 +244,7 @@ void cursor_show(char *buf, size_t n)
 void same_as_shown(char *buf, size_t n) { (void)buf; (void)n; }
 
 Item const kItems[] = {
+    { i18n::kOptMode,        "mode",        true,  mode_step,     mode_show,     mode_value },
     { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },
     { i18n::kOptFont,        "font",        true,  font_step,     font_show,     NULL },
     { i18n::kOptScaleMode,   "scalemode",   false, scale_step,    scale_show,    NULL },
@@ -650,6 +675,19 @@ void run_options_screen()
     {
         if (!changed_keys[i])
             continue;
+
+        // The mode is the one setting that cannot live in abuserc: that file
+        // is inside a directory named after the mode. It has a file of its
+        // own, a level above them.
+        if (strcmp(changed_keys[i], "mode") == 0)
+        {
+            if (data::save_mode(data::system_env(), data::mode()))
+                wrote = true;
+            else
+                failed = true;
+            continue;
+        }
+
         char value[64];
         value_string(kItems[i], value, sizeof(value));
         if (data::save_config_key(path, changed_keys[i], value))

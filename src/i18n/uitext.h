@@ -47,6 +47,9 @@ inline constexpr Phrase kNotSaved       = { "could not write abuserc",
 inline constexpr Phrase kOn             = { "on", "ligado" };
 inline constexpr Phrase kOff            = { "off", "desligado" };
 
+inline constexpr Phrase kOptMode        = { "Mode", "Modo" };
+inline constexpr Phrase kModeOriginal   = { "Original", "Original" };
+inline constexpr Phrase kModeRemaster   = { "Remastered", "Remasterizado" };
 inline constexpr Phrase kOptLanguage    = { "Language", "Idioma" };
 inline constexpr Phrase kOptFont        = { "Font", "Fonte" };
 inline constexpr Phrase kOptScaleMode   = { "Scale mode", "Modo de escala" };
