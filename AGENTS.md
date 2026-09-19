@@ -25,10 +25,10 @@ Goals:
 where the planning lives: `docs/plan/README.md` with the state of each phase, one file
 per phase, `docs/plan/proximos-passos.md`, `docs/plan/validacao-humana.md` and the rest.
 A fresh clone has none of it; what is public about the direction of the project is in
-[`TODO.md`](TODO.md).
+the [`README.md`](README.md).
 
 An agent working on a machine that has `docs/` should read it as before. In a clone
-without it, `TODO.md` and this file are the whole contract.
+without it, the README and this file are the whole contract.
 
 ### References
 
@@ -71,7 +71,6 @@ without it, `TODO.md` and this file are the whole contract.
 ├── CMakePresets.json    # upstream's Windows/macOS presets + dev/release/asan/headless
 ├── cmake/CPM.cmake      # upstream's dependency manager
 ├── vcpkg.json           # leftover from the SDL2 path; not used by the current build
-├── TODO.md              # what is done and what is open
 ├── src/                 # C++ engine
 │   ├── (root)           # loop, level, objects, AI, HUD, menu, editor
 │   ├── data/            # per-mode paths, classic data, writing back to abuserc
@@ -237,13 +236,13 @@ chore(ci): Linux/Windows/macOS matrix
 For each task:
 
 1. Read `docs/plan/README.md` and the file for the phase, when `docs/` exists on this
-   machine; otherwise `TODO.md`.
+   machine; otherwise the README.
 2. Read `ARCHITECTURE.md` and the source files involved before proposing a change.
 3. Plan in a few steps and list the files that will be touched.
 4. Implement the smallest change that meets the acceptance criterion.
 5. Build and run the tests (section 5). Do not report done with a failing test.
 6. Update the documentation that the change affects (`ARCHITECTURE.md`, the phase file,
-   `MANIFEST.toml`, `TODO.md`).
+   `MANIFEST.toml`, `README.md`).
 7. Deliver: a summary, the relevant diff, the test results, the risks, and what needs a
    human to judge it.
 

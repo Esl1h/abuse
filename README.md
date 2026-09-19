@@ -1,186 +1,133 @@
-Abuse README
-============
+# Abuse
 
-This is a fork of the original Abuse SDL port from <http://abuse.zoy.org/>. It
-switches the build system to CMake to make cross-platform building easier, and
-ports the original SDL version to SDL3. This version also removes some of the
-content that was in the original abuse.zoy.org version (namely, fRaBs), as the
-licensing information for it had some conflicting information.
+A 2D action platformer with free aiming, made by Crack dot Com in 1995 and
+released into the public domain. You are Nick Vrenna, locked in an underground
+prison where a gene that causes violence has escaped the lab. The mouse aims
+independently of where you run, which in 1995 was new and still feels good.
 
-Restoring fRaBs should be as simple as copying the data file over to the
-install directory, but they're not being included in the GitHub "official"
-builds. Likewise, the sound and music files are currently not included, as
-it's unclear if they were ever really allowed to be distributed.
+This fork brings it to current systems: SDL3, a fixed timestep, full gamepad
+support, a UI that stays sharp at any window size, and translations.
 
-Placing those files into the "sfx" and "music" directories (or copying them
-into the installed data directory) should re-enable sound and music.
+![Fighting a mutant in the prison corridors](doc/screenshots/gameplay.png)
 
-----
+## Two modes
 
-1. Introduction
-2. Additional Features
-3. Requirements
-4. Running Abuse
-5. Configuration
-6. Installing the datafiles
-7. Notes
-8. Special Thanks
-9. Feedback
+**Original** plays the 1995 game with its own data, audio and rules, untouched.
+It is the reference the tests compare against, and it does not change.
 
-----
+**Remastered** is where everything new goes. Nothing it adds is compulsory: the
+classic preset is always there.
 
-## 1. INTRODUCTION
+## What this fork adds
 
-Welcome to Abuse, the port of the classic game Abuse to the Simple
-DirectMedia Layer. Abuse was originally developed by Crack dot Com and
-released in 1995 for MS-DOS. A Linux version was also made available at
-a later date. It had a few limitations the most restrictive of which was
-that it only ran on an 8-bit display, and only in a window.
+- **SDL3**, with scale modes, filtering, vsync and an FPS limit
+- **A fixed 15 Hz timestep**, so a fast machine and a slow one run the same
+  simulation
+- **Gamepad**: several bindings per action, aiming on the right stick, optional
+  aim assist, rumble, and button labels that match what your controller prints
+- **A UI layer at native resolution**, composited over the scaled game, so its
+  text is sharp at 1080p instead of being magnified along with the pixels
+- **English, French, German and Brazilian Portuguese**, chosen on first run
+- **Deterministic replay testing**: a state hash, frame snapshots, and a
+  snapshot of what actually reached the window
 
-The version of Abuse will run at any color depth and supports fullscreen mode,
-as well as many other new features. It should also be more portable and
-hopefully run on a variety of *nix variants, as well as Windows and macOS.
+| | |
+|---|---|
+| ![Language selection on first run](doc/screenshots/language.png) | ![The options screen](doc/screenshots/options.png) |
+| First run asks for a language | Options, reachable anywhere with F2 |
 
-## 2. ADDITIONAL FEATURES
+## Playing
 
-Abuse has the following extra features over the original:
+```sh
+cmake --preset release && cmake --build --preset release
+./build/release/src/abuse -datadir ./data -window
+```
 
-  * Runs at a screen bit depth of 8, 16, 24 or 32.
-  * Fullscreen display.
-  * Scaling by any amount (eg. 2, 3 or 4)
-  * SDL2 support for hardware scaling and anti-aliasing.
-  * Stereo sound with panning.
-  * Mouse wheel support for changing weapons.
-  * Customizable keys.
+`-datadir ./data` is needed while running from the source tree. The window
+opens at the largest whole multiple of 320x240 that fits your display.
 
-## 3. REQUIREMENTS
+| Key | |
+|---|---|
+| Arrows or WASD | Move |
+| Mouse | Aim; left button fires, right is the special |
+| Ctrl, Insert | Previous and next weapon |
+| F2 | Options |
+| F3 | Controls, to rebind anything |
+| p | Pause |
 
-Abuse has the following requirements:
+On a gamepad: left stick and d-pad move, right stick aims, right trigger
+fires, left trigger and B are the special, the shoulders change weapon, Y
+opens the options and X the controls.
 
-  * SDL2 2.0.3 or above.
-  * SDL_mixer 2.0.0 or above.
+### Sound
 
-## 4. RUNNING ABUSE
+**The Remastered mode has no sound yet.** The free data carries no effects and
+no music, and assembling a free set is the next piece of work.
 
-Generally, just launch it however is appropriate for your platform after
-running the `install` build.
-If Abuse has been installed properly, the command:
+The Original mode plays as soon as the original data is installed:
 
-    abuse
+```sh
+./scripts/fetch-classic-data.sh
+./build/release/src/abuse -datadir ./data --mode original
+```
 
-will start the game.
+Those files are not redistributable, which is why the script downloads them
+rather than the repository carrying them.
 
-The following command-line switches can be used:
+![The intro in Brazilian Portuguese](doc/screenshots/intro-ptbr.png)
 
-    -datadir <arg>    Set the location of the datafiles
-    -edit             Start in editor mode
-    -f <arg>          Load the map file named <arg>
-    -fullscreen       Enable fullscreen mode
-    -antialias        Enable anti-aliasing
-    -lisp             Start in lisp interpreter mode
-    -mono             Disable stereo sound
-    -nodelay          Run at maximum speed
-    -nosound          Disable sound
-    -scale <arg>      Scale by <arg> amount
+## State of the work
 
-## 5. CONFIGURATION
+Done: the SDL3 port, the build and test foundation, the data and licence
+separation, the fixed timestep, gamepad support, the UI layer, and the
+translations.
 
-Abuse also has a configuration file where these options can be set
-instead of using the command line. The file "abuserc" will be created in
-your ~/.abuse directory the first time Abuse is run.
+Open:
 
-Lines starting with a ';' are comments.
-Setting an option to '1' turns it on, and '0' turns it off.
+- Human review of the Brazilian Portuguese translation
+- A new HUD, and a new start menu
+- Audio: a mixer with separate buses, and a free sound set. The public domain
+  Golgotha pack covers 19 of the 78 events; the other 59 need a source
+- Optional lighting and shaders, widescreen, an HD pack, packaging
+- Closing out the test debt: the three replays are synthetic, 400 ticks with no
+  input, so they exercise neither combat nor dynamic light
 
-To change the keys used in the game, simply type the key after the option.
-The following special keys can also be used:
+Inherited from upstream and still open: dead code removal, and replacing the
+jFILE/bFILE layer with SDL's IO abstraction.
 
-| Code                          | Represents
-|-------------------------------|-----------------------
-| `LEFT`, `RIGHT`, `UP`, `DOWN` | Cursor keys and keypad.
-| `CTRL_L`, `CTRL_R`            | Left and right Ctrl keys.
-| `ALT_L`, `ALT_R`              | Left and right Alt keys.
-| `SHIFT_L`, `SHIFT_R`          | Left and right Shift keys.
-| `F1` - `F10`                  | Function keys 1 through 10.
-| `TAB`                         | Tab key.
-| `BACKSPACE`                   | Backspace key.
-| `ENTER`                       | Enter key
-| `INSERT`, `DEL`               | Insert and Delete keys.
-| `PAGEUP`, `PAGEDOWN`          | Page Up and Page Down keys.
-| `CAPS`, `NUM_LOCK`            | Caps-Lock and Num-Lock keys.
-| `SPACE`                       | Spacebar.
+## Building
 
-The default key settings are as follows:
+See [BUILDING.md](BUILDING.md). In short, CMake 3.21 or newer, a C++17
+compiler, and CPM fetches SDL3 and SDL3_mixer. Presets: `dev`, `release`,
+`asan`, `headless`.
 
-| Action      | Bound to
-|-------------|---------
-| Left        | Left arrow, A
-| Right       | Right arrow, D
-| Up/Jump     | Up arrow, W
-| Down/Use    | Down arrow, S
-| Prev Weapon | Left or Right Ctrl
-| Next Weapon | Insert
+```sh
+ctest --preset dev    # unit tests, replays, and both snapshot suites
+```
 
-The mouse always controls your aim, with Left button for fire and
-Right button for special.  The mouse wheel can be used for changing weapons.
+[AGENTS.md](AGENTS.md) is the contract for anyone working on this, human or
+agent, and [ARCHITECTURE.md](ARCHITECTURE.md) maps the engine, including the
+parts that bite.
 
-## 6. INSTALLING THE DATAFILES
+## Lineage
 
-This repository contains the majority of the data files. The only data currently
-missing are the sound effects and the music as they weren't released into the
-public domain.
+| | |
+|---|---|
+| [Crack dot Com](https://en.wikipedia.org/wiki/Abuse_(video_game)), 1995 | The original, later released into the public domain |
+| [Abuse-SDL](http://abuse.zoy.org/), Sam Hocevar | The SDL port that kept it alive, and the source of the free data |
+| [Xenoveritas/abuse](https://github.com/Xenoveritas/abuse) | The CMake and SDL3 fork this one starts from |
+| This fork | Modernisation for current systems |
 
-You can still grab them off of <http://abuse.zoy.org/> and extract them into
-the data directory, and they will be used by the build script.
+`abuse-tool` and the level editor (`-edit`) come along from upstream and still
+work.
 
-Under Windows and macOS, Abuse looks for the data files in a path relative to
-the executable. Using the CMake `install` and `publish` targets will set up
-the directory in the correct way. (See BUILDING.md for more information about
-that.)
+## Licence
 
-Under Linux, by default, Abuse expects the datafiles to be installed in the
-following location:
+Code is GPL-2.0, inherited. The game data that ships here is public domain,
+with origin and licence recorded per file in
+[data/MANIFEST.toml](data/MANIFEST.toml) and checked in CI. The original sound
+and music are not redistributable and are never committed.
 
-    /usr/local/share/games/abuse
-
-However it is possible to change this and tell Abuse where to find the
-files if they are in another location.
-
-The location can be set when Abuse is compiled. See the INSTALL.md file for
-instructions on how to do this.
-
-You can also specify the location with the -datadir argument when
-Abuse is run. See section 4 above.
-
-Finally, the location can be set in the configuration file. See section
-5 above.
-
-## 7. NOTES
-
-### Scaling:
-  Scaling is still experimental and not very fast.  Try scaling by different
-  amounts to see which ones work the best.
-
-## 8. SPECIAL THANKS
-
-Go to Jonathan Clark, Dave Taylor and the rest of the Crack Dot Com team
-for making the best 2D platform shooter ever, and then releasing the
-code that makes Abuse possible.
-
-Also, thanks go to Jonathan Clark for allowing Anthony to distribute the
-original datafiles with Abuse.
-
-Thanks also to everyone who has contributed ideas, bug reports and patches.
-See the AUTHORS file for details.
-
-## 9. FEEDBACK
-
-For this fork, please use the [GitHub page](https://github.com/Xenoveritas/abuse)
-if you have any questions, comments, or find bugs.
-
-The original code was taken from <http://abuse.zoy.org/>, but any issues on
-non-Linux platforms should be directed to the GitHub page.
-
-----
-
-Have fun!
+Thanks to Jonathan Clark, Dave Taylor and the rest of Crack dot Com for making
+it and then giving it away, and to Sam Hocevar and Xenoveritas for the two
+ports this one stands on.
