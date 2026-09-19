@@ -34,7 +34,7 @@ classic preset is always there.
 - **Smooth movement**: the world still advances 15 times a second, but the
   drawing no longer does, so a 60 Hz display shows 60 positions
 - **Optional RGB lighting**, the 1995 curve without the palette snap that
-  bands every dark corner
+  bands every dark corner, and **CRT scanlines** to go with it
 - **English, French, German and Brazilian Portuguese**, chosen on first run
 - **Deterministic replay testing**: a state hash, frame snapshots, and a
   snapshot of what actually reached the window
