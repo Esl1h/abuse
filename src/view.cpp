@@ -26,6 +26,8 @@
 #include "game.h"
 
 #include "view.h"
+#include "input/aim.h"
+#include "data/paths.h"
 #include "lisp.h"
 #include "jwindow.h"
 #include "configuration.h"
@@ -362,7 +364,59 @@ void view::get_input()
         get_movement( 0, sug_x, sug_y, sug_b1, sug_b2, sug_b3, sug_b4 );
         if( m_focus )
         {
-            sug_p = the_game->MouseToGame(last_demo_mpos);
+            // Phase 3: the pad aims with a vector from the player, recomputed
+            // here every tick, so the crosshair follows him instead of staying
+            // at a screen position. The mouse takes the aim back simply by
+            // moving, which is what lets both work in one session.
+            static ivec2 last_seen_mouse(-1, -1);
+            bool mouse_moved = last_demo_mpos != last_seen_mouse;
+            last_seen_mouse = last_demo_mpos;
+
+            bool stick_moved = abuse::input::update_aim_from_pad();
+            if( mouse_moved && !stick_moved )
+                abuse::input::set_pad_aim_active( false );
+
+            if( abuse::input::pad_aim_active() )
+            {
+                abuse::input::AimVector aim = abuse::input::aim_vector();
+
+                // Aim assistance, off unless asked for and never in Original
+                // mode, which is the reference the tests compare against.
+                abuse::input::AssistSettings assist =
+                    abuse::input::assist_settings();
+                if( abuse::data::mode() == abuse::data::Mode::Original )
+                    assist.strength = 0;
+
+                if( assist.strength > 0 && current_level )
+                {
+                    // Candidates are the hurtable things currently active, as
+                    // offsets from the player. Walking the active list keeps
+                    // this bounded by what is on screen.
+                    abuse::input::AimTarget targets[64];
+                    int count = 0;
+                    for( game_object *o = current_level->first_active_object();
+                         o && count < 64; o = o->next_active )
+                    {
+                        if( o == m_focus || !o->hurtable() || !o->alive() )
+                            continue;
+                        targets[count].dx = o->x - m_focus->x;
+                        targets[count].dy = o->y - m_focus->y;
+                        count++;
+                    }
+                    aim = abuse::input::assist_aim( aim, targets, count, assist );
+                }
+
+                sug_p = ivec2( m_focus->x + aim.x, m_focus->y + aim.y );
+
+                // The crosshair belongs where the shot goes, assistance and
+                // circle clamp included. SetCursorPos and not SetMousePos:
+                // see the comment on it in imlib/event.h.
+                ivec2 crosshair = the_game->GameToMouse( sug_p, this );
+                wm->SetCursorPos( ( small_render ? 2 : 1 ) * crosshair );
+            }
+            else
+                sug_p = the_game->MouseToGame(last_demo_mpos);
+
             if(last_demo_mbut & 1)
                 sug_b2 = 1;
             if(last_demo_mbut & 2)
@@ -620,22 +674,10 @@ int view::handle_event(Event &ev)
             }
             return 1;
         }
-        else if( ev.key == get_key_binding( "b3", 0 ) )
-        {
-            if( total_weapons )
-            {
-                last_weapon();
-            }
-            return 1;
-        }
-        else if( ev.key == get_key_binding( "b4", 0 ) )
-        {
-            if( total_weapons )
-            {
-                next_weapon();
-            }
-            return 1;
-        }
+        // The keys bound to weapprev and weapnext used to be handled here,
+        // against the legacy binding. They go through the action map now, in
+        // Game::get_input, so that a pad button or a rebind reaches this too;
+        // handling them in both places switched the weapon twice.
 
         switch( ev.key )
         {

@@ -25,6 +25,7 @@
 #include <SDL3/SDL.h>
 
 #include "common.h"
+#include "input/gamepad.h"
 
 #include "image.h"
 #include "palette.h"
@@ -39,6 +40,11 @@ extern SDL_Window *window;
 extern SDL_Surface *surface;
 // Need the renderer to figure out mouse events
 extern SDL_Renderer* renderer;
+
+// Set while the pad's confirm button is held, so the menus can see it as a
+// left click. Not part of PadState because it is about the pointer, not about
+// the action map.
+static bool g_pad_click = false;
 extern flags_struct flags;
 extern int get_key_binding(char const *dir, int i);
 extern float mouse_yscale;
@@ -53,6 +59,21 @@ void EventHandler::SysInit()
     //SDL_EventState(SDL_ACTIVEEVENT, SDL_IGNORE);
 }
 
+// True while the pad's face buttons belong to the player, moving and shooting.
+// Everywhere else they have to confirm and cancel instead, or the player ends
+// up somewhere with no way out: paused, with only the keyboard able to resume,
+// or in front of a window that answers to clicks and nothing else.
+static bool pad_faces_are_gameplay()
+{
+    if (!the_game || !playing_state(the_game->state))
+        return false;
+    if (the_game->state == PAUSE_STATE)
+        return false;
+    if (wm && wm->has_visible_window())
+        return false;
+    return true;
+}
+
 void EventHandler::SysWarpMouse(ivec2 pos)
 {
     // Calculate window position
@@ -60,6 +81,51 @@ void EventHandler::SysWarpMouse(ivec2 pos)
     float fy = pos.y / mouse_yscale;
     SDL_RenderCoordinatesToWindow(renderer, fx, fy, &fx, &fy);
     SDL_WarpMouseInWindow(window, fx, fy);
+}
+
+void EventHandler::SysPumpCursor()
+{
+    // Pixels per tick at 15 ticks a second, turned into what this call is
+    // worth. Sampled against the clock and not counted per call, because a
+    // modal loop spins as fast as it can and would fling the cursor across
+    // the screen.
+    static uint64_t last = 0;
+    uint64_t now = SDL_GetTicks();
+    if (last == 0 || now < last)
+    {
+        last = now;
+        return;
+    }
+
+    uint64_t elapsed = now - last;
+    if (elapsed < 16)           // about one step per display frame
+        return;
+    last = now;
+
+    abuse::input::Deadzone const &dz = abuse::input::deadzone_for_axis(2);
+    float x = abuse::input::pad_state().axis_scaled(2, dz);
+    float y = abuse::input::pad_state().axis_scaled(3, dz);
+    if (x == 0.0f && y == 0.0f)
+    {
+        abuse::input::Deadzone const &ldz = abuse::input::deadzone_for_axis(0);
+        x = abuse::input::pad_state().axis_scaled(0, ldz);
+        y = abuse::input::pad_state().axis_scaled(1, ldz);
+    }
+    if (x == 0.0f && y == 0.0f)
+        return;
+
+    int budget = (int)((float)abuse::input::cursor_settings().speed * 15.0f
+                       * (float)elapsed / 1000.0f + 0.5f);
+    if (budget < 1)
+        budget = 1;
+
+    abuse::input::CursorStep step = abuse::input::menu_cursor_step(x, y, budget);
+    if (step.x == 0 && step.y == 0)
+        return;
+
+    // Through the system mouse: the windows decide what is under the cursor
+    // from motion events, and the warp is what produces one.
+    SetMousePos(m_pos + ivec2(step.x, step.y));
 }
 
 //
@@ -97,6 +163,14 @@ void EventHandler::SysEvent(Event &ev)
     int x, y;
     float fx, fy;
     uint8_t buttons = SDL_GetMouseState(&fx, &fy);
+
+    // The menus and the save-slot picker are driven by the mouse: items react
+    // to clicks and to hotkey letters, never to arrow keys. Making the pad's
+    // confirm button act as a left click is what lets a player reach them
+    // without putting the controller down. Only outside a level, where the
+    // same button is the jump.
+    if (g_pad_click && !pad_faces_are_gameplay())
+        buttons |= SDL_BUTTON_MASK(1);
     // Make the window-relative position renderer-relative
     SDL_RenderCoordinatesFromWindow(renderer, fx, fy, &fx, &fy);
     // Don't care about subpixels
@@ -365,8 +439,77 @@ void EventHandler::SysEvent(Event &ev)
             break;
         }
         break;
+    case SDL_EVENT_GAMEPAD_ADDED:
+    {
+        // Opening it is what makes SDL deliver its events at all.
+        SDL_Gamepad *added = SDL_OpenGamepad(sdlev.gdevice.which);
+        abuse::input::pad_state().reset();
+        abuse::input::set_pad_lost(false);
+
+        // Pick the button labels from what SDL says the pad is, so the game
+        // can name buttons the way they are printed on this controller.
+        if (added)
+        {
+            using abuse::input::PadFamily;
+            switch (SDL_GetGamepadType(added))
+            {
+            // STANDARD is SDL's word for a pad that follows the Xbox face
+            // layout without being an Xbox pad. The 8BitDo Ultimate 2 tested
+            // on this host reports it, and has A/B/X/Y printed on it, so
+            // falling through to the generic "1/2/3/4" would name its buttons
+            // wrong.
+            case SDL_GAMEPAD_TYPE_STANDARD:
+            case SDL_GAMEPAD_TYPE_XBOX360:
+            case SDL_GAMEPAD_TYPE_XBOXONE:
+                abuse::input::pad_family() = PadFamily::Xbox;
+                break;
+            case SDL_GAMEPAD_TYPE_PS3:
+            case SDL_GAMEPAD_TYPE_PS4:
+            case SDL_GAMEPAD_TYPE_PS5:
+                abuse::input::pad_family() = PadFamily::PlayStation;
+                break;
+            case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
+            case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT:
+            case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
+            case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
+            case SDL_GAMEPAD_TYPE_GAMECUBE:
+                abuse::input::pad_family() = PadFamily::Nintendo;
+                break;
+            default:
+                abuse::input::pad_family() = PadFamily::Generic;
+                break;
+            }
+        }
+        ev.key = EV_SPURIOUS;
+        break;
+    }
+    case SDL_EVENT_GAMEPAD_REMOVED:
+    {
+        // Whatever was held when the pad went away must not stay held.
+        abuse::input::pad_state().disconnect();
+        abuse::input::set_pad_lost(true);
+
+        // Pausing is the point: a player mid-level with a controller that
+        // stopped answering needs the game to wait, not to keep running while
+        // they look for the cable.
+        if (the_game && playing_state(the_game->state)
+            && the_game->state != PAUSE_STATE)
+            the_game->set_state(PAUSE_STATE);
+        SDL_Gamepad *gone = SDL_GetGamepadFromID(sdlev.gdevice.which);
+        if (gone)
+            SDL_CloseGamepad(gone);
+        ev.key = EV_SPURIOUS;
+        break;
+    }
     case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
     case SDL_EVENT_GAMEPAD_BUTTON_UP:
+        // Task 3.3: the action map reads this state each tick. The synthetic
+        // key press below stays for now, because everything outside the eight
+        // packet actions still travels as a key code.
+        abuse::input::pad_state().set_button(
+            sdlev.gbutton.button,
+            sdlev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
+
         switch (sdlev.gbutton.button)
         {
         case SDL_GAMEPAD_BUTTON_DPAD_UP:
@@ -381,6 +524,35 @@ void EventHandler::SysEvent(Event &ev)
         case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
             ev.key = get_key_binding("right", 0);
             break;
+        case SDL_GAMEPAD_BUTTON_START:
+            // Start opens the menu, which is this game's pause menu. Works in
+            // and out of a level.
+            ev.key = JK_ESC;
+            break;
+        case SDL_GAMEPAD_BUTTON_BACK:
+            // The pause overlay, which the keyboard reaches with 'p'.
+            ev.key = 'p';
+            break;
+        case SDL_GAMEPAD_BUTTON_SOUTH:
+            // Confirm. Outside gameplay it also clicks, above, because the
+            // menus have no keyboard navigation to fall back on.
+            g_pad_click = sdlev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+            ev.key = pad_faces_are_gameplay() ? -1 : JK_ENTER;
+            break;
+        case SDL_GAMEPAD_BUTTON_NORTH:
+            // The options screen, which the keyboard reaches with F2. Nothing
+            // in the game is bound to this button, in a level or out of one.
+            ev.key = JK_F2;
+            break;
+        case SDL_GAMEPAD_BUTTON_WEST:
+            // The controls screen, F3 on the keyboard. Same reasoning.
+            ev.key = JK_F3;
+            break;
+        case SDL_GAMEPAD_BUTTON_EAST:
+            // Cancel. During play this is the special weapon, so it must stay
+            // quiet or using the special would back out of the level.
+            ev.key = pad_faces_are_gameplay() ? -1 : JK_ESC;
+            break;
         default:
             // Still want to process this as a key press if only to allow the
             // controller to skip the intro screen.
@@ -390,51 +562,89 @@ void EventHandler::SysEvent(Event &ev)
             EV_KEY : EV_KEYRELEASE;
         break;
     case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+        abuse::input::pad_state().set_axis(sdlev.gaxis.axis, sdlev.gaxis.value);
+
         switch (sdlev.gaxis.axis)
         {
         case SDL_GAMEPAD_AXIS_LEFTX:
-            // Left stick X axis: motion
-            // TODO (maybe): translate these into joystick events using the
-            // existing joystick system.
-            if (sdlev.gaxis.value < 0)
+        case SDL_GAMEPAD_AXIS_LEFTY:
+        {
+            // Gameplay reads the left stick through the action map, which asks
+            // pad_state each tick. These synthetic key events exist only so the
+            // stick can also drive the menus, which read key events.
+            //
+            // They are emitted on transitions, from a direction the map agrees
+            // is active, and no longer from the sign of the raw value at the
+            // moment of release. Deciding from the sign is what left a
+            // direction stuck when a stick settled a hair past centre.
+            bool const horizontal = sdlev.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX;
+            int &prev = horizontal ? m_left_stick_x_dir : m_left_stick_y_dir;
+
+            abuse::input::Deadzone const &dz =
+                abuse::input::deadzone_for_axis(sdlev.gaxis.axis);
+            int now = 0;
+            if (abuse::input::pad_state().axis_active(sdlev.gaxis.axis, -1, dz))
+                now = -1;
+            else if (abuse::input::pad_state().axis_active(sdlev.gaxis.axis, 1, dz))
+                now = 1;
+
+            if (now == prev)
             {
-                ev.key = get_key_binding("left", 0);
+                ev.key = EV_SPURIOUS;
+                break;
+            }
+
+            char const *name;
+            if (prev != 0)
+            {
+                // Release what was held; the press for the new direction
+                // follows on the next axis event, which a moving stick always
+                // sends.
+                name = horizontal ? (prev < 0 ? "left" : "right")
+                                  : (prev < 0 ? "up" : "down");
+                ev.key = get_key_binding(name, 0);
+                ev.type = EV_KEYRELEASE;
+                prev = 0;
             }
             else
             {
-                ev.key = get_key_binding("right", 0);
+                name = horizontal ? (now < 0 ? "left" : "right")
+                                  : (now < 0 ? "up" : "down");
+                ev.key = get_key_binding(name, 0);
+                ev.type = EV_KEY;
+                prev = now;
             }
-            ev.type = abs(sdlev.gaxis.value) < m_dead_zone ?
-                EV_KEYRELEASE : EV_KEY;
-            //printf("X axis: %d\n", sdlev.caxis.value);
             break;
+        }
+        // Inside a level the right stick does not touch the mouse at all: the
+        // aim is a vector from the player, recomputed every tick in view.cpp
+        // from pad_state, and the crosshair is placed from that same vector.
+        // Moving the mouse here put the crosshair at a per-axis position while
+        // the shot went to the circle-clamped one, so the two disagreed
+        // diagonally, and the warp fed itself back as mouse movement.
         case SDL_GAMEPAD_AXIS_RIGHTX:
-            // Right stick X axis: mouse
-            if (abs(sdlev.gaxis.value) > m_dead_zone) {
-                if (m_right_stick_x < 0) {
-                    // Translate this into a mouse move event
-                    m_pos.x += sdlev.gaxis.value / m_right_stick_scale;
-                } else {
-                    m_pos.x = m_right_stick_x + (sdlev.gaxis.value / m_right_stick_player_scale);
-                }
+            // Outside a level there is no player to orbit, so the stick is a
+            // plain mouse, which is what drives the menus.
+            if (!m_right_stick_locked
+                && (abuse::input::pad_state().axis_active(sdlev.gaxis.axis, -1,
+                        abuse::input::deadzone_for_axis(sdlev.gaxis.axis))
+                    || abuse::input::pad_state().axis_active(sdlev.gaxis.axis, 1,
+                        abuse::input::deadzone_for_axis(sdlev.gaxis.axis)))) {
+                m_pos.x += sdlev.gaxis.value / m_right_stick_scale;
                 ev.mouse_move.x = m_pos.x;
                 SetMousePos(m_pos);
             }
-            //printf("Right X axis: %d\n", sdlev.caxis.value);
             break;
         case SDL_GAMEPAD_AXIS_RIGHTY:
-            // Right stick Y axis: mouse
-            if (abs(sdlev.gaxis.value) > m_dead_zone) {
-                if (m_right_stick_x < 0) {
-                    // Translate this into a mouse move event
-                    m_pos.y += sdlev.gaxis.value / m_right_stick_scale;
-                } else {
-                    m_pos.y = m_right_stick_y + (sdlev.gaxis.value / m_right_stick_player_scale);
-                }
+            if (!m_right_stick_locked
+                && (abuse::input::pad_state().axis_active(sdlev.gaxis.axis, -1,
+                        abuse::input::deadzone_for_axis(sdlev.gaxis.axis))
+                    || abuse::input::pad_state().axis_active(sdlev.gaxis.axis, 1,
+                        abuse::input::deadzone_for_axis(sdlev.gaxis.axis)))) {
+                m_pos.y += sdlev.gaxis.value / m_right_stick_scale;
                 ev.mouse_move.y = m_pos.y;
                 SetMousePos(m_pos);
             }
-            //printf("Right Y axis: %d\n", sdlev.caxis.value);
             break;
         case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:
             // Left trigger: special

@@ -21,7 +21,14 @@
 #include <time.h>
 
 
-enum character_state
+// The underlying type is spelled out because this enum does not hold only its
+// own enumerators. def_char in the lisp defines states of its own, numbered
+// from MAX_STATE up (see CharacterType::add_state), so values like 16 for
+// "climbing" or "firing" are normal. Without a fixed underlying type the range
+// of an unscoped enum stops at 15 here, and merely loading such a value is
+// undefined behaviour, which UBSan reports as "load of value 16, which is not
+// a valid value for type 'character_state'".
+enum character_state : int
 {
     dead,
     dieing,

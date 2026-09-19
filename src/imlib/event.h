@@ -76,6 +76,11 @@ public:
     void SysWarpMouse(ivec2 pos);
     void SysEvent(Event &ev);
 
+    // Called only while Get() is waiting. Moves the pad's menu cursor from the
+    // stick position over elapsed time, and warps the mouse so the wait ends
+    // with a motion event the window can react to.
+    void SysPumpCursor();
+
     int IsPending();
     void Get(Event &ev);
     void flush_screen();
@@ -86,25 +91,43 @@ public:
         m_sprite->SetVisual(im, 1);
         m_center = center;
     }
-    void SetMousePos(ivec2 pos)
+    // Moves the drawn cursor and leaves the system mouse where it is. The
+    // crosshair follows the pad aim through here: warping the real mouse
+    // comes back as a motion event, which reads as the player taking the aim
+    // back with the mouse, and the aim drops out of pad mode every tick.
+    void SetCursorPos(ivec2 pos)
     {
         m_pos = ivec2(Min(Max(pos.x, 0), m_screen->Size().x - 1),
                       Min(Max(pos.y, 0), m_screen->Size().y - 1));
+    }
+    ivec2 CursorPos() const { return m_pos; }
+    void SetMousePos(ivec2 pos)
+    {
+        SetCursorPos(pos);
         SysWarpMouse(m_pos);
     }
     void SetIgnoreWheelEvents(bool ignore)
     {
         m_ignore_wheel_events = ignore;
     }
+    // While a level is running the crosshair orbits the player, so the centre
+    // is the player's position on screen. That position is legitimately
+    // negative when the player stands left of or above the view origin, which
+    // is why the mode is a flag and not a negative sentinel: using one made
+    // the aim silently fall back to free-mouse mode at the left edge of a
+    // level, mid-game.
     void SetRightStickCenter(int x, int y)
     {
+        m_right_stick_locked = true;
         m_right_stick_x = x;
         m_right_stick_y = y;
     }
     void SetRightStickMouse()
     {
-        m_right_stick_x = m_right_stick_y = -1;
+        m_right_stick_locked = false;
+        m_right_stick_x = m_right_stick_y = 0;
     }
+    bool RightStickLocked() const { return m_right_stick_locked; }
 
 private:
     linked_list m_events;
@@ -121,7 +144,12 @@ private:
     // Scale amount for the right stick when it's player-locked.
     // 0x400 gives a range of -31 to 31.
     int m_right_stick_player_scale = 0x400;
-    int m_right_stick_x, m_right_stick_y;
+    int m_right_stick_x = 0, m_right_stick_y = 0;
+    bool m_right_stick_locked = false;
+    // Last direction the left stick was reported as holding, so the synthetic
+    // key events for menu navigation are emitted on transitions instead of
+    // being guessed from the raw value. See src/sdlport/event.cpp.
+    int m_left_stick_x_dir = 0, m_left_stick_y_dir = 0;
 
     image *m_screen;
 

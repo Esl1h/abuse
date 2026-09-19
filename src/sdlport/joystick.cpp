@@ -26,6 +26,7 @@
 
 #include <SDL3/SDL.h>
 #include "joy.h"
+#include "input/rumble.h"
 
 /* NOTE: No joystick support yet.
  */
@@ -65,4 +66,29 @@ void joy_status( int &b1, int &b2, int &b3, int &xv, int &yv )
 void joy_calibrate()
 {
     /* Do Nothing */
+}
+
+// Phase 3, task 3.3. What an event should feel like is decided in
+// src/input/rumble, which has no SDL in it; this is the whole of the SDL side.
+void joy_rumble(abuse::input::RumbleEvent event)
+{
+    abuse::input::RumbleCommand c =
+        abuse::input::rumble_for(event, abuse::input::rumble_settings());
+    if (c.silent())
+        return;
+
+    int n = 0;
+    SDL_JoystickID *ids = SDL_GetGamepads(&n);
+    if (!ids)
+        return;
+
+    for (int i = 0; i < n; i++)
+    {
+        SDL_Gamepad *pad = SDL_GetGamepadFromID(ids[i]);
+        // Not opened, or no motors: skip rather than report, since a pad
+        // without rumble is normal and not an error.
+        if (pad)
+            SDL_RumbleGamepad(pad, c.low, c.high, c.duration_ms);
+    }
+    SDL_free(ids);
 }

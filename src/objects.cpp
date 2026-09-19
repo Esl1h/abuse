@@ -16,6 +16,8 @@
 
 #include "transimage.h"
 #include "objects.h"
+#include "sdlport/joy.h"
+#include "input/rumble.h"
 #include "chars.h"
 
 #include "game.h"
@@ -476,6 +478,18 @@ void game_object::do_damage(int amount, game_object *from, int32_t hitx, int32_t
   // No friendly fire
   if((_team != -1) && (_team == from->get_team()))
     return;
+
+  // Phase 3, task 3.3: only the local player's own pad shakes, and only when
+  // the damage is real. Reads no game state and writes none, so replays are
+  // unaffected.
+  if (amount > 0 && controller() && controller()->local_player())
+  {
+    // A blast and a bullet do not feel the same in the hand. The player has
+    // 100 health, so this is the line between being shot and being caught by
+    // something that went off.
+    joy_rumble(amount >= 20 ? abuse::input::RumbleEvent::Explosion
+                            : abuse::input::RumbleEvent::Hurt);
+  }
 
   void *d=figures[otype]->get_fun(OFUN_DAMAGE);
   if (d)

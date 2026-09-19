@@ -15,4 +15,8 @@ int joy_init(int argc, char **argv); // returns 0 if no joystick is available
 void joy_status(int &b1, int &b2, int &b3, int &xv, int &yv);
 void joy_calibrate();
 
+// Force feedback for one game event. Safe to call with no pad connected.
+namespace abuse { namespace input { enum class RumbleEvent; } }
+void joy_rumble(abuse::input::RumbleEvent event);
+
 #endif

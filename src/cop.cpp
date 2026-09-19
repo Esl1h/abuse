@@ -24,6 +24,8 @@
 #include "clisp.h"
 #include "ant.h"
 #include "dev.h"
+#include "input/rumble.h"
+#include "sdlport/joy.h"
 
 enum { point_angle, fire_delay1 };
 
@@ -238,6 +240,13 @@ static int player_fire_weapon(game_object *o, int type, game_object *target, int
   push_onto_list(LNumber::Create(type),list);
   push_onto_list(LPointer::Create(o->get_object(0)),list);
   ((LSymbol *)l_fire_object)->EvalFunction(list);
+
+  // Phase 3, task 3.3: the shot the player actually got off, which is not the
+  // same as the trigger being held. Reads no game state and writes none, so
+  // replays are unaffected.
+  if (o->controller() && o->controller()->local_player())
+    joy_rumble(abuse::input::RumbleEvent::Shot);
+
   o->lvars[top_just_fired]=1;
   other->lvars[just_fired]=1;
   other->x=ox;

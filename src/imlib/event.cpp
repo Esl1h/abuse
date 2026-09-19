@@ -78,11 +78,19 @@ EventHandler::~EventHandler()
 
 void EventHandler::Get(Event &ev)
 {
-    // Sleep until there are events available
+    // Sleep until there are events available. A modal window is the only thing
+    // that waits here, and a stick held steady sends no events, so the pad
+    // cursor has to be advanced from this loop or it never moves in one.
     while(!m_pending)
     {
         Timer tmp;
         IsPending();
+
+        if (!m_pending)
+        {
+            SysPumpCursor();
+            IsPending();
+        }
 
         if (!m_pending)
             tmp.WaitMs(1);
