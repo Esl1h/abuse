@@ -106,10 +106,16 @@ void WindowManager::get_event(Event &ev)
 {
   Get(ev);
 
-  if (ev.type==EV_KEY)
-    key_state[ev.key]=1;
-  else if (ev.type==EV_KEYRELEASE)
-    key_state[ev.key]=0;
+  // src/sdlport/event.cpp deliberately reports -1 for a gamepad button with
+  // nothing bound to it, so the pad can still dismiss the intro. Indexing
+  // key_state with it writes outside the array, one int before the start.
+  if (ev.key >= 0 && ev.key < (int)(sizeof(key_state) / sizeof(key_state[0])))
+  {
+    if (ev.type==EV_KEY)
+      key_state[ev.key]=1;
+    else if (ev.type==EV_KEYRELEASE)
+      key_state[ev.key]=0;
+  }
 
   if (state==inputing)
   {

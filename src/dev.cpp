@@ -37,6 +37,7 @@
 #include "sbar.h"
 #include "compiled.h"
 #include "chat.h"
+#include "i18n/language.h"
 
 #define make_above_tile(x) ((x)|0x4000)
 char backw_on=0,forew_on=0,show_menu_on=0,ledit_on=0,pmenu_on=0,omenu_on=0,commandw_on=0,tbw_on=0,
@@ -44,11 +45,21 @@ char backw_on=0,forew_on=0,show_menu_on=0,ledit_on=0,pmenu_on=0,omenu_on=0,comma
      show_names=0,fg_reversed=0,
      raise_all;
 
+// Phase 4, task 4.3: under the pseudo language every string the player reads
+// comes back longer and accented, which is how text that overflows its widget
+// gets found before a real translation exists.
+static char const *localised(char const *text)
+{
+  if (abuse::i18n::pseudo_active())
+    return abuse::i18n::pseudo_translate(text);
+  return text;
+}
+
 char const *symbol_str(char const *name)
 {
   LSymbol *sym = LSymbol::FindOrCreate(name);
   if (sym->GetValue() && item_type(sym->GetValue())==L_STRING)
-    return lstring_value(sym->GetValue());
+    return localised(lstring_value(sym->GetValue()));
 
 
   // maybe english.lsp was not loaded yet, let's try to do that
@@ -72,7 +83,7 @@ char const *symbol_str(char const *name)
   // check again to see if the symbol is there
   sym = LSymbol::FindOrCreate(name);
   if (sym->GetValue() && item_type(sym->GetValue())==L_STRING)
-    return lstring_value(sym->GetValue());
+    return localised(lstring_value(sym->GetValue()));
 
 
   // check to see if there is a missing symbol definition
@@ -168,7 +179,10 @@ int confirm_quit()
     cancel_image = cache.img(cache.reg("art/frame.spe", "cancel",
                                      SPEC_IMAGE, 1))->copy();
 
-    quitw = wm->CreateWindow(ivec2(xres / 2 + 40, yres / 2), ivec2(80, -1),
+    // -1 sizes the window from its fields. It used to be a hardcoded 80
+    // pixels, which is narrower than "Are you sure?" already is at 7 pixels a
+    // glyph, and every translation is longer still.
+    quitw = wm->CreateWindow(ivec2(xres / 2 + 40, yres / 2), ivec2(-1, -1),
               new button(10, wm->font()->Size().y + 4, ID_QUIT_OK, ok_image,
               new button(38, wm->font()->Size().y + 4, ID_CANCEL, cancel_image,
               new info_field(2, 2, ID_NULL, symbol_str("sure?"), NULL))),

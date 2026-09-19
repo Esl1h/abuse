@@ -17,6 +17,7 @@
 
 #include "common.h"
 
+#include "harness.h"
 #include "game.h"
 
 #include "jwindow.h"
@@ -84,7 +85,15 @@ void gamma_correct(palette *&pal, int force_menu)
         old_pal = NULL;
     }
 
-    if(gs && DEFINEDP(gs->GetValue()) && !force_menu)
+    if(abuse::harness::headless())
+    {
+        // Scripted runs are compared pixel for pixel against golden frames.
+        // Pin the ramp: a gamma.lsp written by an interactive run moves
+        // every snapshot without ever touching the state hash. The value
+        // is the one the golden frames were recorded with.
+        dg = 16;
+    }
+    else if(gs && DEFINEDP(gs->GetValue()) && !force_menu)
     {
         dg = lnumber_value(gs->GetValue());
     }
@@ -151,6 +160,13 @@ void gamma_correct(palette *&pal, int force_menu)
 
         Jwindow *gw = wm->CreateWindow(ivec2(xres / 2 - 190,
                                              yres / 2 - 90), ivec2(-1), gp);
+
+        // The position above is inherited and lands at -30 on a 320 wide
+        // screen, so the left edge and the start of the message were always
+        // off screen. Centre it on whatever size it ended up, and never let
+        // it start before the origin.
+        ivec2 at((xres - gw->m_size.x) / 2, (yres - gw->m_size.y) / 2);
+        wm->move_window(gw, Max(at.x, 0), Max(at.y, 0));
 
         Event ev;
         wm->flush_screen();

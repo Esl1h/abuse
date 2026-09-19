@@ -24,6 +24,8 @@ class console
 
   console(JCFont *font, int width, int height, char const *Name);
   int showing() { return con_win!=NULL; }
+  // See WindowManager::set_font: the font is rebuilt on a language change.
+  void set_font(JCFont *f) { fnt = f; }
   void show();
   void hide();
   void redraw();

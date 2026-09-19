@@ -173,8 +173,23 @@ public:
     int black() { return bk; }
     void set_colors(int Hi, int Med, int Low) { hi=Hi; med=Med; low=Low; }
     JCFont *font() { return fnt; }
+    // The font object is rebuilt when the language changes, and every widget
+    // draws through this pointer.
+    void set_font(JCFont *f) { fnt = f; }
 
-    int key_pressed(int x) { return key_state[x]; }
+    int key_pressed(int x)
+    { return (x >= 0 && x < 512) ? key_state[x] : 0; }
+
+    // True while any window is on screen. The pad's confirm button acts as a
+    // click then, even during play: the save-slot picker is a window that
+    // opens mid-level and reacts to clicks, not to keys.
+    bool has_visible_window() const
+    {
+        for (Jwindow *j = m_first; j; j = j->next)
+            if (!j->is_hidden())
+                return true;
+        return false;
+    }
     void hide_windows();
     void show_windows();
     void hide_window(Jwindow *j);

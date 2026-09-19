@@ -1,0 +1,670 @@
+/*
+ *  Abuse - dark 2D side-scrolling platform game
+ *
+ *  See options_screen.h.
+ *
+ *  This software was released into the Public Domain.
+ */
+
+#if defined HAVE_CONFIG_H
+#   include "config.h"
+#endif
+
+#include "common.h"
+
+#include "options_screen.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include "data/config_file.h"
+#include "sdlport/setup.h"
+#include "hexfont.h"
+#include "i18n/language.h"
+#include "i18n/uitext.h"
+#include "language_screen.h"
+#include "menu_list.h"
+#include "input/gamepad.h"
+#include "input/aim.h"
+#include "input/rumble.h"
+#include "input/actions.h"
+#include "configuration.h"
+#include "jwindow.h"
+#include "keys.h"
+#include "overlay.h"
+#include "render/options.h"
+#include "video.h"
+
+extern WindowManager *wm;
+
+namespace abuse::ui {
+
+namespace {
+
+// One row of the screen. `step` moves the value by one notch in `dir`, and
+// `show` writes what to print for it.
+struct Item
+{
+    i18n::Phrase label;
+    char const *key;            // the abuserc key it writes
+    bool restart;               // the running session keeps the old value
+    void (*step)(int dir);
+    void (*show)(char *buf, size_t n);
+    void (*value)(char *buf, size_t n);   // what goes in the config file
+};
+
+int clamp_step(int v, int dir, int step, int lo, int hi)
+{
+    v += dir * step;
+    if (v < lo) v = lo;
+    if (v > hi) v = hi;
+    return v;
+}
+
+// ---- language -------------------------------------------------------------
+
+i18n::Language const kLangs[] = {
+    i18n::Language::English, i18n::Language::French, i18n::Language::German,
+    i18n::Language::Portuguese, i18n::Language::Pseudo
+};
+
+void lang_step(int dir)
+{
+    int n = (int)(sizeof(kLangs) / sizeof(kLangs[0]));
+    int at = 0;
+    for (int i = 0; i < n; i++)
+        if (kLangs[i] == i18n::language())
+            at = i;
+    i18n::language() = kLangs[list_wrap(at, dir, n)];
+
+    // Reloads the symbol table and the font, so the screen itself changes
+    // language under the cursor instead of promising to next time.
+    apply_language_change();
+}
+
+void lang_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", i18n::language_name(i18n::language()));
+}
+
+// ---- font -----------------------------------------------------------------
+
+void font_step(int) { set_extended_font(!extended_font_wanted()); }
+void font_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", extended_font_wanted() ? "extended" : "classic");
+}
+
+// ---- video ----------------------------------------------------------------
+
+void scale_step(int dir)
+{
+    render::ScaleMode const modes[] = { render::ScaleMode::Integer,
+                                        render::ScaleMode::Fit,
+                                        render::ScaleMode::Stretch };
+    int at = 0;
+    for (int i = 0; i < 3; i++)
+        if (modes[i] == render::options().scale)
+            at = i;
+    render::options().scale = modes[list_wrap(at, dir, 3)];
+    apply_presentation();
+}
+
+void scale_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::scale_mode_name(render::options().scale));
+}
+
+void filter_step(int dir)
+{
+    render::Filter const filters[] = { render::Filter::Nearest,
+                                       render::Filter::Linear,
+                                       render::Filter::PixelArt };
+    int at = 0;
+    for (int i = 0; i < 3; i++)
+        if (filters[i] == render::options().filter)
+            at = i;
+    render::options().filter = filters[list_wrap(at, dir, 3)];
+    apply_filter();
+}
+
+void filter_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::filter_name(render::options().filter));
+}
+
+void vsync_step(int) { render::options().vsync = !render::options().vsync;
+                       apply_presentation(); }
+void vsync_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", say(render::options().vsync ? i18n::kOn : i18n::kOff));
+}
+void vsync_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::options().vsync ? "true" : "false");
+}
+
+void fps_step(int dir)
+{
+    int const steps[] = { 0, 30, 60, 75, 120, 144, 240 };
+    int const count = (int)(sizeof(steps) / sizeof(steps[0]));
+    int at = 0;
+    for (int i = 0; i < count; i++)
+        if (steps[i] == render::options().fps_limit)
+            at = i;
+    render::options().fps_limit = steps[list_wrap(at, dir, count)];
+}
+
+void fps_show(char *buf, size_t n)
+{
+    if (render::options().fps_limit <= 0)
+        snprintf(buf, n, "%s", say(i18n::kOff));
+    else
+        snprintf(buf, n, "%d", render::options().fps_limit);
+}
+
+// ---- input ----------------------------------------------------------------
+
+void deadzone_step(int dir)
+{
+    input::deadzone().inner =
+        clamp_step(input::deadzone().inner, dir, 1024, 0, 24576);
+}
+void deadzone_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%d", input::deadzone().inner);
+}
+
+void aim_step(int dir)
+{
+    input::aim_settings().radius =
+        clamp_step(input::aim_settings().radius, dir, 8, 16, 240);
+}
+void aim_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%d", input::aim_settings().radius);
+}
+
+void assist_step(int dir)
+{
+    input::assist_settings().strength =
+        clamp_step(input::assist_settings().strength, dir, 5, 0, 100);
+}
+void assist_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%d%%", input::assist_settings().strength);
+}
+
+void rumble_step(int dir)
+{
+    input::rumble_settings().strength =
+        clamp_step(input::rumble_settings().strength, dir, 10, 0, 100);
+}
+void rumble_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%d%%", input::rumble_settings().strength);
+}
+
+void cursor_step(int dir)
+{
+    input::cursor_settings().speed =
+        clamp_step(input::cursor_settings().speed, dir, 2, 4, 64);
+}
+void cursor_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%d", input::cursor_settings().speed);
+}
+
+// The value written to the config is the shown one for everything whose
+// display is already the config syntax.
+void same_as_shown(char *buf, size_t n) { (void)buf; (void)n; }
+
+Item const kItems[] = {
+    { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },
+    { i18n::kOptFont,        "font",        true,  font_step,     font_show,     NULL },
+    { i18n::kOptScaleMode,   "scalemode",   false, scale_step,    scale_show,    NULL },
+    { i18n::kOptFilter,      "filter",      false, filter_step,   filter_show,   NULL },
+    { i18n::kOptVsync,       "vsync",       false, vsync_step,    vsync_show,    vsync_value },
+    { i18n::kOptFpsLimit,    "fpslimit",    false, fps_step,      fps_show,      NULL },
+    { i18n::kOptDeadzone,    "deadzone",    false, deadzone_step, deadzone_show, NULL },
+    { i18n::kOptAimRadius,   "aimradius",   false, aim_step,      aim_show,      NULL },
+    { i18n::kOptAimAssist,   "aimassist",   false, assist_step,   assist_show,   NULL },
+    { i18n::kOptRumble,      "rumble",      false, rumble_step,   rumble_show,   NULL },
+    { i18n::kOptCursorSpeed, "cursorspeed", false, cursor_step,   cursor_show,   NULL },
+};
+
+int const kItemCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
+
+// Colours for the notice, which is not a list and draws itself.
+Colour const kInk     = rgba(210, 210, 220);
+Colour const kPick    = rgba(255, 220, 120);
+
+using i18n::say;
+
+char const *changed_keys[kItemCount] = {};
+
+void value_string(Item const &it, char *buf, size_t n)
+{
+    if (it.value)
+        it.value(buf, n);
+    else
+        it.show(buf, n);
+}
+
+}
+
+int options_item_count()
+{
+    return kItemCount;
+}
+
+bool handle_global_key(Event &ev)
+{
+    if (ev.type != EV_KEY)
+        return false;
+
+    if (ev.key == JK_F2)
+    {
+        run_options_screen();
+        return true;
+    }
+    if (ev.key == JK_F3)
+    {
+        run_rebind_screen();
+        return true;
+    }
+    return false;
+}
+
+bool draw_pad_lost_notice()
+{
+    if (!input::pad_lost())
+        return false;
+
+    int w = 0, h = 0;
+    if (!window_pixel_size(w, h))
+        return false;
+
+    Overlay &ov = overlay();
+    if (!ov.Begin(w, h))
+        return false;
+
+    HexFont const &font = overlay_font();
+    if (font.Empty())
+        return false;
+
+    int s = list_scale_for(h);
+    int cell = 8 * s;
+    int row = cell + s * 3;
+
+    char const *lines[2] = { say(i18n::kPadLost), say(i18n::kPadLostHelp) };
+    int widest = 0;
+    for (char const *l : lines)
+    {
+        int n = Overlay::TextWidth(l, s);
+        if (n > widest)
+            widest = n;
+    }
+
+    int box_w = widest + cell * 2;
+    int box_h = row * 2 + cell;
+    int bx = (w - box_w) / 2;
+    int by = h / 3;
+
+    ov.FillRect(bx, by, box_w, box_h, rgba(20, 8, 8, 225));
+    ov.FrameRect(bx, by, box_w, box_h, rgba(200, 120, 120));
+
+    int y = by + cell / 2;
+    ov.Text(font, (w - Overlay::TextWidth(lines[0], s)) / 2, y, lines[0], s, kPick);
+    y += row;
+    ov.Text(font, (w - Overlay::TextWidth(lines[1], s)) / 2, y, lines[1], s, kInk);
+
+    return true;
+}
+
+void draw_options_hint()
+{
+    int w = 0, h = 0;
+    if (!window_pixel_size(w, h))
+        return;
+
+    Overlay &ov = overlay();
+    if (!ov.Begin(w, h))
+        return;
+
+    HexFont const &font = overlay_font();
+    if (font.Empty())
+        return;
+
+    int s = list_scale_for(h);
+    int cell = 8 * s;
+
+    char const *hint = say(i18n::kMenuHint);
+    int tw = Overlay::TextWidth(hint, s);
+    int x = (w - tw) / 2;
+    // At the top: the menu's own icons run down the right edge and the eye
+    // starts there, and a line at the very bottom reads as a status bar.
+    int y = cell;
+
+    ov.FillRect(x - cell / 2, y - s * 2, tw + cell, cell + s * 4,
+                rgba(0, 0, 0, 170));
+    ov.Text(font, x, y, hint, s, kInk);
+}
+
+void draw_options_screen(int selected)
+{
+    Row rows[kItemCount];
+    char values[kItemCount][80];
+
+    for (int i = 0; i < kItemCount; i++)
+    {
+        char value[64];
+        kItems[i].show(value, sizeof(value));
+        // The arrows say the row is changeable, which nothing else on it does.
+        snprintf(values[i], sizeof(values[i]), "< %s >", value);
+
+        rows[i].label = say(kItems[i].label);
+        rows[i].value = values[i];
+        rows[i].marked = kItems[i].restart;
+    }
+
+    char const *footers[2] = { say(i18n::kOptionsHelp), say(i18n::kRestartNote) };
+    draw_list(say(i18n::kOptionsTitle), rows, kItemCount, selected, footers, 2);
+}
+
+
+namespace {
+
+// Labels for the eight actions, in the player's words rather than the wire
+// names that go into abuserc.
+i18n::Phrase const kActionLabels[] = {
+    i18n::kActMoveLeft, i18n::kActMoveRight, i18n::kActUp, i18n::kActDown,
+    i18n::kActFire, i18n::kActSpecial, i18n::kActWeaponPrev,
+    i18n::kActWeaponNext,
+};
+
+// A row's bindings joined into one line, or the "not bound" note.
+void bindings_line(input::Action a, char *out, size_t n)
+{
+    input::ActionMap const &map = mutable_action_map();
+    out[0] = 0;
+    size_t used = 0;
+
+    for (int j = 0; j < input::kMaxBindings; j++)
+    {
+        input::Binding const &b = map.binding(a, j);
+        if (b.empty())
+            continue;
+
+        char one[64];
+        describe_binding(b, one, sizeof(one));
+        if (!one[0])
+            continue;
+
+        int wrote = snprintf(out + used, n - used, "%s%s",
+                             used ? ", " : "", one);
+        if (wrote < 0 || (size_t)wrote >= n - used)
+            break;
+        used += (size_t)wrote;
+    }
+
+    if (!used)
+        snprintf(out, n, "%s", say(i18n::kUnbound));
+}
+
+}
+
+void draw_rebind_screen(int selected, bool capturing)
+{
+    int const count = (int)input::Action::Count;
+
+    Row rows[(int)input::Action::Count];
+    char values[(int)input::Action::Count][256];
+
+    for (int i = 0; i < count; i++)
+    {
+        bindings_line((input::Action)i, values[i], sizeof(values[i]));
+        if (i == selected && capturing)
+            snprintf(values[i], sizeof(values[i]), "%s", "...");
+
+        rows[i].label = say(kActionLabels[i]);
+        rows[i].value = values[i];
+        rows[i].marked = false;
+    }
+
+    char const *footer = say(capturing ? i18n::kPressAny : i18n::kControlsHelp);
+    draw_list(say(i18n::kControlsTitle), rows, count, selected, &footer, 1);
+}
+
+
+namespace {
+
+// Is anything on the pad still held?
+bool pad_anything_down()
+{
+    for (int i = 0; i < input::PadState::kMaxButtons; i++)
+        if (input::pad_state().button(i))
+            return true;
+
+    for (int i = 0; i < input::PadState::kMaxAxes; i++)
+    {
+        input::Deadzone const &dz = input::deadzone_for_axis(i);
+        if (input::pad_state().axis_active(i, -1, dz)
+            || input::pad_state().axis_active(i, 1, dz))
+            return true;
+    }
+    return false;
+}
+
+// The button that opened the capture is still held when the capture starts,
+// and the stick that walked down the list is often still deflected. Without
+// this the confirm button binds itself to the row it was used to pick.
+void wait_for_release(int selected)
+{
+    while (pad_anything_down())
+    {
+        draw_rebind_screen(selected, true);
+        wm->flush_screen();
+
+        // Drain what is queued, so a key release is seen and the loop is not
+        // spinning on a stale event.
+        while (wm->IsPending())
+        {
+            Event ev;
+            wm->get_event(ev);
+        }
+    }
+
+    while (wm->IsPending())
+    {
+        Event ev;
+        wm->get_event(ev);
+    }
+}
+
+// Waits for one key, pad button or stick push and turns it into a binding.
+// Reads the pad from its state rather than from events: a button arrives as a
+// mapped key code, which is the binding we already have, not the one being
+// made.
+bool capture_binding(int selected, input::Binding &out)
+{
+    wait_for_release(selected);
+
+    while (true)
+    {
+        draw_rebind_screen(selected, true);
+        wm->flush_screen();
+
+        for (int i = 0; i < input::PadState::kMaxButtons; i++)
+            if (input::pad_state().button(i))
+            {
+                out.source = input::Source::PadButton;
+                out.code = i;
+                out.sign = 0;
+                return true;
+            }
+
+        for (int i = 0; i < input::PadState::kMaxAxes; i++)
+        {
+            input::Deadzone const &dz = input::deadzone_for_axis(i);
+            for (int sign : { -1, 1 })
+                if (input::pad_state().axis_active(i, sign, dz))
+                {
+                    out.source = input::Source::PadAxis;
+                    out.code = i;
+                    out.sign = sign;
+                    return true;
+                }
+        }
+        if (!wm->IsPending())
+            continue;
+
+        Event ev;
+        wm->get_event(ev);
+        if (ev.type != EV_KEY)
+            continue;
+        if (ev.key == JK_ESC)
+            return false;
+
+        out.source = input::Source::Key;
+        out.code = ev.key;
+        out.sign = 0;
+        return true;
+    }
+}
+
+}
+
+void run_rebind_screen()
+{
+    int const count = (int)input::Action::Count;
+    int selected = 0;
+    bool quit = false;
+    bool touched = false;
+
+    while (!quit)
+    {
+        draw_rebind_screen(selected, false);
+        wm->flush_screen();
+
+        Event ev;
+        wm->get_event(ev);
+        if (ev.type != EV_KEY)
+            continue;
+
+        switch (ev.key)
+        {
+        case JK_UP:
+            selected = list_wrap(selected, -1, count);
+            break;
+        case JK_DOWN:
+            selected = list_wrap(selected, 1, count);
+            break;
+        case JK_ENTER:
+        {
+            input::Binding b;
+            if (capture_binding(selected, b))
+            {
+                mark_explicit_binds();
+                if (mutable_action_map().add((input::Action)selected, b))
+                    touched = true;
+                else
+                    printf("Controls: %s\n", say(i18n::kNoRoomForMore));
+            }
+            break;
+        }
+        case JK_BACKSPACE:
+            mark_explicit_binds();
+            mutable_action_map().clear((input::Action)selected);
+            touched = true;
+            break;
+        case JK_ESC:
+        case JK_F3:
+            quit = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (touched)
+    {
+        char const *path = config_file_path();
+        if (data::save_config_lines(path, "bind", format_all_bindings()))
+            printf("Controls: %s (%s)\n", say(i18n::kSaved), path);
+        else
+            printf("Controls: %s (%s)\n", say(i18n::kNotSaved), path);
+    }
+
+    overlay().Clear();
+    wm->flush_screen();
+}
+
+void run_options_screen()
+{
+    int selected = 0;
+    bool quit = false;
+
+    for (int i = 0; i < kItemCount; i++)
+        changed_keys[i] = NULL;
+
+    while (!quit)
+    {
+        draw_options_screen(selected);
+        wm->flush_screen();
+
+        Event ev;
+        wm->get_event(ev);
+
+        if (ev.type != EV_KEY)
+            continue;
+
+        switch (ev.key)
+        {
+        case JK_UP:
+            selected = list_wrap(selected, -1, kItemCount);
+            break;
+        case JK_DOWN:
+            selected = list_wrap(selected, 1, kItemCount);
+            break;
+        case JK_LEFT:
+        case JK_RIGHT:
+            kItems[selected].step(ev.key == JK_RIGHT ? 1 : -1);
+            changed_keys[selected] = kItems[selected].key;
+            break;
+        case JK_ESC:
+        case JK_ENTER:
+        case JK_F2:
+            quit = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    // Write back only what was touched, so the screen never rewrites a key the
+    // player did not ask it to.
+    bool wrote = false, failed = false;
+    char const *path = config_file_path();
+    for (int i = 0; i < kItemCount; i++)
+    {
+        if (!changed_keys[i])
+            continue;
+        char value[64];
+        value_string(kItems[i], value, sizeof(value));
+        if (data::save_config_key(path, changed_keys[i], value))
+            wrote = true;
+        else
+            failed = true;
+    }
+
+    overlay().Clear();
+    wm->flush_screen();
+
+    if (failed)
+        printf("Options: %s (%s)\n", say(i18n::kNotSaved), path);
+    else if (wrote)
+        printf("Options: %s (%s)\n", say(i18n::kSaved), path);
+}
+
+}

@@ -34,10 +34,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <signal.h>
 #include <SDL3/SDL.h>
 
+#include "data/paths.h"
+#include "render/options.h"
+#include "input/gamepad.h"
+#include "input/rumble.h"
+#include "input/aim.h"
+#include "harness.h"
+#include "i18n/language.h"
+#include "ui/hexfont.h"
+#include "configuration.h"
 #include "specs.h"
 #include "keys.h"
 #include "setup.h"
@@ -45,10 +56,37 @@
 #include "util.h"
 
 flags_struct flags;
+
+// Only when the player has not chosen one does the system locale get a say.
+static bool g_language_from_config = false;
 keys_struct keys;
 
 extern int xres, yres;
 static unsigned int scale;
+
+// Per-mode location of abuserc, resolved in setup() before readRCFile().
+// Empty keeps the historical save-prefix lookup (Windows, no $HOME).
+static std::string g_rc_path;
+
+// mkdir -p, component by component. The engine has no directory API, and
+// the XDG paths (~/.config/abuse/<mode>/) arrive unwritten on first run.
+static void make_dirs(char const *path)
+{
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), "%s", path);
+    for (char *p = buffer + 1; *p; p++)
+    {
+        if (*p == '/' && p[1] != '\0')
+        {
+            *p = '\0';
+            mkdir(buffer, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP
+                          | S_IROTH | S_IXOTH);
+            *p = '/';
+        }
+    }
+    mkdir(buffer, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP
+                  | S_IROTH | S_IXOTH);
+}
 
 //
 // Display help
@@ -73,6 +111,12 @@ void showHelp(const char* executableName)
     printf( "  -h, --help        Display this text\n" );
     printf( "  -nosound          Disable sound\n" );
     printf( "  -scale <arg>      Scale to <arg>\n" );
+    printf( "  -preset <arg>     classic or sharp\n" );
+    printf( "  -scalemode <arg>  integer, fit or stretch\n" );
+    printf( "  -filter <arg>     nearest, linear or pixelart\n" );
+    printf( "  -novsync          Do not wait for the display refresh\n" );
+    printf( "  -language <arg>   en, fr, de, pt_BR, or xx_XX for pseudo\n" );
+    printf( "  -font <arg>       classic art font, or extended for accents\n" );
 //    printf( "  -x <arg>          Set the width to <arg>\n" );
 //    printf( "  -y <arg>          Set the height to <arg>\n" );
     printf( "\n" );
@@ -97,19 +141,82 @@ void createRCFile( char *rcfile )
 #endif
         fputs( "; Grab the mouse to the window\ngrabmouse=0\n\n", fd );
         fputs( "; Set the scale factor\nscale=2\n\n", fd );
+        fputs( "; Look preset: classic or sharp. Sets scalemode and filter together;\n", fd );
+        fputs( "; anything set after it wins.\npreset=classic\n\n", fd );
+        fputs( "; How the frame is scaled to the window: integer, fit, stretch\n", fd );
+        fputs( "scalemode=fit\n\n", fd );
+        fputs( "; Texture filter: nearest, linear, pixelart\nfilter=pixelart\n\n", fd );
+        fputs( "; Wait for the display refresh\nvsync=1\n\n", fd );
+        fputs( "; Frame cap, 0 for none\nfpslimit=0\n\n", fd );
+        fputs( "; Colour of the bars around the image, rrggbb\nletterbox=000000\n\n", fd );
+        fputs( "; Gamepad stick deadzone, 0 to 32767. Raise it if the character\n", fd );
+        fputs( "; drifts with the stick centred.\ndeadzone=8192\n", fd );
+        fputs( "deadzoneouter=30000\n\n", fd );
+        fputs( "; Pixels the menu cursor travels per tick with the stick fully\n", fd );
+        fputs( "; pushed. The screen is 320 wide and there are 15 ticks a second.\n", fd );
+        fputs( "cursorspeed=16\n\n", fd );
+        fputs( "; Trigger deadzone. Lower than the stick because a trigger rests\n", fd );
+        fputs( "; at zero reliably.\ntriggerdeadzone=2000\n\n", fd );
+        fputs( "; Force feedback strength in percent, 0 turns it off\n", fd );
+        fputs( "rumble=100\n\n", fd );
+        fputs( "; How far the gamepad crosshair can sit from the character, in\n", fd );
+        fputs( "; game pixels. The screen is 320 wide.\naimradius=80\n\n", fd );
+        fputs( "; Aim assistance for the gamepad, in percent. 0 is off, and off is\n", fd );
+        fputs( "; the default: it changes how the game plays. Never applied in\n", fd );
+        fputs( "; Original mode.\naimassist=0\n", fd );
+        fputs( "; How far off the current aim a target may be to be helped, in\n", fd );
+        fputs( "; degrees.\naimassistcone=25\n\n", fd );
 //        fputs( "; Set the width of the window\nx=320\n\n", fd );
 //        fputs( "; Set the height of the window\ny=200\n\n", fd );
+        fputs( "; Language of the in-game text: en, fr, de, pt_BR.\n", fd );
+        fputs( "; Left out, the system locale decides. xx_XX is the pseudo\n", fd );
+        fputs( "; language, for spotting text that does not fit.\n", fd );
+        fputs( ";language=en\n\n", fd );
+        fputs( "; Font: classic is the art the game shipped with, CP437.\n", fd );
+        fputs( "; extended covers Latin-1, which pt_BR needs and picks by itself.\n", fd );
+        fputs( ";font=classic\n\n", fd );
         fputs( "; Key mappings\n", fd );
         fputs( "left=LEFT\nright=RIGHT\nup=UP\ndown=DOWN\n", fd );
         fputs( "fire=SPACE\nweapprev=CTRL_R\nweapnext=INSERT\n", fd );
         fputs( "; Alternative key bindings\n; Note: only the following keys can have two bindings\n", fd );
-        fputs( "left2=a\nright2=d\nup2=w\ndown2=s\n", fd );
+        fputs( "left2=a\nright2=d\nup2=w\ndown2=s\n\n", fd );
+        fputs( "; Newer form, one line per binding, any number per action:\n", fd );
+        fputs( ";   bind=<action>,key,<key name>\n", fd );
+        fputs( ";   bind=<action>,pad,<button>      e.g. a, dpleft, leftshoulder\n", fd );
+        fputs( ";   bind=<action>,pad,<axis>+       e.g. righttrigger+, leftx-\n", fd );
+        fputs( ";   bind=<action>,mouse,<1-8>\n", fd );
+        fputs( "; Actions: left right up down fire special weapprev weapnext\n", fd );
+        fputs( ";\n; Or pick a ready-made keyboard layout instead:\n", fd );
+        fputs( ";   keypreset=classic   as the game always shipped (default)\n", fd );
+        fputs( ";   keypreset=modern    Q/E change weapon, F is the special\n", fd );
+        fputs( "; The first bind= line replaces every default, so list them all\n", fd );
+        fputs( "; or none. The keys above keep working when no bind= is present.\n", fd );
         fclose( fd );
     }
     else
     {
         printf( "Unable to create 'abuserc' file.\n" );
     }
+}
+
+bool language_was_configured()
+{
+    return g_language_from_config;
+}
+
+char const *config_file_path()
+{
+    static std::string resolved;
+    if (!g_rc_path.empty())
+        return g_rc_path.c_str();
+
+    if (resolved.empty())
+    {
+        char *fallback = join_strings(get_save_filename_prefix(), "/abuserc");
+        resolved = fallback;
+        free(fallback);
+    }
+    return resolved.c_str();
 }
 
 //
@@ -122,7 +229,12 @@ void readRCFile()
     char buf[255];
     char *result;
 
-    rcfile = join_strings(get_save_filename_prefix(), "/abuserc");
+    // Phase 1, task 1.3: the rc file moved to the per-mode config directory.
+    // Empty (no $HOME, Windows path) keeps the historical save-prefix lookup.
+    if (!g_rc_path.empty())
+        rcfile = SDL_strdup(g_rc_path.c_str());
+    else
+        rcfile = join_strings(get_save_filename_prefix(), "/abuserc");
     if( (fd = fopen( rcfile, "r" )) != NULL )
     {
         while( fgets( buf, sizeof( buf ), fd ) != NULL )
@@ -137,6 +249,130 @@ void readRCFile()
             {
                 result = strtok( NULL, "\n" );
                 flags.grabmouse = atoi( result );
+            }
+            else if( strcasecmp( result, "preset" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::Preset preset;
+                if( abuse::render::parse_preset( result, preset ) )
+                    abuse::render::apply_preset( preset, abuse::render::options() );
+            }
+            else if( strcasecmp( result, "scalemode" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::parse_scale_mode( result, abuse::render::options().scale );
+            }
+            else if( strcasecmp( result, "filter" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::parse_filter( result, abuse::render::options().filter );
+            }
+            else if( strcasecmp( result, "vsync" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::options().vsync = atoi( result ) != 0;
+            }
+            else if( strcasecmp( result, "fpslimit" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::options().fps_limit = atoi( result );
+            }
+            else if( strcasecmp( result, "language" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                if( result && !abuse::i18n::parse_language(
+                        result, abuse::i18n::language() ) )
+                    printf( "Config: unknown language '%s'\n", result );
+                else
+                    g_language_from_config = true;
+            }
+            else if( strcasecmp( result, "cursorspeed" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                int speed = 0;
+                if( result && abuse::input::parse_deadzone_value( result, speed )
+                    && speed > 0 )
+                    abuse::input::cursor_settings().speed = speed;
+                else
+                    printf( "Config: bad cursorspeed '%s'\n", result );
+            }
+            else if( strcasecmp( result, "font" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool extended = false;
+                if( result && abuse::ui::parse_font_choice( result, extended ) )
+                    abuse::ui::set_extended_font( extended );
+                else
+                    printf( "Config: unknown font '%s', expected classic or extended\n",
+                            result );
+            }
+            else if( strcasecmp( result, "keypreset" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                if( result && !apply_config_key_preset( result ) )
+                    printf( "Config: unknown keypreset '%s', expected classic or modern\n",
+                            result );
+            }
+            else if( strcasecmp( result, "bind" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                // A bad line drops one binding and says so, instead of taking
+                // the whole config down.
+                if( result && !add_config_binding( result ) )
+                    printf( "Config: ignoring malformed bind '%s'\n", result );
+            }
+            else if( strcasecmp( result, "aimradius" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                int radius = 0;
+                // Reuses the deadzone parser: same shape, a plain number with
+                // no suffix, rejected rather than clamped when out of range.
+                if( abuse::input::parse_deadzone_value( result, radius ) && radius > 0 )
+                    abuse::input::aim_settings().radius = radius;
+            }
+            else if( strcasecmp( result, "aimassist" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                int percent = 0;
+                if( abuse::input::parse_rumble_strength( result, percent ) )
+                    abuse::input::assist_settings().strength = percent;
+            }
+            else if( strcasecmp( result, "aimassistcone" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                int degrees = 0;
+                if( abuse::input::parse_rumble_strength( result, degrees )
+                    && degrees > 0 && degrees <= 90 )
+                    abuse::input::assist_settings().cone_degrees = degrees;
+            }
+            else if( strcasecmp( result, "rumble" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::input::parse_rumble_strength(
+                    result, abuse::input::rumble_settings().strength );
+            }
+            else if( strcasecmp( result, "deadzone" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::input::parse_deadzone_value(
+                    result, abuse::input::deadzone().inner );
+            }
+            else if( strcasecmp( result, "deadzoneouter" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::input::parse_deadzone_value(
+                    result, abuse::input::deadzone().outer );
+            }
+            else if( strcasecmp( result, "triggerdeadzone" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::input::parse_deadzone_value(
+                    result, abuse::input::trigger_deadzone().inner );
+            }
+            else if( strcasecmp( result, "letterbox" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::parse_letterbox( result, abuse::render::options().letterbox );
             }
             else if( strcasecmp( result, "scale" ) == 0 )
             {
@@ -253,6 +489,48 @@ void parseCommandLine( int argc, char **argv )
                 yres = 200;
             }
         }
+        else if( !strcasecmp( argv[ii], "-language" ) )
+        {
+            if( ii + 1 < argc && abuse::i18n::parse_language(
+                    argv[++ii], abuse::i18n::language() ) )
+                g_language_from_config = true;
+            else
+                printf( "Unknown language '%s'\n", argv[ii] );
+        }
+        else if( !strcasecmp( argv[ii], "-font" ) )
+        {
+            bool extended = false;
+            if( ii + 1 < argc && abuse::ui::parse_font_choice( argv[++ii], extended ) )
+                abuse::ui::set_extended_font( extended );
+            else
+                printf( "Unknown font '%s', expected classic or extended\n", argv[ii] );
+        }
+        else if( !strcasecmp( argv[ii], "-preset" ) )
+        {
+            abuse::render::Preset preset;
+            if( ii + 1 < argc && abuse::render::parse_preset( argv[++ii], preset ) )
+                abuse::render::apply_preset( preset, abuse::render::options() );
+            else
+                printf( "Unknown preset '%s', expected classic or sharp\n", argv[ii] );
+        }
+        else if( !strcasecmp( argv[ii], "-scalemode" ) )
+        {
+            if( ii + 1 < argc && !abuse::render::parse_scale_mode( argv[++ii],
+                                        abuse::render::options().scale ) )
+                printf( "Unknown scale mode '%s', keeping %s\n", argv[ii],
+                        abuse::render::scale_mode_name( abuse::render::options().scale ) );
+        }
+        else if( !strcasecmp( argv[ii], "-filter" ) )
+        {
+            if( ii + 1 < argc && !abuse::render::parse_filter( argv[++ii],
+                                        abuse::render::options().filter ) )
+                printf( "Unknown filter '%s', keeping %s\n", argv[ii],
+                        abuse::render::filter_name( abuse::render::options().filter ) );
+        }
+        else if( !strcasecmp( argv[ii], "-novsync" ) )
+        {
+            abuse::render::options().vsync = 0;
+        }
         else if( !strcasecmp( argv[ii], "-scale" ) )
         {
             // FIXME: Pretty sure scale does nothing now
@@ -337,8 +615,25 @@ void setup( int argc, char **argv )
     // Display our name and version
     printf( "%s %s\n", PACKAGE_NAME, PACKAGE_VERSION );
 
-    // Initialize SDL with video and audio support
-    if( !SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD ) )
+    // SDL_native_midi ships with its debug logging forced on: its guard reads
+    // "#if 1 //ndef NDEBUG", so a release build still logs every MIDI poll and
+    // event. That is tens of thousands of lines per session, drowning the
+    // messages that matter. The game itself never calls SDL_Log, so raising
+    // the floor for that category costs nothing and keeps warnings and errors.
+    SDL_SetLogPriority( SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_WARN );
+
+    // Initialize SDL with video and audio support.
+    //
+    // No gamepad under the test harness. A scripted run must not read a
+    // physical device: a pad plugged into the machine changes the button
+    // labels the controls screen prints, and a held button would reach the
+    // action map and change what a replay does. Both are the host leaking
+    // into a result that is compared byte for byte.
+    SDL_InitFlags init = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
+    if( !abuse::harness::headless() )
+        init |= SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD;
+
+    if( !SDL_Init( init ) )
     {
         show_startup_error( "Unable to initialize SDL : %s\n", SDL_GetError() );
         exit( 1 );
@@ -346,11 +641,10 @@ void setup( int argc, char **argv )
     atexit( SDL_Quit );
 
     // Set the savegame directory
-    char *homedir;
+#ifdef WIN32
     char *savedir;
     FILE *fd = NULL;
 
-#ifdef WIN32
     // Grab the profile dir
     PWSTR appData;
     SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData);
@@ -371,30 +665,36 @@ void setup( int argc, char **argv )
     CoTaskMemFree(appData);
     free( savedir );
 #else
-    if( (homedir = getenv( "HOME" )) != NULL )
+    // Phase 1, task 1.3: XDG directories per mode, with the legacy ~/.abuse/
+    // still winning while it exists, so current installs keep their saves,
+    // light.tbl and abuserc, and replays keep their baseline.
     {
-        savedir = join_strings(homedir, "/.abuse/");
-        // Check if we already have a savegame directory
-        if( (fd = fopen( savedir, "r" )) == NULL )
+        abuse::data::Env env = abuse::data::system_env();
+        if (env.home.empty())
         {
-            // FIXME: Add some error checking here
-            mkdir( savedir, S_IRUSR | S_IWUSR | S_IXUSR );
+            printf( "WARNING: Unable to get $HOME environment variable.\n" );
+            printf( "         Savegames will probably fail.\n" );
+            set_save_filename_prefix( "" );
         }
         else
         {
-            fclose( fd );
+            std::string prefix = abuse::data::save_prefix(env);
+            std::string rcfile = abuse::data::rc_path(env);
+
+            // The legacy directory already exists; the XDG ones may not.
+            if (!abuse::data::legacy_dir_exists(env))
+                make_dirs(prefix.substr(0, prefix.size() - 1).c_str());
+
+            char *dir = SDL_strdup(prefix.c_str());
+            set_save_filename_prefix(dir);
+            SDL_free(dir);
+
+            // abuserc lives in the config directory, which may not exist
+            // either when the write below creates it.
+            std::string parent = rcfile.substr(0, rcfile.find_last_of('/'));
+            make_dirs(parent.c_str());
+            g_rc_path = rcfile;
         }
-        set_save_filename_prefix( savedir );
-        SDL_free( savedir );
-    }
-    else
-    {
-        // Warn the user that we couldn't set the savename prefix
-        printf( "WARNING: Unable to get $HOME environment variable.\n" );
-        printf( "         Savegames will probably fail.\n" );
-        // Just use the working directory.
-        // Hopefully they have write permissions....
-        set_save_filename_prefix( "" );
     }
 #endif
 
@@ -434,11 +734,43 @@ void setup( int argc, char **argv )
     set_filename_prefix( ASSETDIR );
 #endif
 
-    // Load the users configuration
-    readRCFile();
+    // Load the users configuration. Not under the test harness: a run that
+    // reads the developer's abuserc is a run whose result depends on the
+    // machine it happened on, and the window snapshots compare the presented
+    // frame, which scale= alone would change. It also keeps a test run from
+    // writing an abuserc into a CI home directory.
+    if( abuse::harness::headless() )
+        printf( "Config: abuserc skipped under --headless\n" );
+    else
+        readRCFile();
 
     // Handle command-line parameters
     parseCommandLine( argc, argv );
+
+    // Neither the config nor the command line named one, so ask the system.
+    // Except under the test harness: a snapshot taken on a host set to
+    // Portuguese would not match one taken on a host set to English, and the
+    // font follows the language, so the whole frame would differ. An explicit
+    // -language still wins, which is how the translated frames get tested.
+    if( !g_language_from_config && !abuse::harness::headless() )
+        abuse::i18n::language() = abuse::i18n::detect_language();
+
+    // Phase 1, tasks 1.3 and 1.4: in Original mode the user-supplied data is an
+    // OVERLAY, not a replacement. Levels, art and lisp stay in the normal data
+    // directory, where they are public domain; only the sound and music that
+    // are missing from it come from the classic set. Replacing the prefix
+    // outright would lose the art, since the classic tarballs carry no levels.
+    if (abuse::data::mode() == abuse::data::Mode::Original)
+    {
+        char *classic = SDL_strdup(abuse::data::classic_data_dir().c_str());
+        set_fallback_filename_prefix( classic );
+        SDL_free( classic );
+
+        // The Original mode is the reference the tests compare against, so it
+        // always presents the classic way regardless of what the config says.
+        abuse::render::apply_preset( abuse::render::Preset::Classic,
+                                     abuse::render::options() );
+    }
 
     // Calculate the scaled window size.
     flags.xres = xres * scale;

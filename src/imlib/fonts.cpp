@@ -26,13 +26,17 @@ void JCFont::PutString(image *screen, ivec2 pos, char const *st, int color)
 
 void JCFont::PutChar(image *screen, ivec2 pos, char ch, int color)
 {
-    if (!m_data[(int)ch])
+    // char is signed here, so the accented letters the French and German
+    // tables use index m_data from -128 up and read outside the array.
+    int const idx = (unsigned char)ch;
+
+    if (!m_data[idx])
         return;
 
     if (color >= 0)
-        m_data[(int)ch]->PutColor(screen, pos, color);
+        m_data[idx]->PutColor(screen, pos, color);
     else
-        m_data[(int)ch]->PutImage(screen, pos);
+        m_data[idx]->PutImage(screen, pos);
 }
 
 JCFont::JCFont(image *letters)

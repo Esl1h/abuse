@@ -1,0 +1,112 @@
+/*
+ *  Abuse - dark 2D side-scrolling platform game
+ *
+ *  Catalogue for text written in C++. Phase 4, task 4.3.
+ *
+ *  The strings the engine already had are Lisp symbols in
+ *  data/lisp/english.lsp, translated by loading another table on top of it.
+ *  Text that the new UI adds cannot go there: that file is original data this
+ *  project does not edit. It lives here instead, one phrase per entry, defined
+ *  in the header so adding a string is one edit in one place and a translator
+ *  has the whole vocabulary in front of them.
+ *
+ *  The Portuguese column is Latin-1, the encoding the renderer draws in, so
+ *  the bytes are written as escapes and this file stays pure ASCII: no editor
+ *  can silently re-encode it to UTF-8 and turn every accent into two wrong
+ *  glyphs.
+ *
+ *  This software was released into the Public Domain.
+ */
+
+#ifndef ABUSE_I18N_UITEXT_H_
+#define ABUSE_I18N_UITEXT_H_
+
+namespace abuse::i18n {
+
+struct Phrase
+{
+    char const *en;
+    char const *pt;
+};
+
+// The phrase in the language in force. English for everything that has no
+// translation of its own yet, which is the same fallback the Lisp table uses.
+char const *say(Phrase const &p);
+
+// ---- options screen -------------------------------------------------------
+
+inline constexpr Phrase kOptionsTitle   = { "Options", "Op\xe7\xf5" "es" };
+inline constexpr Phrase kOptionsHelp    = { "arrows change, Esc leaves",
+                                            "setas mudam, Esc sai" };
+inline constexpr Phrase kRestartNote    = { "* takes effect next time the game starts",
+                                            "* vale na pr\xf3xima vez que o jogo abrir" };
+inline constexpr Phrase kSaved          = { "saved to abuserc",
+                                            "salvo no abuserc" };
+inline constexpr Phrase kNotSaved       = { "could not write abuserc",
+                                            "n\xe3o foi poss\xedvel escrever o abuserc" };
+inline constexpr Phrase kOn             = { "on", "ligado" };
+inline constexpr Phrase kOff            = { "off", "desligado" };
+
+inline constexpr Phrase kOptLanguage    = { "Language", "Idioma" };
+inline constexpr Phrase kOptFont        = { "Font", "Fonte" };
+inline constexpr Phrase kOptScaleMode   = { "Scale mode", "Modo de escala" };
+inline constexpr Phrase kOptFilter      = { "Filter", "Filtro" };
+inline constexpr Phrase kOptVsync       = { "Vertical sync", "Sincronia vertical" };
+inline constexpr Phrase kOptFpsLimit    = { "FPS limit", "Limite de FPS" };
+inline constexpr Phrase kOptDeadzone    = { "Stick deadzone", "Zona morta" };
+inline constexpr Phrase kOptAimRadius   = { "Aim radius", "Raio da mira" };
+inline constexpr Phrase kOptAimAssist   = { "Aim assist", "Assist\xeancia de mira" };
+inline constexpr Phrase kOptRumble      = { "Rumble", "Vibra\xe7\xe3o" };
+inline constexpr Phrase kOptCursorSpeed = { "Cursor speed", "Velocidade do cursor" };
+
+// ---- controls screen ------------------------------------------------------
+
+inline constexpr Phrase kControlsTitle  = { "Controls", "Controles" };
+inline constexpr Phrase kControlsHelp   = { "Enter adds, Backspace clears, Esc leaves",
+                                            "Enter adiciona, Backspace limpa, Esc sai" };
+inline constexpr Phrase kPressAny       = { "press a key or a pad button, Esc cancels",
+                                            "aperte uma tecla ou um bot\xe3o, Esc cancela" };
+inline constexpr Phrase kUnbound        = { "not bound", "sem atalho" };
+inline constexpr Phrase kNoRoomForMore  = { "no room for another one",
+                                            "sem espa\xe7o para mais um" };
+
+inline constexpr Phrase kActMoveLeft    = { "Move left", "Andar para a esquerda" };
+inline constexpr Phrase kActMoveRight   = { "Move right", "Andar para a direita" };
+inline constexpr Phrase kActUp          = { "Up / jump", "Cima / pular" };
+inline constexpr Phrase kActDown        = { "Down / crouch", "Baixo / agachar" };
+inline constexpr Phrase kActFire        = { "Fire", "Atirar" };
+inline constexpr Phrase kActSpecial     = { "Special", "Especial" };
+inline constexpr Phrase kActWeaponPrev  = { "Previous weapon", "Arma anterior" };
+inline constexpr Phrase kActWeaponNext  = { "Next weapon", "Pr\xf3xima arma" };
+
+// ---- classic data screen --------------------------------------------------
+
+inline constexpr Phrase kClassicTitle   = { "The Original mode needs the classic sound",
+                                            "O Modo Original precisa do som original" };
+inline constexpr Phrase kClassicWhy1    = { "Levels, art and code ship with the game.",
+                                            "Fases, arte e c\xf3" "digo v\xeam com o jogo." };
+inline constexpr Phrase kClassicWhy2    = { "The sound and the music do not, so they come apart.",
+                                            "O som e a m\xfasica n\xe3o, ent\xe3o v\xeam \xe0 parte." };
+inline constexpr Phrase kClassicOpen    = { "Open the download page",
+                                            "Abrir a p\xe1gina de download" };
+inline constexpr Phrase kClassicScript  = { "or run scripts/fetch-classic-data.sh",
+                                            "ou rode scripts/fetch-classic-data.sh" };
+inline constexpr Phrase kClassicGoOn    = { "Play without the original sound",
+                                            "Jogar sem o som original" };
+inline constexpr Phrase kClassicOpened  = { "opened in your browser",
+                                            "aberto no navegador" };
+inline constexpr Phrase kClassicNoOpen  = { "no browser opened; the address is above",
+                                            "nenhum navegador abriu; o endere\xe7o est\xe1 acima" };
+
+// ---- notices --------------------------------------------------------------
+
+inline constexpr Phrase kPadLost        = { "Controller disconnected",
+                                            "Controle desconectado" };
+inline constexpr Phrase kPadLostHelp    = { "plug it back in, or press space",
+                                            "conecte de novo, ou aperte espa\xe7o" };
+inline constexpr Phrase kMenuHint       = { "F2 options    F3 controls",
+                                            "F2 op\xe7\xf5" "es    F3 controles" };
+
+}
+
+#endif

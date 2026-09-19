@@ -81,6 +81,10 @@ extern int start_running;
 image *load_image(spec_entry *e, bFILE *fp);      // preforms scaling
 image *load_image(bFILE *fp);
 void load_data(int argc, char **argv);
+
+// Loads the current language's symbol table on top of English. Safe to call
+// again after the language changes.
+void load_language_table();
 char *load_script(char *name);
 void load_tiles(Cell *file_list);
 extern char lsf[256];

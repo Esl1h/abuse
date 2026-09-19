@@ -36,4 +36,13 @@ struct keys_struct
     int b4;
 };
 
+// Where abuserc was actually read from, resolved once in setup(). The options
+// screen writes back to the same file rather than working it out again, so the
+// two can never disagree.
+char const *config_file_path();
+
+// True when abuserc or the command line named a language. False means nobody
+// has chosen: the language came from the system locale, or from the default.
+bool language_was_configured();
+
 #endif // _SETUP_H_

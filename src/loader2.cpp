@@ -37,6 +37,7 @@
 #include "loadgame.h"
 #include "nfserver.h"
 #include "specache.h"
+#include "i18n/language.h"
 
 extern int past_startup;
 
@@ -353,6 +354,8 @@ void load_data(int argc, char **argv)
     printf("unable to open file '%s'\n",lsf);
     exit(0);
   }
+  load_language_table();
+
   compiled_init();
   LSpace::Tmp.Clear();
 
@@ -484,6 +487,35 @@ void load_data(int argc, char **argv)
 
 
 
+
+// Phase 4, task 4.3: the translation goes on top of the English table that
+// abuse.lsp loaded, so any symbol it leaves out keeps its English text instead
+// of reaching symbol_str's "Missing language symbol!".
+//
+// Callable more than once, because the language screen and the options screen
+// both change the language after startup: loading another table on top simply
+// overwrites the symbols it defines.
+void load_language_table()
+{
+  char const *lang_file = abuse::i18n::language_lisp_file(abuse::i18n::language());
+  if (!lang_file)
+    return;
+
+  // The caller may be in tmp space, which is cleared regularly. The strings
+  // have to outlive that, so the load goes into the permanent space, the same
+  // one english.lsp was read into.
+  LSpace *sp = LSpace::Current;
+  LSpace::Current = &LSpace::Perm;
+
+  char prog[128];
+  snprintf(prog, sizeof(prog), "(load \"%s\")\n", lang_file);
+  char const *cs = prog;
+  // A missing translation is not fatal: English is already in place.
+  if (!LObject::Compile(cs)->Eval())
+    dprintf("Language file '%s' not found, staying in English\n", lang_file);
+
+  LSpace::Current = sp;
+}
 
 char *load_script(char *name)
 {

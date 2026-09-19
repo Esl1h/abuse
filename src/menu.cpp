@@ -21,6 +21,7 @@
 #include "ui/volumewindow.h"
 
 #include "menu.h"
+#include "ui/options_screen.h"
 #include "lisp.h"
 #include "game.h"
 #include "timing.h"
@@ -656,6 +657,21 @@ void main_menu()
             {
                 wm->get_event(ev);
             } while (ev.type==EV_MOUSE_MOVE && wm->IsPending());
+            // The title menu has its own event loop and never reaches
+            // Game::get_input, which is why F2 and F3 worked inside a level
+            // and nowhere else. Before anything else, so the menu does not
+            // also act on the key.
+            if (abuse::ui::handle_global_key(ev))
+            {
+                the_game->reset_keymap();
+                // The screen cleared the overlay on the way out, and the menu
+                // owns it again.
+                abuse::ui::draw_options_hint();
+                main_screen->AddDirty(ivec2(0), ivec2(xres, yres));
+                wm->flush_screen();
+                continue;
+            }
+
             inm->handle_event(ev,NULL);
             if (ev.type==EV_KEY && ev.key==JK_ESC)
                 wm->Push(new Event(ID_QUIT,NULL));
