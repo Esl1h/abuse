@@ -120,10 +120,17 @@ jobs:
         shell: bash
         run: ctest --test-dir build --build-config Release --output-on-failure
 
+      # The install tree, not the build tree: the executable, the two SDL
+      # DLLs, the game data and the fetcher for the original sound, in one
+      # folder. Unpack it on a Windows machine and it runs, with no compiler
+      # and no clone.
+      - name: Package
+        run: cmake --install build --config Release --prefix dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: abuse-windows
-          path: build/src/Release/
+          path: dist/
 
   macos:
     name: macOS

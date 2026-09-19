@@ -30,11 +30,16 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$sums = Join-Path $root 'data\classic.sha256'
+# Two layouts: a git clone, where this sits in scripts\ and the list in data\,
+# and the packaged game, where the two are side by side in the same folder.
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$sums = Join-Path (Split-Path -Parent $here) 'data\classic.sha256'
+if (-not (Test-Path $sums)) {
+    $sums = Join-Path $here 'classic.sha256'
+}
 
 if (-not (Test-Path $sums)) {
-    throw "missing $sums"
+    throw 'cannot find classic.sha256, in data\ or beside this script'
 }
 if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {
     throw 'tar.exe not found. Windows 10 1803 and later ship it; older versions need it installed.'
