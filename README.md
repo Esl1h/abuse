@@ -31,6 +31,10 @@ classic preset is always there.
   strip of icons is one line of config away
 - **An optional new HUD** (`hud=modern`) drawn at native resolution, with a
   health bar that shows the hit you just took
+- **Smooth movement**: the world still advances 15 times a second, but the
+  drawing no longer does, so a 60 Hz display shows 60 positions
+- **Optional RGB lighting**, the 1995 curve without the palette snap that
+  bands every dark corner
 - **English, French, German and Brazilian Portuguese**, chosen on first run
 - **Deterministic replay testing**: a state hash, frame snapshots, and a
   snapshot of what actually reached the window
@@ -58,6 +62,7 @@ opens at the largest whole multiple of 320x240 that fits your display.
 | Mouse | Aim; left button fires, right is the special |
 | Ctrl, Insert | Previous and next weapon |
 | Esc | The menu |
+| F2 → Lighting, HUD, Smooth movement | The new look, each on its own |
 | F2 | Options |
 | F3 | Controls, to rebind anything |
 | p | Pause |
@@ -89,16 +94,19 @@ rather than the repository carrying them.
 ## State of the work
 
 Done: the SDL3 port, the build and test foundation, the data and licence
-separation, the fixed timestep, gamepad support, the UI layer, and the
-translations.
+separation, the fixed timestep, gamepad support, the UI layer, the
+translations, the start menu, the new HUD, smooth movement, RGB lighting,
+and the audio mix stage.
 
 Open:
 
-- Human review of the Brazilian Portuguese translation
-- A new HUD
-- Audio: a mixer with separate buses, and a free sound set. The public domain
-  Golgotha pack covers 19 of the 78 events; the other 59 need a source
-- Optional lighting and shaders, widescreen, an HD pack, packaging
+- **A free sound set.** The public domain Golgotha pack covers 19 of the 78
+  events; the other 59 need a source, and the ones that need a human voice
+  are the hard part. Until then the Remastered mode is silent
+- **Human validation** of everything above: none of it has been played yet,
+  and Windows has never run this code at all
+- GPU post-processing (CRT, bloom), coloured light, widescreen, an HD pack
+- Packaging, which waits on a name for the project
 - Closing out the test debt: the three replays are synthetic, 400 ticks with no
   input, so they exercise neither combat nor dynamic light
 
