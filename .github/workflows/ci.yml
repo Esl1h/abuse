@@ -157,10 +157,13 @@ jobs:
       - name: Tests
         run: ctest --test-dir build --output-on-failure
 
+      # MACOSX_BUNDLE is set on the target, so what comes out is a bundle and
+      # not a bare executable: the path this used to name has never existed,
+      # and every run said so in a warning nobody was reading.
       - uses: actions/upload-artifact@v4
         with:
           name: abuse-macos
-          path: build/src/abuse
+          path: build/src/abuse.app
 
   # Advisory, not blocking. clang-tidy exits zero even with warnings
   # (WarningsAsErrors is empty in .clang-tidy), and a PR touching an
