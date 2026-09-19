@@ -554,6 +554,26 @@ void Game::load_level(char const *name)
 
     current_level->level_loaded_notify();
     the_game->help_text_frames = 0;
+
+    // --level-info: the measurement phase 6.5 waits on. Printed here because
+    // this is the one place that knows the level has finished loading, and
+    // the run ends right after.
+    if(abuse::harness::want_level_info())
+    {
+        int empty = 0;
+        for(int by = 0; by < current_level->background_height(); by++)
+            for(int bx = 0; bx < current_level->background_width(); bx++)
+                if(current_level->GetBg(ivec2(bx, by)) == 0)
+                    empty++;
+
+        abuse::harness::print_level_info(current_level->foreground_width(),
+                                         current_level->foreground_height(),
+                                         f_wid, f_hi,
+                                         current_level->background_width(),
+                                         current_level->background_height(),
+                                         b_wid, b_hi, empty);
+        exit(0);
+    }
 }
 
 int Game::done()

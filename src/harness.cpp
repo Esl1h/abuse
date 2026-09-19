@@ -48,6 +48,7 @@ struct Options {
     bool dump_bindings = false;
     bool dump_window = false;
     bool mode_given = false;
+    bool level_info = false;
     // Interpolation is off under the harness, because one frame is one tick
     // there. This forces a blend anyway, at a fixed point, so a scripted
     // frame can show what the player would see between two ticks.
@@ -300,6 +301,8 @@ void parse_args(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "--scanlines"))
             abuse::render::options().scanlines = true;
+        else if (!strcmp(argv[i], "--level-info"))
+            opt.level_info = true;
         else if (!strcmp(argv[i], "--input-script"))
             load_input_script(take_value(argc, argv, i, "--input-script"));
         else if (!strcmp(argv[i], "--rgb-light"))
@@ -393,6 +396,60 @@ bool window_size(int &w, int &h)
     w = opt.window_w;
     h = opt.window_h;
     return true;
+}
+
+bool want_level_info()
+{
+    return opt.level_info;
+}
+
+void print_level_info(int fg_tiles_x, int fg_tiles_y, int tile_w, int tile_h,
+                      int bg_tiles_x, int bg_tiles_y, int bg_tile_w,
+                      int bg_tile_h, int bg_empty)
+{
+    if (!opt.level_info)
+        return;
+
+    int const px_w = fg_tiles_x * tile_w;
+    int const px_h = fg_tiles_y * tile_h;
+
+    // The game draws 320 by 200 and the logical presentation stretches that
+    // to 320 by 240, so the aspect the player sees is 4:3. A wider viewport
+    // shows more level, and the number that matters is how much more.
+    struct { char const *name; int w; } const views[] = {
+        { "4:3",  320 },
+        { "16:10", 400 },
+        { "16:9",  427 },
+        { "21:9",  560 },
+    };
+
+    printf("level-info tiles=%dx%d tile=%dx%d pixels=%dx%d\n",
+           fg_tiles_x, fg_tiles_y, tile_w, tile_h, px_w, px_h);
+
+    for (size_t i = 0; i < sizeof(views) / sizeof(views[0]); i++)
+    {
+        // A camera centred on the player cannot show more than the level
+        // has; at the edges it clamps, and what it would have shown beyond
+        // them is whatever the level does not draw.
+        int const margin = px_w - views[i].w;
+        printf("level-info view=%-5s width=%3d fits=%s margin=%d\n",
+               views[i].name, views[i].w,
+               margin >= 0 ? "yes" : "NO", margin);
+    }
+
+    printf("level-info height=%d view=200 fits=%s margin=%d\n",
+           px_h, px_h >= 200 ? "yes" : "NO", px_h - 200);
+
+    // The background is the layer a wider view exposes. Where it has no tile
+    // the screen shows nothing at all, and in 4:3 those places may simply
+    // never have been on camera.
+    int const bg_total = bg_tiles_x * bg_tiles_y;
+    printf("level-info background tiles=%dx%d tile=%dx%d pixels=%dx%d"
+           " empty=%d of %d (%d%%)\n",
+           bg_tiles_x, bg_tiles_y, bg_tile_w, bg_tile_h,
+           bg_tiles_x * bg_tile_w, bg_tiles_y * bg_tile_h,
+           bg_empty, bg_total,
+           bg_total > 0 ? bg_empty * 100 / bg_total : 0);
 }
 
 bool scripted_input(uint8_t &flags)

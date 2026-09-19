@@ -25,6 +25,18 @@ bool headless();
 // runs one frame per tick, where there is nothing to blend.
 bool frame_alpha(float &out);
 
+// --level-info: prints the size of the level that was loaded, in tiles and
+// in pixels, and how much of it a viewport of each aspect ratio would need.
+// Read-only, and the run ends right after.
+//
+// This is the measurement phase 6.5 waits on: the levels were drawn for
+// 4:3, and the question that decides whether widescreen is possible at all
+// is how much room there is at the edges.
+bool want_level_info();
+void print_level_info(int fg_tiles_x, int fg_tiles_y, int tile_w, int tile_h,
+                      int bg_tiles_x, int bg_tiles_y, int bg_tile_w,
+                      int bg_tile_h, int bg_empty);
+
 // --input-script <file>: a player driven from a text file instead of from a
 // keyboard, one line per stretch of ticks:
 //
