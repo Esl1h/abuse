@@ -278,6 +278,15 @@ inside a level. It replaces the strip of icons that `make_default_buttons` build
 plus `Idle` for the attract loop. `main_menu` acts on it, because starting a level is
 the game's business. The mode row is marked: see `data::save_mode`.
 
+### The HUD
+
+`src/ui/hud.cpp` draws the Remastered HUD into the same overlay. The classic strip is
+`status_bar` in `src/statbar.cpp`, which asks `abuse::ui::classic_hud()` before it
+draws anything, in `redraw`, `draw_health`, `draw_ammo` and `draw_update`: the strip
+paints from four places, and gating only the first would leave the numbers behind.
+
+The strip is the default. `hud=modern` switches, and the Original mode overrides both.
+
 ## 10. Audio
 
 `src/sdlport/sound.cpp`, already on the new SDL3_mixer API:

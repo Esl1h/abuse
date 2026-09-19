@@ -29,6 +29,8 @@ classic preset is always there.
   text is sharp at 1080p instead of being magnified along with the pixels
 - **A start menu in words**, in your language, navigable with a d-pad; the
   strip of icons is one line of config away
+- **An optional new HUD** (`hud=modern`) drawn at native resolution, with a
+  health bar that shows the hit you just took
 - **English, French, German and Brazilian Portuguese**, chosen on first run
 - **Deterministic replay testing**: a state hash, frame snapshots, and a
   snapshot of what actually reached the window
