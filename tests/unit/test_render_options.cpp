@@ -186,7 +186,10 @@ TEST_CASE("on/off parses the spellings people type") {
     CHECK(v);
 }
 
-TEST_CASE("smooth movement is on by default") {
+// Off since a person watched it for the first time: blending the position
+// while the art keeps its fifteen frames a second makes the character skate.
+// The setting stays, the default does not.
+TEST_CASE("smooth movement is off by default") {
     abuse::render::Options fresh;
-    CHECK(fresh.interpolate);
+    CHECK_FALSE(fresh.interpolate);
 }

@@ -46,7 +46,13 @@ struct Options
     // Draw positions blended between the last two logical ticks. The world
     // still advances 15 times a second; this is only about what is shown in
     // between. Phase 6, block 6.1.
-    bool interpolate = true;
+    //
+    // Off, after being watched by a person for the first time on 2026-09-19:
+    // it makes the character skate. The art is animated at the tick rate, so
+    // gliding the body between two positions while the legs keep their
+    // fifteen frames a second reads as running too fast rather than as
+    // running smoothly. See the note in docs/plan/fase-06-visual.md.
+    bool interpolate = false;
 };
 
 // Parsing, kept away from SDL so it can be unit tested. Both return false and

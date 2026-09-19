@@ -472,7 +472,10 @@ static void draw_scanlines()
     SDL_BlendMode previous;
     SDL_GetRenderDrawBlendMode(renderer, &previous);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 90);
+    // Measured at 90: a tenth of the picture's light, which is enough for a
+    // person to call the game too dark. A CRT did cost that and more, but it
+    // was not competing with the rest of the desktop.
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 60);
     SDL_RenderFillRects(renderer, lines.data(), (int)lines.size());
     SDL_SetRenderDrawBlendMode(renderer, previous);
     apply_presentation();
