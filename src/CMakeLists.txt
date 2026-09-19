@@ -120,6 +120,21 @@ if(APPLE)
     target_link_libraries(abuse PRIVATE "-framework CoreFoundation")
 endif()
 
+if(WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+    # Windows looks for a DLL beside the executable, and CPM leaves SDL3.dll
+    # and SDL3_mixer.dll in their own build directories. The install rules
+    # below already collect them; this is about running from the build tree,
+    # which is what the test suites and anyone hacking on the game do.
+    #
+    # Without it the binary starts and dies with "SDL3.dll: cannot open
+    # shared object file", which is how the replay suite first failed on the
+    # Windows runner.
+    add_custom_command(TARGET abuse POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:abuse> $<TARGET_FILE_DIR:abuse>
+        COMMAND_EXPAND_LISTS)
+endif()
+
 add_executable(abuse-tool tool/abuse-tool.cpp crc.cpp crc.h)
 
 target_link_libraries(abuse-tool imlib)

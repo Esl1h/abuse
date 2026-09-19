@@ -61,6 +61,14 @@ target_include_directories(abuse_unit_tests PRIVATE ${doctest_SOURCE_DIR})
 # still needs the library it links against.
 target_link_libraries(abuse_unit_tests PRIVATE imlib SDL3::SDL3)
 
+if(WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+    # Same reason as for the game: this one links SDL3 for the locale check.
+    add_custom_command(TARGET abuse_unit_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:abuse_unit_tests> $<TARGET_FILE_DIR:abuse_unit_tests>
+        COMMAND_EXPAND_LISTS)
+endif()
+
 add_test(NAME unit COMMAND abuse_unit_tests)
 
 # The three suites below are shell scripts. CTest runs a command, not a shell,
