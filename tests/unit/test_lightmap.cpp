@@ -135,3 +135,74 @@ TEST_CASE("rows are contiguous, which is what the conversion walks") {
     CHECK(map.row(3) == nullptr);
     CHECK(map.row(-1) == nullptr);
 }
+
+TEST_CASE("smoothing a flat region changes nothing") {
+    LightMap map;
+    map.resize(16, 8);
+    map.fill(0, 0, 16, 20);
+    for (int y = 1; y < 8; y++)
+        map.fill(0, y, 16, 20);
+
+    map.smooth(0, 0, 16, 8, 4, 2);
+
+    for (int y = 0; y < 8; y++)
+        for (int x = 0; x < 16; x++)
+            CHECK(map.at(x, y) == 20);
+}
+
+TEST_CASE("a step becomes a ramp, which is the whole point") {
+    LightMap map;
+    map.resize(16, 1);
+    for (int x = 0; x < 8; x++)
+        map.fill(x, 0, 1, 0);
+    for (int x = 8; x < 16; x++)
+        map.fill(x, 0, 1, 60);
+
+    map.smooth(0, 0, 16, 1, 3, 0);
+
+    // Monotonic across the seam, and no longer a single jump.
+    for (int x = 1; x < 16; x++)
+        CHECK(map.at(x, 0) >= map.at(x - 1, 0));
+    CHECK(map.at(5, 0) > 0);
+    CHECK(map.at(10, 0) < 60);
+    CHECK(map.at(0, 0) == 0);
+    CHECK(map.at(15, 0) == 60);
+}
+
+TEST_CASE("smoothing stays inside the rectangle it was given") {
+    LightMap map;
+    map.resize(16, 4);
+
+    // A dark block in the middle of a fully lit map. Smoothing only the dark
+    // part must not lighten it from the outside, which is what would put a
+    // bright rim around the view.
+    for (int y = 1; y < 3; y++)
+        map.fill(4, y, 8, 0);
+
+    map.smooth(4, 1, 8, 2, 4, 2);
+
+    for (int y = 1; y < 3; y++)
+        for (int x = 4; x < 12; x++)
+            CHECK(map.at(x, y) == 0);
+
+    // And the lit surroundings were not touched either.
+    CHECK(map.at(3, 1) == kFullLight);
+    CHECK(map.at(12, 2) == kFullLight);
+    CHECK(map.at(5, 0) == kFullLight);
+}
+
+TEST_CASE("smoothing refuses the impossible quietly") {
+    LightMap map;
+    map.resize(8, 4);
+    map.fill(0, 0, 8, 10);
+
+    map.smooth(0, 0, 0, 4, 2, 2);        // no width
+    map.smooth(0, 0, 8, 4, 0, 0);        // no radius
+    map.smooth(100, 100, 8, 4, 2, 2);    // entirely outside
+    map.smooth(-20, -20, 8, 4, 2, 2);    // entirely outside the other way
+    CHECK(map.at(0, 0) == 10);
+
+    LightMap empty;
+    empty.smooth(0, 0, 4, 4, 1, 1);      // must not crash
+    CHECK(empty.empty());
+}

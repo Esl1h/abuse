@@ -943,6 +943,15 @@ void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lo
   }
   main_screen->Unlock();
 
+  // The levels were computed per block; soften the steps between them. Only
+  // in the RGB path: doing it on the classic one would mean a palette lookup
+  // per pixel instead of per run, and the banding would swallow the result
+  // anyway. Radii are half a block, which is what turns a staircase into the
+  // ramp the distance calculation meant.
+  if (rgb)
+    levels.smooth(caa.x, caa.y, cbb.x - caa.x, cbb.y - caa.y,
+                  1 << (lx_run - 1), 1 << (ly_run - 1));
+
   while (first)
   {
     light_patch *p=first;

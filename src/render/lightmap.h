@@ -79,8 +79,23 @@ public:
 
     uint8_t const *row(int y) const;
 
+    // Softens the step between one light patch and the next, inside the
+    // given rectangle and nowhere else.
+    //
+    // The lighting works in blocks: one level for every 8 by 4 pixels at the
+    // default detail, which is why the edge of a lamp's reach is a staircase
+    // rather than a gradient. A box blur the size of a block turns the
+    // staircase back into the ramp the distance calculation had in mind
+    // before it was rounded to a block.
+    //
+    // Pixels outside the rectangle are not read: the map is full brightness
+    // there, and letting that bleed in would put a bright rim around the
+    // view.
+    void smooth(int x, int y, int w, int h, int radius_x, int radius_y);
+
 private:
     std::vector<uint8_t> m_levels;
+    std::vector<uint8_t> m_scratch;
     int m_width = 0;
     int m_height = 0;
 };
