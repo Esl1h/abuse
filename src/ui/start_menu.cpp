@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "cache.h"
+#include "compat.h"
 #include "clisp.h"
 #include "data/paths.h"
 #include "dev.h"

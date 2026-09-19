@@ -11,9 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <filesystem>
 #include <string>
+#include <system_error>
 
-#include "compat.h"
 #include "data/paths.h"
 
 using abuse::data::Env;
@@ -21,22 +22,22 @@ using abuse::data::Mode;
 
 namespace {
 
-// mkdir -p and rm -rf, enough for a test that needs a directory tree that is
-// not there yet.
+// A directory tree that is not there yet, and getting rid of it afterwards.
+// Through <filesystem> rather than a shell command: this suite runs on
+// Windows in CI, where there is no rm.
 bool make_tree(std::string const &path)
 {
-    for (std::string::size_type i = 1; i <= path.size(); i++)
-        if (i == path.size() || path[i] == '/')
-            if (!abuse::make_directory(path.substr(0, i).c_str()))
-                return false;
-    return true;
+    std::error_code ec;
+    std::filesystem::create_directories(path, ec);
+    return !ec;
 }
 
 void remove_tree(std::string const &path)
 {
-    std::string command = "rm -rf '" + path + "'";
-    if (system(command.c_str()) != 0)
-        FAIL("could not clear " << path);
+    std::error_code ec;
+    std::filesystem::remove_all(path, ec);
+    if (ec)
+        FAIL("could not clear " << path << ": " << ec.message());
 }
 
 Env make_env(const char *home, const char *xdg_data, const char *xdg_config)
