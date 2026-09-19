@@ -27,6 +27,7 @@ add_executable(abuse_unit_tests
     ${abuse_SOURCE_DIR}/src/render/options.cpp
     ${abuse_SOURCE_DIR}/src/audio/buses.cpp
     ${abuse_SOURCE_DIR}/src/audio/voices.cpp
+    ${abuse_SOURCE_DIR}/src/audio/limiter.cpp
     ${abuse_SOURCE_DIR}/src/timing/pacer.cpp
     ${abuse_SOURCE_DIR}/src/input/actions.cpp
     ${abuse_SOURCE_DIR}/src/input/gamepad.cpp

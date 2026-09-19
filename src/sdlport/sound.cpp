@@ -37,6 +37,7 @@
 #include "sound.h"
 
 #include "audio/buses.h"
+#include "audio/limiter.h"
 #include "audio/voices.h"
 #include "data/paths.h"
 #include "hmi.h"
@@ -143,6 +144,19 @@ MIX_Track* find_available_track(int priority)
     return tracks[slot];
 }
 
+// The last thing the mixer does before handing the buffer to the device.
+// Runs on the audio thread: it touches nothing but the limiter, whose own
+// state is only written here and at startup.
+static void SDLCALL post_mix( void *userdata, MIX_Mixer *m,
+                              const SDL_AudioSpec *spec, float *pcm,
+                              int samples )
+{
+    (void)userdata;
+    (void)m;
+    (void)spec;
+    abuse::audio::limiter().process( pcm, samples );
+}
+
 //
 // sound_init()
 // Initialise audio
@@ -226,6 +240,18 @@ int sound_init( int argc, char **argv )
 
     // Allocate 50 tracks
     allocate_tracks(50);
+
+    // Phase 5, task 5.1: the master limiter, last in the chain. Abuse fires
+    // a lot of short loud sounds at once and their sum clips; this rides the
+    // whole mix down when it would go over and lets it back up gently.
+    //
+    // Never in the Original mode: that mode's sound is the reference, and
+    // the reference includes what it does when it clips.
+    abuse::audio::limiter().configure(audiospec.freq, audiospec.channels);
+    if( abuse::data::mode() == abuse::data::Mode::Original )
+        abuse::audio::limiter().set_enabled( false );
+    if( !MIX_SetPostMixCallback( mixer, post_mix, NULL ) )
+        printf( "Sound: no master limiter (%s)\n", SDL_GetError() );
 
     // FIXME
     //MIX_GetMixerFormat(&audioObtained.freq, &audioObtained.format, &tempChannels);

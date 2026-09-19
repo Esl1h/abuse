@@ -50,6 +50,7 @@
 #include "harness.h"
 #include "i18n/language.h"
 #include "audio/buses.h"
+#include "audio/limiter.h"
 #include "ui/hexfont.h"
 #include "ui/start_menu.h"
 #include "ui/hud.h"
@@ -177,6 +178,9 @@ void createRCFile( char *rcfile )
         fputs( "; degrees.\naimassistcone=25\n\n", fd );
 //        fputs( "; Set the width of the window\nx=320\n\n", fd );
 //        fputs( "; Set the height of the window\ny=200\n\n", fd );
+        fputs( "; Master limiter: holds the mix under full scale when a lot\n", fd );
+        fputs( "; happens at once. Never applied in the Original mode.\n", fd );
+        fputs( ";limiter=off\n\n", fd );
         fputs( "; The mix, as percentages. These survive a restart; the volume\n", fd );
         fputs( "; window in the menu is the slider for the session.\n", fd );
         fputs( ";volume_master=100\n;volume_sfx=100\n;volume_music=100\n;volume_ui=100\n\n", fd );
@@ -333,6 +337,16 @@ void readRCFile()
                     abuse::ui::set_classic_start_menu( classic );
                 else
                     printf( "Config: unknown startmenu '%s', expected modern or classic\n",
+                            result );
+            }
+            else if( strcasecmp( result, "limiter" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = true;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::audio::limiter().set_enabled( on );
+                else
+                    printf( "Config: unknown limiter '%s', expected on or off\n",
                             result );
             }
             else if( strncasecmp( result, "volume_", 7 ) == 0 )

@@ -25,6 +25,7 @@ add_executable(abuse
     render/options.cpp render/options.h
     audio/buses.cpp audio/buses.h
     audio/voices.cpp audio/voices.h
+    audio/limiter.cpp audio/limiter.h
     timing/pacer.cpp timing/pacer.h
     input/actions.cpp input/actions.h
     input/gamepad.cpp input/gamepad.h

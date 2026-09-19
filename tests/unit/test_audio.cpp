@@ -9,6 +9,7 @@
 #include <doctest/doctest.h>
 
 #include "audio/buses.h"
+#include "audio/limiter.h"
 #include "audio/voices.h"
 
 using abuse::audio::Bus;
@@ -170,4 +171,135 @@ TEST_CASE("a pool with no voices answers instead of crashing") {
 
     pool.reset(-3);
     CHECK(pool.size() == 0);
+}
+
+// ---- the master limiter ---------------------------------------------------
+
+namespace {
+
+// Peak of a buffer, which is what the limiter is judged by.
+float peak_of(float const *pcm, int n)
+{
+    float peak = 0.0f;
+    for (int i = 0; i < n; i++)
+    {
+        float v = pcm[i] < 0.0f ? -pcm[i] : pcm[i];
+        if (v > peak)
+            peak = v;
+    }
+    return peak;
+}
+
+// A block of stereo frames all at the same level, which is the simplest
+// signal that says whether the gain settled where it should.
+void fill(float *pcm, int n, float level)
+{
+    for (int i = 0; i < n; i++)
+        pcm[i] = level;
+}
+
+}
+
+TEST_CASE("the limiter leaves a quiet mix alone") {
+    abuse::audio::Limiter lim;
+    lim.configure(44100, 2);
+
+    float pcm[512];
+    fill(pcm, 512, 0.5f);
+    lim.process(pcm, 512);
+
+    for (int i = 0; i < 512; i++)
+        CHECK(pcm[i] == doctest::Approx(0.5f));
+    CHECK(lim.current_gain() == doctest::Approx(1.0f));
+}
+
+TEST_CASE("a mix over the ceiling comes back under it") {
+    abuse::audio::Limiter lim;
+    lim.configure(44100, 2);
+    lim.set_ceiling(0.9f);
+
+    // Two seconds of a signal at nearly three times the ceiling. Nothing may
+    // leave above it, ramp or no ramp.
+    float pcm[4096];
+    for (int block = 0; block < 20; block++)
+    {
+        fill(pcm, 4096, 2.5f);
+        lim.process(pcm, 4096);
+        CHECK(peak_of(pcm, 4096) <= 0.9f + 1e-5f);
+    }
+
+    // And it has settled where it needs to be, not somewhere below.
+    CHECK(lim.current_gain() == doctest::Approx(0.9f / 2.5f).epsilon(0.05));
+}
+
+TEST_CASE("the gain comes back up after the loud part") {
+    abuse::audio::Limiter lim;
+    lim.configure(44100, 2);
+
+    float pcm[4096];
+    fill(pcm, 4096, 4.0f);
+    lim.process(pcm, 4096);
+    float held_down = lim.current_gain();
+    CHECK(held_down < 0.5f);
+
+    // Half a second of quiet afterwards.
+    for (int block = 0; block < 6; block++)
+    {
+        fill(pcm, 4096, 0.1f);
+        lim.process(pcm, 4096);
+    }
+    CHECK(lim.current_gain() > held_down);
+    CHECK(lim.current_gain() == doctest::Approx(1.0f).epsilon(0.001));
+}
+
+TEST_CASE("turning it off means the buffer is not touched") {
+    abuse::audio::Limiter lim;
+    lim.configure(44100, 2);
+    lim.set_enabled(false);
+
+    float pcm[64];
+    fill(pcm, 64, 3.0f);
+    lim.process(pcm, 64);
+
+    // Including the values over full scale: the Original mode's sound is the
+    // reference, clipping and all.
+    for (int i = 0; i < 64; i++)
+        CHECK(pcm[i] == doctest::Approx(3.0f));
+}
+
+TEST_CASE("both channels move together, so the image does not shift") {
+    abuse::audio::Limiter lim;
+    lim.configure(44100, 2);
+    lim.set_ceiling(0.8f);
+
+    // Loud on the left, quiet on the right, for long enough to settle.
+    float pcm[4096];
+    for (int block = 0; block < 10; block++)
+    {
+        for (int i = 0; i < 4096; i += 2)
+        {
+            pcm[i] = 2.0f;
+            pcm[i + 1] = 1.0f;
+        }
+        lim.process(pcm, 4096);
+    }
+
+    // The ratio between the channels survives; only the level changed.
+    CHECK(pcm[0] / pcm[1] == doctest::Approx(2.0f).epsilon(0.01));
+    CHECK(peak_of(pcm, 4096) <= 0.8f + 1e-5f);
+}
+
+TEST_CASE("a limiter asked for nonsense still behaves") {
+    abuse::audio::Limiter lim;
+    lim.configure(0, 0);
+
+    lim.set_ceiling(-1.0f);
+    CHECK(lim.ceiling() >= 0.01f);
+    lim.set_ceiling(50.0f);
+    CHECK(lim.ceiling() == doctest::Approx(1.0f));
+
+    lim.process(nullptr, 128);      // must not crash
+    float one = 0.5f;
+    lim.process(&one, 0);
+    CHECK(one == doctest::Approx(0.5f));
 }
