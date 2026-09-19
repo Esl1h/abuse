@@ -23,6 +23,7 @@
 #include "objects.h"
 #include "game.h"
 #include "clisp.h"
+#include "ui/hud.h"
 
 status_bar sbar;
 
@@ -100,6 +101,10 @@ void status_bar::redraw(image *screen)
 {
   need_rf=0;
   if (!v) return ;
+
+  // The Remastered HUD draws the same things into the overlay, at the size of
+  // the window instead of the size of the 320x200 buffer.
+  if (!abuse::ui::classic_hud()) return ;
 
   if (total_weapons)
   {
@@ -197,7 +202,7 @@ void status_bar::area(int &x1, int &y1, int &x2, int &y2)
 
 void status_bar::draw_health(image *screen,int amount)
 {
-  if (total_weapons)
+  if (total_weapons && abuse::ui::classic_hud())
   {
     int x1,y1,x2,y2;
     area(x1,y1,x2,y2);
@@ -208,7 +213,7 @@ void status_bar::draw_health(image *screen,int amount)
 
 void status_bar::draw_ammo(image *screen, int weapon_num, int amount, int light)
 {
-  if (total_weapons)
+  if (total_weapons && abuse::ui::classic_hud())
   {
     int x1,y1,x2,y2;
     area(x1,y1,x2,y2);
@@ -244,7 +249,7 @@ int status_bar::mouse_in_area()
 
 void status_bar::draw_update()
 {
-  if (total_weapons && v)
+  if (total_weapons && v && abuse::ui::classic_hud())
   {
     if (DEFINEDP(symbol_value(l_mouse_can_switch)) && symbol_value(l_mouse_can_switch) &&
     mouse_in_area())

@@ -50,6 +50,7 @@
 #include "i18n/language.h"
 #include "ui/hexfont.h"
 #include "ui/start_menu.h"
+#include "ui/hud.h"
 #include "configuration.h"
 #include "specs.h"
 #include "keys.h"
@@ -169,6 +170,8 @@ void createRCFile( char *rcfile )
         fputs( "; degrees.\naimassistcone=25\n\n", fd );
 //        fputs( "; Set the width of the window\nx=320\n\n", fd );
 //        fputs( "; Set the height of the window\ny=200\n\n", fd );
+        fputs( "; HUD: classic is the 1995 status bar, modern the overlay one.\n", fd );
+        fputs( ";hud=modern\n\n", fd );
         fputs( "; Start menu: modern is the list, classic the strip of icons.\n", fd );
         fputs( ";startmenu=classic\n\n", fd );
         fputs( "; Language of the in-game text: en, fr, de, pt_BR.\n", fd );
@@ -317,6 +320,16 @@ void readRCFile()
                     abuse::ui::set_classic_start_menu( classic );
                 else
                     printf( "Config: unknown startmenu '%s', expected modern or classic\n",
+                            result );
+            }
+            else if( strcasecmp( result, "hud" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool classic = true;
+                if( result && abuse::ui::parse_hud_choice( result, classic ) )
+                    abuse::ui::set_classic_hud( classic );
+                else
+                    printf( "Config: unknown hud '%s', expected classic or modern\n",
                             result );
             }
             else if( strcasecmp( result, "keypreset" ) == 0 )

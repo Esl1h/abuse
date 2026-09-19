@@ -65,6 +65,7 @@
 #include "ui/hexfont.h"
 #include "ui/options_screen.h"
 #include "ui/start_menu.h"
+#include "ui/hud.h"
 #include "ui/classic_data_screen.h"
 #include "ui/language_screen.h"
 #include "ui/overlay.h"
@@ -1484,9 +1485,17 @@ void Game::toggle_delay()
     avg_ms = possible_ms = 1000.0f / 15;
 }
 
+// What the last frames took, for whoever wants to display it. Averaged in
+// the pacer below; a single frame's time says nothing useful.
+float frame_ms()
+{
+    return avg_ms;
+}
+
 void Game::show_time()
 {
-    if (!first_view || !fps_on)
+    // The Remastered HUD draws this itself, at the size of the window.
+    if (!first_view || !fps_on || !abuse::ui::classic_hud())
         return;
 
     char str[16];
@@ -1563,7 +1572,10 @@ void Game::update_screen()
     // as rows, in words.
     abuse::ui::draw_options_hint();
   else
+  {
     abuse::ui::overlay().Clear();
+    abuse::ui::draw_hud();
+  }
 
   wm->flush_screen();
 

@@ -23,6 +23,7 @@
 #include "hexfont.h"
 #include "i18n/language.h"
 #include "i18n/uitext.h"
+#include "hud.h"
 #include "language_screen.h"
 #include "menu_list.h"
 #include "input/gamepad.h"
@@ -31,6 +32,7 @@
 #include "input/actions.h"
 #include "configuration.h"
 #include "jwindow.h"
+#include "sbar.h"
 #include "keys.h"
 #include "overlay.h"
 #include "render/options.h"
@@ -83,6 +85,28 @@ void mode_show(char *buf, size_t n)
 void mode_value(char *buf, size_t n)
 {
     snprintf(buf, n, "%s", data::mode_name(data::mode()));
+}
+
+// ---- HUD ------------------------------------------------------------------
+
+// Takes effect at once: the strip asks classic_hud() before it draws, and the
+// new HUD asks it before it draws. Only the Original mode overrides it, and
+// it does so for the whole run.
+void hud_step(int)
+{
+    set_classic_hud(!classic_hud_configured());
+    sbar.need_refresh();
+}
+
+void hud_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", say(classic_hud_configured()
+                                   ? i18n::kHudClassic : i18n::kHudModern));
+}
+
+void hud_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", classic_hud_configured() ? "classic" : "modern");
 }
 
 // ---- language -------------------------------------------------------------
@@ -245,6 +269,7 @@ void same_as_shown(char *buf, size_t n) { (void)buf; (void)n; }
 
 Item const kItems[] = {
     { i18n::kOptMode,        "mode",        true,  mode_step,     mode_show,     mode_value },
+    { i18n::kOptHud,         "hud",         false, hud_step,      hud_show,      hud_value },
     { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },
     { i18n::kOptFont,        "font",        true,  font_step,     font_show,     NULL },
     { i18n::kOptScaleMode,   "scalemode",   false, scale_step,    scale_show,    NULL },

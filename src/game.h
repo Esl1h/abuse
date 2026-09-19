@@ -48,6 +48,9 @@ extern WindowManager *wm;
 
 #define tile_type unsigned short
 class Game;
+// Milliseconds a frame is taking, averaged. For the HUD's frame counter.
+float frame_ms();
+
 extern Game *the_game;
 extern int dev;
 extern int morph_sel_frame_color;
