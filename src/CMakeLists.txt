@@ -23,6 +23,8 @@ add_executable(abuse
     compat.cpp compat.h
     data/config_file.cpp data/config_file.h data/paths.cpp data/paths.h
     render/options.cpp render/options.h
+    audio/buses.cpp audio/buses.h
+    audio/voices.cpp audio/voices.h
     timing/pacer.cpp timing/pacer.h
     input/actions.cpp input/actions.h
     input/gamepad.cpp input/gamepad.h

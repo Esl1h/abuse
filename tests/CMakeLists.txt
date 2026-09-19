@@ -20,10 +20,13 @@ add_executable(abuse_unit_tests
     unit/test_menu_list.cpp
     unit/test_uitext.cpp
     unit/test_specs.cpp
+    unit/test_audio.cpp
     ${abuse_SOURCE_DIR}/src/compat.cpp
     ${abuse_SOURCE_DIR}/src/data/paths.cpp
     ${abuse_SOURCE_DIR}/src/data/config_file.cpp
     ${abuse_SOURCE_DIR}/src/render/options.cpp
+    ${abuse_SOURCE_DIR}/src/audio/buses.cpp
+    ${abuse_SOURCE_DIR}/src/audio/voices.cpp
     ${abuse_SOURCE_DIR}/src/timing/pacer.cpp
     ${abuse_SOURCE_DIR}/src/input/actions.cpp
     ${abuse_SOURCE_DIR}/src/input/gamepad.cpp
