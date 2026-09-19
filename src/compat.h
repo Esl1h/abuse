@@ -46,6 +46,11 @@ namespace abuse {
 // include will not know about.
 constexpr double kPi = 3.14159265358979323846;
 
+// Sets an environment variable, overwriting whatever was there. POSIX spells
+// this setenv(name, value, 1) and Windows spells it _putenv_s; neither name
+// exists on the other platform.
+void set_env(char const *name, char const *value);
+
 // Creates one directory, and says nothing when it is already there. The mode
 // argument does not exist on Windows, where a directory inherits its
 // permissions, so it is not part of the signature.

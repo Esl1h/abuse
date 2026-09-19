@@ -237,10 +237,10 @@ void parse_args(int argc, char **argv)
     if (opt.headless)
     {
         // Set before SDL_Init, which setup() calls.
-        setenv("SDL_VIDEO_DRIVER", "dummy", 1);
-        setenv("SDL_VIDEODRIVER", "dummy", 1);
-        setenv("SDL_AUDIO_DRIVER", "dummy", 1);
-        setenv("SDL_AUDIODRIVER", "dummy", 1);
+        abuse::set_env("SDL_VIDEO_DRIVER", "dummy");
+        abuse::set_env("SDL_VIDEODRIVER", "dummy");
+        abuse::set_env("SDL_AUDIO_DRIVER", "dummy");
+        abuse::set_env("SDL_AUDIODRIVER", "dummy");
     }
 }
 

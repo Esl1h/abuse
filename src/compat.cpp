@@ -9,12 +9,22 @@
 #include "compat.h"
 
 #include <errno.h>
+#include <stdlib.h>
 
 #if !defined(_MSC_VER)
 #   include <sys/types.h>
 #endif
 
 namespace abuse {
+
+void set_env(char const *name, char const *value)
+{
+#if defined(_MSC_VER)
+    _putenv_s(name, value);
+#else
+    setenv(name, value, 1);
+#endif
+}
 
 bool make_directory(char const *path)
 {
