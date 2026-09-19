@@ -173,3 +173,36 @@ TEST_CASE("the mode file follows the rest of the configuration") {
 
     remove_tree(root);
 }
+
+// Windows has no $HOME and no XDG: the platform layer hands over the
+// directory SDL_GetPrefPath created, and everything hangs off that instead.
+TEST_CASE("an explicit user directory replaces the XDG layout") {
+    Env env = make_env("/home/player", "", "");
+
+    abuse::data::set_mode(Mode::Remaster);
+    abuse::data::set_user_dir("C:/Users/bob/AppData/Roaming/Abuse/");
+
+    CHECK(abuse::data::user_dir() == "C:/Users/bob/AppData/Roaming/Abuse/");
+    CHECK(abuse::data::config_dir(Mode::Remaster, env)
+          == "C:/Users/bob/AppData/Roaming/Abuse/remaster/");
+    CHECK(abuse::data::writable_dir(Mode::Original, env)
+          == "C:/Users/bob/AppData/Roaming/Abuse/classic/");
+    CHECK(abuse::data::mode_file(env)
+          == "C:/Users/bob/AppData/Roaming/Abuse/mode");
+    CHECK(abuse::data::rc_path(env)
+          == "C:/Users/bob/AppData/Roaming/Abuse/remaster/abuserc");
+
+    // The classic data shares the Original save directory, as it does on the
+    // XDG layout.
+    CHECK(abuse::data::classic_data_default(env)
+          == abuse::data::writable_dir(Mode::Original, env));
+
+    // And there is no legacy directory to inherit on such a platform, even
+    // though this fake home has one on the machine running the test.
+    CHECK_FALSE(abuse::data::legacy_dir_exists(env));
+
+    abuse::data::set_user_dir("");
+    CHECK(abuse::data::user_dir().empty());
+    CHECK(abuse::data::config_dir(Mode::Remaster, env)
+          == "/home/player/.config/abuse/remaster/");
+}

@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include <cstdlib>
+#include <utility>
 
 namespace abuse::data {
 
@@ -57,6 +58,20 @@ bool has_classic_data()
     return g_has_classic_data;
 }
 
+namespace {
+std::string g_user_dir;
+}
+
+void set_user_dir(std::string dir)
+{
+    g_user_dir = std::move(dir);
+}
+
+std::string const &user_dir()
+{
+    return g_user_dir;
+}
+
 char const *mode_name(Mode m)
 {
     return m == Mode::Original ? "original" : "remaster";
@@ -84,6 +99,8 @@ std::string mode_file(const Env &env)
     // Wherever the rest of the configuration is. An install that still has
     // the legacy directory keeps everything inside it, so that deleting that
     // one directory still uninstalls the game's state.
+    if (!g_user_dir.empty())
+        return g_user_dir + "mode";
     if (legacy_dir_exists(env))
         return legacy_dir(env) + "mode";
     return config_home(env) + "/abuse/mode";
@@ -197,21 +214,32 @@ std::string config_home(const Env &env)
 
 std::string config_dir(Mode m, const Env &env)
 {
+    if (!g_user_dir.empty())
+        return g_user_dir + mode_dir_name(m) + "/";
     return config_home(env) + "/abuse/" + mode_dir_name(m) + "/";
 }
 
 std::string writable_dir(Mode m, const Env &env)
 {
+    if (!g_user_dir.empty())
+        return g_user_dir + mode_dir_name(m) + "/";
     return data_home(env) + "/abuse/" + mode_dir_name(m) + "/";
 }
 
 std::string classic_data_default(const Env &env)
 {
+    // The same directory the Original mode saves into, on both layouts: the
+    // classic data and the Original saves have always shared one place.
+    if (!g_user_dir.empty())
+        return g_user_dir + mode_dir_name(Mode::Original) + "/";
     return data_home(env) + "/abuse/classic/";
 }
 
 bool legacy_dir_exists(const Env &env)
 {
+    // There is no ~/.abuse to inherit on a platform that never had one.
+    if (!g_user_dir.empty())
+        return false;
     if (env.home.empty())
         return false;
     struct stat st;

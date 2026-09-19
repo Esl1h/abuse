@@ -23,9 +23,10 @@
 #endif
 
 #ifdef WIN32
+// Windows.h for GetModuleFileName, which is how the data directory is found
+// next to the executable. ShlObj.h and direct.h went with the hand-rolled
+// save path that SDL_GetPrefPath replaced.
 # include <Windows.h>
-# include <ShlObj.h>
-# include <direct.h>
 # define strcasecmp _stricmp
 #endif
 #ifdef __APPLE__
@@ -74,17 +75,22 @@ static std::string g_rc_path;
 
 // mkdir -p, component by component. The engine has no directory API, and
 // the XDG paths (~/.config/abuse/<mode>/) arrive unwritten on first run.
+//
+// Both separators, because on Windows the base comes from SDL with
+// backslashes and the per-mode part is appended with forward ones. Missing
+// that is how a path stops being created halfway.
 static void make_dirs(char const *path)
 {
     char buffer[4096];
     snprintf(buffer, sizeof(buffer), "%s", path);
     for (char *p = buffer + 1; *p; p++)
     {
-        if (*p == '/' && p[1] != '\0')
+        if ((*p == '/' || *p == '\\') && p[1] != '\0')
         {
+            char const sep = *p;
             *p = '\0';
             abuse::make_directory(buffer);
-            *p = '/';
+            *p = sep;
         }
     }
     abuse::make_directory(buffer);
@@ -668,32 +674,26 @@ void setup( int argc, char **argv )
 
     // Set the savegame directory
 #ifdef WIN32
-    char *savedir;
-    FILE *fd = NULL;
-
-    // Grab the profile dir
-    PWSTR appData;
-    SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData);
-    // Create a new chunk of memory to save the savedir in
-    size_t savedir_size = lstrlenW(appData) * 2 + 7;
-    savedir = (char*) malloc(savedir_size);
-    wcstombs(savedir, appData, savedir_size);
-    // Append "\Abuse\" to end end of it
-    strcat(savedir, "\\Abuse\\");
-    // If it doesn't exist, create it
-    if ( (fd = fopen(savedir, "r")) == NULL) {
-        // FIXME: Add some error checking here
-        _mkdir(savedir);
-    } else {
-        fclose( fd );
+    // Windows has no $HOME and no XDG. SDL picks the per-user directory,
+    // creates it, and returns UTF-8 ending in a separator: exactly
+    // %APPDATA%\Abuse\, which is where this used to point by hand.
+    //
+    // What it replaces sized a buffer from the wide-character length, left
+    // room for "\Abuse\" but not for the terminator, and converted with
+    // wcstombs in the current locale, which mangles any user name that is
+    // not ASCII. Both faults are gone with the call.
+    if( char *pref = SDL_GetPrefPath( NULL, "Abuse" ) )
+    {
+        abuse::data::set_user_dir( pref );
+        SDL_free( pref );
     }
-    set_save_filename_prefix(savedir);
-    CoTaskMemFree(appData);
-    free( savedir );
-#else
+#endif
+
     // Phase 1, task 1.3: XDG directories per mode, with the legacy ~/.abuse/
     // still winning while it exists, so current installs keep their saves,
-    // light.tbl and abuserc, and replays keep their baseline.
+    // light.tbl and abuserc, and replays keep their baseline. On Windows the
+    // base is the directory SDL just named, and the per-mode layout under it
+    // is the same.
     {
         abuse::data::Env env = abuse::data::system_env();
 
@@ -709,7 +709,7 @@ void setup( int argc, char **argv )
             && abuse::data::load_saved_mode(env, saved))
             abuse::data::set_mode(saved);
 
-        if (env.home.empty())
+        if (env.home.empty() && abuse::data::user_dir().empty())
         {
             printf( "WARNING: Unable to get $HOME environment variable.\n" );
             printf( "         Savegames will probably fail.\n" );
@@ -730,12 +730,11 @@ void setup( int argc, char **argv )
 
             // abuserc lives in the config directory, which may not exist
             // either when the write below creates it.
-            std::string parent = rcfile.substr(0, rcfile.find_last_of('/'));
+            std::string parent = rcfile.substr(0, rcfile.find_last_of("/\\"));
             make_dirs(parent.c_str());
             g_rc_path = rcfile;
         }
     }
-#endif
 
     // Set the datadir to a default value
     // (The current directory)

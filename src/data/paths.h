@@ -67,6 +67,16 @@ std::string mode_file(const Env &env);
 bool load_saved_mode(const Env &env, Mode &out);
 bool save_mode(const Env &env, Mode m);
 
+// Windows has neither $HOME nor XDG. The platform layer resolves the per-user
+// directory there (SDL_GetPrefPath, which also creates it) and hands it over
+// here, so this resolver stays free of SDL and of platform conditionals.
+//
+// When it is set, it replaces the whole "<base>/abuse/" part: the directory
+// SDL returns is already named after the application. Must end with a
+// separator. Empty, the default, means the XDG rules below apply.
+void set_user_dir(std::string dir);
+std::string const &user_dir();
+
 // XDG base directories with their defaults.
 std::string data_home(const Env &env);    // $XDG_DATA_HOME or ~/.local/share
 std::string config_home(const Env &env);  // $XDG_CONFIG_HOME or ~/.config
