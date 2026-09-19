@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(abuse C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(abuse_VERSION 0.10.0)
 set(abuse_VERSION_MAJOR 0)
 set(abuse_VERSION_MINOR 10)
@@ -20,6 +23,7 @@ endif()
 option(ABUSE_ENABLE_FLUIDSYNTH "Include FluidSynth as a dependency (for music playback)" OFF)
 # Using SDL3_native_midi makes this work a lot like it did with SDL2_mixer
 option(ABUSE_ENABLE_NATIVE_MIDI "Use SDL3_native_midi to play music" ON)
+option(ABUSE_BUILD_TESTS "Build the unit tests and register them with CTest" ON)
 
 # To avoid downloading a package, configure CPM
 CPMAddPackage(
@@ -94,6 +98,18 @@ if (ABUSE_ENABLE_NATIVE_MIDI)
         EXCLUDE_FROM_ALL ON
     )
 endif()
+if (ABUSE_BUILD_TESTS)
+    # Header only, and its own CMakeLists declares cmake_minimum_required(3.0),
+    # which CMake 4 rejects. Take the headers and skip its build system.
+    CPMAddPackage(
+        NAME doctest
+        VERSION 2.4.11
+        GITHUB_REPOSITORY doctest/doctest
+        GIT_TAG v2.4.11
+        DOWNLOAD_ONLY YES
+    )
+endif()
+
 include(CheckIncludeFiles)
 
 check_include_files(unistd.h HAVE_UNISTD_H)
@@ -156,6 +172,11 @@ include(CPack)
 
 add_subdirectory(src)
 add_subdirectory(data)
+
+if (ABUSE_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 if (ABUSE_ENABLE_FLUIDSYNTH)
     # Add Fluidsynth to the build

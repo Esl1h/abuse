@@ -20,6 +20,21 @@ endif()
 
 add_executable(abuse
     common.h
+    data/config_file.cpp data/config_file.h data/paths.cpp data/paths.h
+    render/options.cpp render/options.h
+    timing/pacer.cpp timing/pacer.h
+    input/actions.cpp input/actions.h
+    input/gamepad.cpp input/gamepad.h
+    input/rumble.cpp input/rumble.h
+    input/aim.cpp input/aim.h
+    i18n/language.cpp i18n/language.h
+    i18n/uitext.cpp i18n/uitext.h
+    ui/hexfont.cpp ui/hexfont.h
+    ui/overlay.cpp ui/overlay.h
+    ui/menu_list.cpp ui/menu_list.h
+    ui/options_screen.cpp ui/options_screen.h
+    ui/classic_data_screen.cpp ui/classic_data_screen.h
+    ui/language_screen.cpp ui/language_screen.h
     lol/matrix.cpp lol/matrix.h
     lol/timer.cpp lol/timer.h
     specache.cpp specache.h
@@ -66,6 +81,7 @@ add_executable(abuse
     view.cpp view.h
     configuration.cpp configuration.h
     game.cpp game.h
+    harness.cpp harness.h
     light.cpp light.h
     devsel.cpp devsel.h
     crc.cpp crc.h
