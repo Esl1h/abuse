@@ -8,14 +8,36 @@
 
 #include <doctest/doctest.h>
 
+#include <stdlib.h>
 #include <string.h>
 
+#include <string>
+
+#include "compat.h"
 #include "data/paths.h"
 
 using abuse::data::Env;
 using abuse::data::Mode;
 
 namespace {
+
+// mkdir -p and rm -rf, enough for a test that needs a directory tree that is
+// not there yet.
+bool make_tree(std::string const &path)
+{
+    for (std::string::size_type i = 1; i <= path.size(); i++)
+        if (i == path.size() || path[i] == '/')
+            if (!abuse::make_directory(path.substr(0, i).c_str()))
+                return false;
+    return true;
+}
+
+void remove_tree(std::string const &path)
+{
+    std::string command = "rm -rf '" + path + "'";
+    if (system(command.c_str()) != 0)
+        FAIL("could not clear " << path);
+}
 
 Env make_env(const char *home, const char *xdg_data, const char *xdg_config)
 {
@@ -101,4 +123,53 @@ TEST_CASE("the download page is a real address") {
     char const *url = abuse::data::classic_data_url();
     REQUIRE(url != nullptr);
     CHECK(strncmp(url, "http", 4) == 0);
+}
+
+// The bug this covers: with a legacy ~/.abuse present the XDG tree is never
+// created, because nothing else the game writes goes there, and the first
+// write to <config>/abuse/mode failed with nowhere to put it.
+TEST_CASE("the mode file follows the rest of the configuration") {
+    std::string root = ABUSE_TEST_BUILD_DIR "/paths-mode";
+    std::string home = root + "/home";
+    std::string config = root + "/config";
+
+    remove_tree(root);
+    REQUIRE(make_tree(home));
+    REQUIRE(make_tree(config));
+
+    Env env = make_env(home.c_str(), "", config.c_str());
+
+    SUBCASE("a fresh install writes under the config directory") {
+        CHECK(abuse::data::mode_file(env) == config + "/abuse/mode");
+
+        abuse::data::Mode got = Mode::Remaster;
+        CHECK_FALSE(abuse::data::load_saved_mode(env, got));
+
+        // The directory does not exist yet, which is the whole point.
+        REQUIRE(abuse::data::save_mode(env, Mode::Original));
+        REQUIRE(abuse::data::load_saved_mode(env, got));
+        CHECK(got == Mode::Original);
+
+        REQUIRE(abuse::data::save_mode(env, Mode::Remaster));
+        REQUIRE(abuse::data::load_saved_mode(env, got));
+        CHECK(got == Mode::Remaster);
+    }
+
+    SUBCASE("a legacy install keeps it inside ~/.abuse") {
+        REQUIRE(make_tree(home + "/.abuse"));
+        CHECK(abuse::data::mode_file(env) == home + "/.abuse/mode");
+
+        REQUIRE(abuse::data::save_mode(env, Mode::Original));
+
+        abuse::data::Mode got = Mode::Remaster;
+        REQUIRE(abuse::data::load_saved_mode(env, got));
+        CHECK(got == Mode::Original);
+
+        // And nothing was left in the XDG tree.
+        abuse::data::Mode ignored;
+        Env xdg_only = make_env((root + "/nowhere").c_str(), "", config.c_str());
+        CHECK_FALSE(abuse::data::load_saved_mode(xdg_only, ignored));
+    }
+
+    remove_tree(root);
 }
