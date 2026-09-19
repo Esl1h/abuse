@@ -31,10 +31,11 @@ classic preset is always there.
   strip of icons is one line of config away
 - **An optional new HUD** (`hud=modern`) drawn at native resolution, with a
   health bar that shows the hit you just took
-- **Smooth movement**: the world still advances 15 times a second, but the
-  drawing no longer does, so a 60 Hz display shows 60 positions
 - **Optional RGB lighting**, the 1995 curve without the palette snap that
   bands every dark corner, and **CRT scanlines** to go with it
+- **Smooth movement** between logical ticks, which is there and is off: the
+  art is animated at the tick rate, so the character skates. Kept because the
+  camera half of it is worth revisiting
 - **English, French, German and Brazilian Portuguese**, chosen on first run
 - **Deterministic replay testing**: a state hash, frame snapshots, and a
   snapshot of what actually reached the window
