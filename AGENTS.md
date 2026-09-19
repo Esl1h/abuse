@@ -165,6 +165,7 @@ Test harness flags (`src/harness.cpp`):
 | `--dump-bindings` | Prints the resolved action map |
 | `--dump-options`, `--dump-controls`, `--dump-language`, `--dump-classic-data`, `--dump-menu-hint`, `--dump-start-menu`, `--dump-hud` | Draws one of the new screens into a scripted frame |
 | `--frame-alpha F` | Forces the interpolated draw at a fixed point between two ticks |
+| `--input-script <file>` | Drives the player from a text file, one line of `<ticks> <actions>` per stretch. With `--record` it writes a real recording of what the script did |
 | `--mode <original\|remaster>` | Selects the mode without going through the menu |
 | `--classic-data <dir>` | Path to the original data |
 
@@ -183,6 +184,14 @@ clang-tidy -p build/dev $(git diff --name-only -- '*.cpp')
 ```
 
 `./scripts/check-licenses.sh` checks the data manifest and runs in CI.
+
+To make a replay that does something:
+
+```sh
+./build/dev/src/abuse --headless -nodelay --level levels/level00.spe \
+    --input-script tests/inputs/level00-run.txt \
+    --record tests/replays/level00-run.rec --max-ticks 200 -datadir ./data
+```
 
 `test-replays.sh` and `test-snapshots.sh` exit with 77, CTest's skip code, when there is
 no replay at all.

@@ -145,8 +145,8 @@ Open:
   and Windows has never run this code at all
 - GPU post-processing (CRT, bloom), coloured light, widescreen, an HD pack
 - Packaging, which waits on a name for the project
-- Closing out the test debt: the three replays are synthetic, 400 ticks with no
-  input, so they exercise neither combat nor dynamic light
+- More replays that do something. One exists now, recorded from a text
+  script, and it is what a person's eyes caught before any test did
 
 Inherited from upstream and still open: dead code removal, and replacing the
 jFILE/bFILE layer with SDL's IO abstraction.
