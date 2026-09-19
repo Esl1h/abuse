@@ -46,6 +46,41 @@ classic preset is always there.
 | ![The options screen](doc/screenshots/options.png) | ![A firefight](doc/screenshots/combat.png) |
 | Options, reachable anywhere with F2 | Free aiming, the reason it still plays well |
 
+## What you need
+
+To **play**, on Linux: SDL3 and a 64-bit machine. That is the whole list. The
+game draws into a 320x200 buffer and scales it on the GPU, so anything with a
+working driver is enough, integrated graphics included; there is no shader
+pipeline yet. It needs about 20 MB of disk and no network.
+
+On Windows, take `abuse-windows` from the
+[latest CI run](https://github.com/Esl1h/abuse/actions): the executable, the
+SDL DLLs, the game data and the fetcher for the original sound, in one folder.
+Unpack and run, no compiler and no clone.
+
+To **build**, CMake 3.21 or newer and a C++17 compiler. CPM fetches
+SDL3_mixer, and SDL3 too when the system has no package for it.
+
+```sh
+# Arch, EndeavourOS. Everything is in the official repositories; no AUR.
+sudo pacman -S --needed base-devel cmake ninja git sdl3 imagemagick ccache mold
+
+# Fedora
+sudo dnf install gcc-c++ cmake ninja-build git SDL3-devel ImageMagick ccache mold
+```
+
+`ninja` is the generator the presets use; `ccache` and `mold` only make the
+build faster and the `dev` and `release` presets expect them. Without any of
+the three, configure by hand and skip the presets:
+
+```sh
+cmake -S . -B build/rel -DCMAKE_BUILD_TYPE=Release -DCPM_USE_LOCAL_PACKAGES=ON
+cmake --build build/rel -j"$(nproc)"
+```
+
+`imagemagick` is for the tests only: the snapshot suites compare frames with
+`magick compare`, and skip themselves when it is absent.
+
 ## Playing
 
 ```sh
@@ -62,8 +97,7 @@ opens at the largest whole multiple of 320x240 that fits your display.
 | Mouse | Aim; left button fires, right is the special |
 | Ctrl, Insert | Previous and next weapon |
 | Esc | The menu |
-| F2 → Lighting, HUD, Smooth movement | The new look, each on its own |
-| F2 | Options |
+| F2 | Options, where the new look is switched on row by row |
 | F3 | Controls, to rebind anything |
 | p | Pause |
 
@@ -118,13 +152,29 @@ jFILE/bFILE layer with SDL's IO abstraction.
 
 ## Building
 
-See [BUILDING.md](BUILDING.md). In short, CMake 3.21 or newer, a C++17
-compiler, and CPM fetches SDL3 and SDL3_mixer. Presets: `dev`, `release`,
-`asan`, `headless`.
+See [BUILDING.md](BUILDING.md). Presets: `dev`, `release`, `asan`, `headless`.
 
 ```sh
 ctest --preset dev    # unit tests, replays, and both snapshot suites
 ```
+
+### Tested on
+
+Two machines, deliberately different, and both are checked before anything is
+called done:
+
+| | |
+|---|---|
+| **Fedora 44**, AMD Ryzen with a Radeon GPU, Wayland | Where the work happens and where the reference frames are recorded |
+| **EndeavourOS**, Intel Core i7 with a GeForce RTX (hybrid), KDE on Wayland | Second opinion: different compiler (GCC 16), different SDL build, different GPU vendor |
+
+The reference frames recorded on the first match the second byte for byte,
+which is the point of having two. CI adds Ubuntu, Windows and macOS, and the
+replay hashes agree across all of them: the simulation is deterministic
+whatever it is running on.
+
+Windows 11 on that same laptop is the next thing to be checked by hand; so far
+it is only known to build and to pass the tests.
 
 [AGENTS.md](AGENTS.md) is the contract for anyone working on this, human or
 agent, and [ARCHITECTURE.md](ARCHITECTURE.md) maps the engine, including the
