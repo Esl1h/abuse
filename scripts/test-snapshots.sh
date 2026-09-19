@@ -96,7 +96,8 @@ if [ "$window" = 1 ]; then
             "startmenu-pt 1024 600 pt_BR --dump-start-menu" \
             "hud-en 1280 720 en --dump-hud" \
             "rgblight-en 1280 720 en --rgb-light" \
-            "crt-en 1280 720 en --rgb-light --scanlines"
+            "crt-en 1280 720 en --rgb-light --scanlines" \
+            "interp-en 1280 720 en --frame-alpha 0.5 --replay level00-run"
         do
             # shellcheck disable=SC2086 # the fields are meant to split
             set -- $shot
@@ -106,11 +107,26 @@ if [ "$window" = 1 ]; then
             lang=$4
             shift 4
 
+            # --replay <name> picks a different recording for this shot. The
+            # default is the idle one, which is right for a screen drawn over
+            # a still frame and wrong for anything about movement.
+            shot_rec=$rec
+            args=()
+            while [ $# -gt 0 ]; do
+                if [ "$1" = "--replay" ]; then
+                    shot_rec="tests/replays/$2.rec"
+                    shift 2
+                else
+                    args+=("$1")
+                    shift
+                fi
+            done
+
             mkdir -p "$tmp/$name"
-            "$bin" --headless -nodelay --playback "$rec" \
+            "$bin" --headless -nodelay --playback "$shot_rec" \
                    --dump-frames 200 --out "$tmp/$name" \
                    --dump-window --window-size "$win_w" "$win_h" \
-                   -preset "$preset" -language "$lang" "$@" \
+                   -preset "$preset" -language "$lang" "${args[@]}" \
                    -datadir ./data > /dev/null 2>&1
 
             f="$tmp/$name/000200-window.bmp"
