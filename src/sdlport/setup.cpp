@@ -45,6 +45,7 @@
 #include "data/paths.h"
 #include "render/options.h"
 #include "render/lightmap.h"
+#include "render/shake.h"
 #include "input/gamepad.h"
 #include "input/rumble.h"
 #include "input/aim.h"
@@ -185,6 +186,8 @@ void createRCFile( char *rcfile )
         fputs( "; The mix, as percentages. These survive a restart; the volume\n", fd );
         fputs( "; window in the menu is the slider for the session.\n", fd );
         fputs( ";volume_master=100\n;volume_sfx=100\n;volume_music=100\n;volume_ui=100\n\n", fd );
+        fputs( "; A knock to the camera when the player is hit.\n", fd );
+        fputs( ";shake=off\n\n", fd );
         fputs( "; A dark line under each pixel row, the way a CRT left one.\n", fd );
         fputs( ";scanlines=on\n\n", fd );
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
@@ -374,6 +377,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown volume '%s', expected master, sfx,"
                             " music or ui\n", which );
+            }
+            else if( strcasecmp( result, "shake" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = true;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::render::set_shake_enabled( on );
+                else
+                    printf( "Config: unknown shake '%s', expected on or off\n",
+                            result );
             }
             else if( strcasecmp( result, "scanlines" ) == 0 )
             {

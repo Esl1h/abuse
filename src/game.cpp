@@ -75,6 +75,7 @@
 #include "sdlport/util.h"
 #include "harness.h"
 #include "render/options.h"
+#include "render/shake.h"
 #include "data/paths.h"
 #include "timing/pacer.h"
 
@@ -526,6 +527,9 @@ void Game::set_level(level *nl)
 
 void Game::load_level(char const *name)
 {
+    // A new level does not inherit the last one's knock.
+    abuse::render::reset_shake();
+
     if(current_level)
       delete current_level;
 
@@ -730,6 +734,18 @@ void Game::draw_map(view *v, int interpolate)
   {
     xoff = v->xoff();
     yoff = v->yoff();
+  }
+
+  // The knock from being hit. Clamped at zero because the level does not
+  // exist to the left of or above its own origin.
+  int shake_x = 0, shake_y = 0;
+  abuse::render::shake_offset(shake_x, shake_y);
+  if(shake_x || shake_y)
+  {
+    xoff += shake_x;
+    yoff += shake_y;
+    if(xoff < 0) xoff = 0;
+    if(yoff < 0) yoff = 0;
   }
 
 //  if(xoff > max_xoff) xoff = max_xoff;
@@ -2633,6 +2649,7 @@ int main(int argc, char *argv[])
 
                 // process all the objects in the world
                 g->step();
+                abuse::render::shake_tick();
                 server_check();
                 g->calc_speed();
 

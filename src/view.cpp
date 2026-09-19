@@ -26,6 +26,7 @@
 #include "game.h"
 
 #include "view.h"
+#include "render/shake.h"
 #include "timing/pacer.h"
 #include "input/aim.h"
 #include "data/paths.h"
@@ -293,6 +294,14 @@ void view::draw_character_damage()
 {
   if (m_focus && drawable())
   {
+    // Phase 6, block 6.4: a knock to the camera proportional to the hit.
+    // Only downwards, and not in the Original mode, like every other visual
+    // addition. It moves where the frame is drawn from and nothing else, so
+    // replays are unaffected.
+    if (last_hp>=0 && m_focus->hp()<last_hp
+        && abuse::data::mode()!=abuse::data::Mode::Original)
+      abuse::render::shake((float)(last_hp-m_focus->hp())/4.0f);
+
     if (last_hp!=m_focus->hp()) draw_hp();
     int i;
     for (i=0; i<total_weapons; i++)
