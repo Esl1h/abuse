@@ -34,9 +34,11 @@ CMake and WiX can both be installed individually or via the [Chocolatey package 
 
     choco install cmake wixtoolset
 
-For Windows, the easiest way to get SDL2 and SDL2_mixer installed is via [vcpkg](https://vcpkg.io/en/index.html). Follow the [getting started instructions](https://vcpkg.io/en/getting-started.html). With it installed there should be nothing else to do, the `vcpkg.json` file indicates the required SDL2 and SDL2-mixer dependencies.
+SDL3 and SDL3_mixer are automatically downloaded and built via CPM (C++ Package Manager) during the CMake configuration step. The `vcpkg.json` file in the repository is a legacy artifact from the previous SDL2 build system and is not used by the current build.
 
-With that set up, the CMake generation should succeed without any error.
+To use libraries already installed on your system instead of building them from source, configure CMake with `-DCPM_USE_LOCAL_PACKAGES=ON`. This is useful to speed up the build and avoid needing all the dependencies required to build SDL3 from source.
+
+With these dependencies resolved, the CMake generation should succeed without any error.
 
 ### macOS
 
@@ -47,6 +49,39 @@ macOS should have most of the stuff you need already assuming you have XCode ins
 By default, CMake on macOS uses the Makefile generator. To use the Xcode generator (which makes debugging with Xcode easier), specific `-G Xcode` when running CMake.
 
 SDL3/SDL3_mixer are now downloaded as subprojects and are built into the generated macOS bundle. This makes distributing the macOS binary much simpler as it no longer requires the user have SDL installed in some fashion.
+
+### Linux
+
+Linux builds use CMake presets defined in `CMakePresets.json` for convenience:
+
+| Preset | Type | Purpose |
+| --- | --- | --- |
+| `dev` | RelWithDebInfo | Development with `-Wall -Wextra`, tests enabled, optimizations for fast builds (ccache, mold linker) |
+| `release` | Release | Optimized build for distribution |
+| `asan` | Debug | AddressSanitizer and UndefinedBehaviorSanitizer, with the alignment and null checks turned off (the 1995 loaders read structs straight from file data) |
+| `headless` | RelWithDebInfo | CI builds: MIDI and FluidSynth off, no ccache or mold, so the host needs fewer dependencies |
+
+All presets inherit from `linux-base`, which sets `CPM_USE_LOCAL_PACKAGES=ON`. This tells CPM to prefer libraries already installed on the system (such as SDL3) rather than downloading and compiling them from source. Without this setting, the build requires all the dependencies needed to build SDL3 from source, including X11 development headers.
+
+`SDL3_mixer` and `SDL3_native_midi` are fetched and built by CPM regardless of that setting, because no distribution packages them yet. Only SDL3 itself is picked up from the system.
+
+To use a preset:
+
+```sh
+cmake --preset dev && cmake --build --preset dev
+ctest --preset dev
+```
+
+The compiled binary is located at `build/<preset>/src/abuse`.
+
+#### Native MIDI on Linux
+
+Building with native MIDI support (`ABUSE_ENABLE_NATIVE_MIDI=ON`, the default) requires ALSA development headers:
+
+- **Fedora/RHEL**: `sudo dnf install alsa-lib-devel`
+- **Debian/Ubuntu**: `sudo apt install libasound2-dev`
+
+If these headers are not available, native MIDI can be disabled with `-DABUSE_ENABLE_NATIVE_MIDI=OFF`.
 
 # Compiling
 
@@ -77,13 +112,13 @@ SDL3/SDL3_mixer are now downloaded as subprojects and are built into the generat
    cmake -G Xcode --install-prefix $(cd ../install; pwd) ../abuse
    ```
 
-   On Windows, the CMake command is likely to require a few extra options, such as pointing to vcpkg, and make end up looking more like:
+   On Windows, you can use a standard CMake command:
 
     ```bat
-    cmake -DCMAKE_TOOLCHAIN_FILE=%VCPKG_PATH%\scripts\buildsystems\vcpkg.cmake -DCMAKE_INSTALL_PREFIX:PATH=../install ../abuse
+    cmake -DCMAKE_INSTALL_PREFIX:PATH=../install ../abuse
     ```
 
-   Note that `%VCPKG_PATH%` should be where vcpkg is installed. (Either set the variable or replace it in the command line.)
+   If you have SDL3 libraries already installed on your system and wish to use them instead of having CMake download and build them, add `-DCPM_USE_LOCAL_PACKAGES=ON` to the command above.
 
 3. Build the files:
 
