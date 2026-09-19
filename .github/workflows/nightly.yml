@@ -21,13 +21,19 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
+          # Same list as ci.yml, and for the same reason: see the comment
+          # there. CPM builds SDL3 from source and a missing dependency for an
+          # enabled subsystem fails the configure step outright.
           sudo apt-get install -y --no-install-recommends \
             ninja-build imagemagick \
-            libasound2-dev libpulse-dev libudev-dev \
+            libasound2-dev libpulse-dev libjack-dev libsndio-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
-            libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
-            libwayland-dev wayland-protocols libdecor-0-dev \
-            libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+            libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev \
+            libegl1-mesa-dev \
+            libdbus-1-dev libibus-1.0-dev libudev-dev \
+            libfribidi-dev libthai-dev libusb-1.0-0-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev
 
       - name: CPM cache
         uses: actions/cache@v4

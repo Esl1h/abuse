@@ -35,16 +35,27 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          # CPM builds SDL3 from source: it needs SDL3's own build dependencies.
-          # ImageMagick fornece o 'compare' usado pelos snapshots.
+          # No distribution packages SDL3 yet, so CPM builds it from source and
+          # every one of SDL3's own build dependencies has to be installed
+          # here. This is the list from docs/README-linux.md in SDL
+          # release-3.4.14, the tag CMakeLists pins, minus what the runner
+          # already has and minus libaudio-dev, which Ubuntu dropped.
+          #
+          # Leaving one out does not disable a feature, it fails the configure
+          # step: SDL treats a missing dependency for an enabled subsystem as
+          # an error.
+          #
+          # ImageMagick provides the 'compare' the snapshot suites use.
           sudo apt-get install -y --no-install-recommends \
-            ninja-build \
-            imagemagick \
-            libasound2-dev libpulse-dev libudev-dev \
+            ninja-build imagemagick \
+            libasound2-dev libpulse-dev libjack-dev libsndio-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
-            libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
-            libwayland-dev wayland-protocols libdecor-0-dev \
-            libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+            libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev \
+            libegl1-mesa-dev \
+            libdbus-1-dev libibus-1.0-dev libudev-dev \
+            libfribidi-dev libthai-dev libusb-1.0-0-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev
 
       - name: CPM cache
         uses: actions/cache@v4
@@ -74,13 +85,13 @@ jobs:
         with:
           name: linux-test-output
           path: |
-            build/dev/Testing/
+            build/headless/Testing/
           if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v4
         with:
           name: abuse-linux
-          path: build/dev/src/abuse
+          path: build/headless/src/abuse
 
   windows:
     name: Windows (build)
@@ -188,4 +199,4 @@ jobs:
           fi
           echo "$files"
           # shellcheck disable=SC2086
-          clang-tidy -p build/dev $files
+          clang-tidy -p build/headless $files
