@@ -3,6 +3,7 @@
 #include <initializer_list>
 #include <math.h>
 
+#include "compat.h"
 #include "input/aim.h"
 
 using namespace abuse::input;
@@ -79,7 +80,7 @@ double angle_between(double ax, double ay, double bx, double by)
     double dot = (ax * bx + ay * by) / (la * lb);
     if (dot > 1.0) dot = 1.0;
     if (dot < -1.0) dot = -1.0;
-    return acos(dot) * 180.0 / M_PI;
+    return acos(dot) * 180.0 / abuse::kPi;
 }
 
 }

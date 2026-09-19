@@ -8,6 +8,8 @@
 
 #include "aim.h"
 
+#include "compat.h"
+
 #include <math.h>
 
 #include "gamepad.h"
@@ -78,7 +80,7 @@ AimVector assist_aim(AimVector const &aim, AimTarget const *targets, int count,
 
     // cos of the cone half-angle: a candidate qualifies when the dot product
     // of the two unit vectors is at least this.
-    double cone = cos((double)settings.cone_degrees * M_PI / 180.0);
+    double cone = cos((double)settings.cone_degrees * kPi / 180.0);
 
     int best = -1;
     double best_dot = cone;

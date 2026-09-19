@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
+#include "compat.h"
 #include <vector>
 
 #include "harness.h"

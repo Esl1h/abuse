@@ -23,6 +23,7 @@
 
 #   define strcasecmp  _stricmp
 #   define strncasecmp _strnicmp
+#   define getcwd      _getcwd
 
 #   ifndef S_ISDIR
 #       define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
@@ -34,10 +35,16 @@
 #else
 
 #   include <strings.h>
+#   include <unistd.h>
 
 #endif
 
 namespace abuse {
+
+// M_PI is a POSIX extension. MSVC only defines it when _USE_MATH_DEFINES is
+// set before every <math.h>, which is a rule the next person to add an
+// include will not know about.
+constexpr double kPi = 3.14159265358979323846;
 
 // Creates one directory, and says nothing when it is already there. The mode
 // argument does not exist on Windows, where a directory inherits its
