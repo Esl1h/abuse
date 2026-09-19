@@ -53,6 +53,7 @@ inline constexpr Phrase kModeRemaster   = { "Remastered", "Remasterizado" };
 inline constexpr Phrase kOptHud         = { "HUD", "HUD" };
 inline constexpr Phrase kHudClassic     = { "classic", "cl\xe1" "ssico" };
 inline constexpr Phrase kHudModern      = { "modern", "moderno" };
+inline constexpr Phrase kOptSmooth      = { "Smooth movement", "Movimento suave" };
 inline constexpr Phrase kOptLanguage    = { "Language", "Idioma" };
 inline constexpr Phrase kOptFont        = { "Font", "Fonte" };
 inline constexpr Phrase kOptScaleMode   = { "Scale mode", "Modo de escala" };

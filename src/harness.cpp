@@ -46,6 +46,11 @@ struct Options {
     bool dump_bindings = false;
     bool dump_window = false;
     bool mode_given = false;
+    // Interpolation is off under the harness, because one frame is one tick
+    // there. This forces a blend anyway, at a fixed point, so a scripted
+    // frame can show what the player would see between two ticks.
+    float frame_alpha = 0.0f;
+    bool frame_alpha_given = false;
     enum class Screen { None, Options, Rebind, ClassicData, MenuHint, Language,
                         StartMenu, Hud };
     Screen dump_screen = Screen::None;
@@ -85,6 +90,21 @@ char *take_value(int argc, char **argv, int &i, char const *what)
         exit(2);
     }
     return argv[++i];
+}
+
+// A fraction, for the one flag that takes one. Same refusal as take_number:
+// a typo stops the run rather than being read as zero.
+double take_fraction(int argc, char **argv, int &i, char const *what)
+{
+    char *end;
+    char *raw = take_value(argc, argv, i, what);
+    double value = strtod(raw, &end);
+    if (*end || end == raw)
+    {
+        fprintf(stderr, "%s expects a number, got '%s'\n", what, raw);
+        exit(2);
+    }
+    return value;
 }
 
 long take_number(int argc, char **argv, int &i, char const *what)
@@ -182,6 +202,11 @@ void parse_args(int argc, char **argv)
             // goes into the 320x200 buffer, and by then it is already there.
             abuse::ui::set_classic_hud(false);
         }
+        else if (!strcmp(argv[i], "--frame-alpha"))
+        {
+            opt.frame_alpha = (float)take_fraction(argc, argv, i, "--frame-alpha");
+            opt.frame_alpha_given = true;
+        }
         else if (!strcmp(argv[i], "--window-size"))
         {
             opt.window_w = (int)take_number(argc, argv, i, "--window-size");
@@ -265,6 +290,14 @@ bool window_size(int &w, int &h)
         return false;
     w = opt.window_w;
     h = opt.window_h;
+    return true;
+}
+
+bool frame_alpha(float &out)
+{
+    if (!opt.frame_alpha_given)
+        return false;
+    out = opt.frame_alpha;
     return true;
 }
 

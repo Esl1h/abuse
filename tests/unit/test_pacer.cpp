@@ -110,3 +110,21 @@ TEST_CASE("tick count tracks wall time over a long run") {
 
     CHECK(total == 150);
 }
+
+// Phase 6, block 6.1: the frame alpha the drawing reads. Clamped, because a
+// pacer that dropped ticks can hand over a value outside the range, and a
+// blend outside [0,1] puts an object somewhere it never was.
+TEST_CASE("the frame alpha is clamped to the tick it belongs to") {
+    abuse::timing::set_frame_alpha(0.25f);
+    CHECK(abuse::timing::frame_alpha() == doctest::Approx(0.25f));
+
+    abuse::timing::set_frame_alpha(-1.0f);
+    CHECK(abuse::timing::frame_alpha() == doctest::Approx(0.0f));
+
+    abuse::timing::set_frame_alpha(3.0f);
+    CHECK(abuse::timing::frame_alpha() == doctest::Approx(1.0f));
+
+    // Whatever a test left behind, the default is "draw the last tick".
+    abuse::timing::set_frame_alpha(0.0f);
+    CHECK(abuse::timing::frame_alpha() == doctest::Approx(0.0f));
+}

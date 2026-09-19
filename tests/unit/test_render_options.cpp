@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include <initializer_list>
+
 #include <string.h>
 
 #include "render/options.h"
@@ -158,4 +160,33 @@ TEST_CASE("unknown preset name is rejected") {
     CHECK_FALSE(parse_preset("crt", p));
     CHECK_FALSE(parse_preset(nullptr, p));
     CHECK(p == Preset::Classic);
+}
+
+// Phase 6, block 6.1. Three keys in abuserc are now on/off, and a typo in any
+// of them has to leave the setting where it was rather than guess.
+TEST_CASE("on/off parses the spellings people type") {
+    bool v = false;
+
+    for (char const *yes : { "on", "ON", "true", "yes", "1" }) {
+        v = false;
+        CHECK(abuse::render::parse_switch(yes, v));
+        CHECK(v);
+    }
+
+    for (char const *no : { "off", "OFF", "false", "no", "0" }) {
+        v = true;
+        CHECK(abuse::render::parse_switch(no, v));
+        CHECK_FALSE(v);
+    }
+
+    v = true;
+    CHECK_FALSE(abuse::render::parse_switch("maybe", v));
+    CHECK(v);
+    CHECK_FALSE(abuse::render::parse_switch(nullptr, v));
+    CHECK(v);
+}
+
+TEST_CASE("smooth movement is on by default") {
+    abuse::render::Options fresh;
+    CHECK(fresh.interpolate);
 }

@@ -109,6 +109,27 @@ void hud_value(char *buf, size_t n)
     snprintf(buf, n, "%s", classic_hud_configured() ? "classic" : "modern");
 }
 
+// ---- smooth movement ------------------------------------------------------
+
+// Positions blended between the last two logical ticks. Takes effect at once:
+// the draw asks for it every frame. The Original mode ignores it, like every
+// other visual addition.
+void smooth_step(int)
+{
+    render::options().interpolate = !render::options().interpolate;
+}
+
+void smooth_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", say(render::options().interpolate
+                                   ? i18n::kOn : i18n::kOff));
+}
+
+void smooth_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::options().interpolate ? "on" : "off");
+}
+
 // ---- language -------------------------------------------------------------
 
 i18n::Language const kLangs[] = {
@@ -270,6 +291,7 @@ void same_as_shown(char *buf, size_t n) { (void)buf; (void)n; }
 Item const kItems[] = {
     { i18n::kOptMode,        "mode",        true,  mode_step,     mode_show,     mode_value },
     { i18n::kOptHud,         "hud",         false, hud_step,      hud_show,      hud_value },
+    { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
     { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },
     { i18n::kOptFont,        "font",        true,  font_step,     font_show,     NULL },
     { i18n::kOptScaleMode,   "scalemode",   false, scale_step,    scale_show,    NULL },

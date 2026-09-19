@@ -176,6 +176,9 @@ void createRCFile( char *rcfile )
         fputs( "; degrees.\naimassistcone=25\n\n", fd );
 //        fputs( "; Set the width of the window\nx=320\n\n", fd );
 //        fputs( "; Set the height of the window\ny=200\n\n", fd );
+        fputs( "; Smooth movement: positions blended between logical ticks.\n", fd );
+        fputs( "; The world still advances 15 times a second either way.\n", fd );
+        fputs( ";interpolate=off\n\n", fd );
         fputs( "; HUD: classic is the 1995 status bar, modern the overlay one.\n", fd );
         fputs( ";hud=modern\n\n", fd );
         fputs( "; Start menu: modern is the list, classic the strip of icons.\n", fd );
@@ -326,6 +329,16 @@ void readRCFile()
                     abuse::ui::set_classic_start_menu( classic );
                 else
                     printf( "Config: unknown startmenu '%s', expected modern or classic\n",
+                            result );
+            }
+            else if( strcasecmp( result, "interpolate" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = true;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::render::options().interpolate = on;
+                else
+                    printf( "Config: unknown interpolate '%s', expected on or off\n",
                             result );
             }
             else if( strcasecmp( result, "hud" ) == 0 )

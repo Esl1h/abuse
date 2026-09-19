@@ -20,6 +20,11 @@ void parse_args(int argc, char **argv);
 
 bool headless();
 
+// --frame-alpha F. Forces the interpolated draw at a fixed point between two
+// ticks, which is the only way a scripted capture can show it: the harness
+// runs one frame per tick, where there is nothing to blend.
+bool frame_alpha(float &out);
+
 // True when --mode was given, so the remembered mode knows to stand aside:
 // a flag the player typed beats a file they forgot about.
 bool mode_from_command_line();
