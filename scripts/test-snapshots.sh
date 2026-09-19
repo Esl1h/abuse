@@ -95,7 +95,8 @@ if [ "$window" = 1 ]; then
             "startmenu-en 1280 720 en --dump-start-menu" \
             "startmenu-pt 1024 600 pt_BR --dump-start-menu" \
             "hud-en 1280 720 en --dump-hud" \
-            "rgblight-en 1280 720 en --rgb-light"
+            "rgblight-en 1280 720 en --rgb-light" \
+            "crt-en 1280 720 en --rgb-light --scanlines"
         do
             # shellcheck disable=SC2086 # the fields are meant to split
             set -- $shot

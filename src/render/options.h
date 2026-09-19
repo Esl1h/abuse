@@ -39,6 +39,10 @@ struct Options
     int fps_limit = 0;              // 0 = no limit beyond vsync
     uint8_t letterbox[3] = {0, 0, 0};
 
+    // Dark lines between the game's pixel rows, the way a CRT left one. Only
+    // where there is room for them: at least two window rows per game row.
+    bool scanlines = false;
+
     // Draw positions blended between the last two logical ticks. The world
     // still advances 15 times a second; this is only about what is shown in
     // between. Phase 6, block 6.1.

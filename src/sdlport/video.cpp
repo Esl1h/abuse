@@ -28,6 +28,8 @@
 
 #include "filter.h"
 #include "video.h"
+#include <vector>
+
 #include "render/options.h"
 #include "render/lightmap.h"
 #include "ui/overlay.h"
@@ -429,6 +431,53 @@ bool window_pixel_size(int &w, int &h)
 // Draws the native resolution layer over the scaled game frame. The logical
 // presentation has to be off while it happens: with it on the overlay would be
 // scaled like the 320x200 buffer and lose the sharpness it exists for.
+// A dark line under each of the game's pixel rows, which is the visible half
+// of what a CRT did to this game. Phase 6, block 6.3, without the shader
+// pipeline the rest of that block needs: at output resolution, as rectangles,
+// so the GPU does the work.
+//
+// Under the overlay on purpose. The UI is drawn at native resolution to be
+// read, and striping it would undo that.
+static void draw_scanlines()
+{
+    if (!abuse::render::options().scanlines)
+        return;
+
+    int gx, gy, gw, gh;
+    if (!game_rect_to_window(0, 0, xres, yres, gx, gy, gw, gh))
+        return;
+
+    // One game row is this many window rows. Below two there is nowhere to
+    // put a dark line that would not swallow the picture.
+    float const row = (float)gh / (float)yres;
+    if (row < 2.0f)
+        return;
+
+    std::vector<SDL_FRect> lines;
+    lines.reserve((size_t)yres);
+
+    float const thickness = row >= 4.0f ? row * 0.25f : 1.0f;
+    for (int i = 0; i < yres; i++)
+    {
+        SDL_FRect r;
+        r.x = (float)gx;
+        r.w = (float)gw;
+        r.y = (float)gy + (float)(i + 1) * row - thickness;
+        r.h = thickness;
+        lines.push_back(r);
+    }
+
+    SDL_SetRenderLogicalPresentation(renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    SDL_BlendMode previous;
+    SDL_GetRenderDrawBlendMode(renderer, &previous);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 90);
+    SDL_RenderFillRects(renderer, lines.data(), (int)lines.size());
+    SDL_SetRenderDrawBlendMode(renderer, previous);
+    apply_presentation();
+}
+
 static void draw_overlay()
 {
     abuse::ui::Overlay &ov = abuse::ui::overlay();
@@ -518,6 +567,7 @@ void update_window_done()
     SDL_SetRenderDrawColor(renderer, bar[0], bar[1], bar[2], 255);
     SDL_RenderClear(renderer);
     SDL_RenderTexture(renderer, texture, NULL, NULL);
+    draw_scanlines();
     draw_overlay();
 
     // Before the present: on several backends the target is no longer

@@ -185,6 +185,8 @@ void createRCFile( char *rcfile )
         fputs( "; The mix, as percentages. These survive a restart; the volume\n", fd );
         fputs( "; window in the menu is the slider for the session.\n", fd );
         fputs( ";volume_master=100\n;volume_sfx=100\n;volume_music=100\n;volume_ui=100\n\n", fd );
+        fputs( "; A dark line under each pixel row, the way a CRT left one.\n", fd );
+        fputs( ";scanlines=on\n\n", fd );
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
         fputs( "; without the banding. Experimental, and never in Original mode.\n", fd );
         fputs( ";rgblight=on\n\n", fd );
@@ -372,6 +374,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown volume '%s', expected master, sfx,"
                             " music or ui\n", which );
+            }
+            else if( strcasecmp( result, "scanlines" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = false;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::render::options().scanlines = on;
+                else
+                    printf( "Config: unknown scanlines '%s', expected on or off\n",
+                            result );
             }
             else if( strcasecmp( result, "rgblight" ) == 0 )
             {
