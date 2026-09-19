@@ -27,14 +27,18 @@ classic preset is always there.
   aim assist, rumble, and button labels that match what your controller prints
 - **A UI layer at native resolution**, composited over the scaled game, so its
   text is sharp at 1080p instead of being magnified along with the pixels
+- **A start menu in words**, in your language, navigable with a d-pad; the
+  strip of icons is one line of config away
 - **English, French, German and Brazilian Portuguese**, chosen on first run
 - **Deterministic replay testing**: a state hash, frame snapshots, and a
   snapshot of what actually reached the window
 
 | | |
 |---|---|
-| ![Language selection on first run](doc/screenshots/language.png) | ![The options screen](doc/screenshots/options.png) |
-| First run asks for a language | Options, reachable anywhere with F2 |
+| ![Language selection on first run](doc/screenshots/language.png) | ![The start menu](doc/screenshots/startmenu.png) |
+| First run asks for a language | The start menu, also reached with Esc |
+| ![The options screen](doc/screenshots/options.png) | ![A firefight](doc/screenshots/combat.png) |
+| Options, reachable anywhere with F2 | Free aiming, the reason it still plays well |
 
 ## Playing
 
@@ -51,6 +55,7 @@ opens at the largest whole multiple of 320x240 that fits your display.
 | Arrows or WASD | Move |
 | Mouse | Aim; left button fires, right is the special |
 | Ctrl, Insert | Previous and next weapon |
+| Esc | The menu |
 | F2 | Options |
 | F3 | Controls, to rebind anything |
 | p | Pause |
@@ -64,12 +69,15 @@ opens the options and X the controls.
 **The Remastered mode has no sound yet.** The free data carries no effects and
 no music, and assembling a free set is the next piece of work.
 
-The Original mode plays as soon as the original data is installed:
+The Original mode plays as soon as the original data is installed. Pick it on
+the menu, or from the command line:
 
 ```sh
 ./scripts/fetch-classic-data.sh
 ./build/release/src/abuse -datadir ./data --mode original
 ```
+
+The menu writes the choice down, so it survives the next launch.
 
 Those files are not redistributable, which is why the script downloads them
 rather than the repository carrying them.
@@ -85,7 +93,7 @@ translations.
 Open:
 
 - Human review of the Brazilian Portuguese translation
-- A new HUD, and a new start menu
+- A new HUD
 - Audio: a mixer with separate buses, and a free sound set. The public domain
   Golgotha pack covers 19 of the 78 events; the other 59 need a source
 - Optional lighting and shaders, widescreen, an HD pack, packaging

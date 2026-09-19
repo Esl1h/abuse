@@ -47,7 +47,7 @@ main()                          src/game.cpp:2284
 | `src/sdlport/` | The bridge to SDL3: video, events, sound, time, configuration | `sound.cpp`, `video.cpp`, `event.cpp`, `setup.cpp` |
 | `src/lol/` | Leftovers of the Lol Engine: vectors, matrices, `Timer` | `matrix.h`, `timer.cpp` |
 | `src/net/` | Networking: TCP/IP, game server, file server | `tcpip.cpp` 700, `fileman.cpp` 564 |
-| `src/ui/` | Native resolution overlay, the new screens, and two inherited widgets | `options_screen.cpp`, `overlay.cpp`, `menu_list.cpp`, `hexfont.cpp` |
+| `src/ui/` | Native resolution overlay, the new screens, and two inherited widgets | `options_screen.cpp`, `start_menu.cpp`, `overlay.cpp`, `menu_list.cpp`, `hexfont.cpp` |
 | `src/tool/` | `abuse-tool`, a `.spe` utility that runs outside the game | |
 
 Modules added by this fork, all in `namespace abuse::<module>`:
@@ -267,7 +267,18 @@ There are also several event loops that never meet: the tick loop in
 A key handled in only one of them works in only one of them, which is why
 `abuse::ui::handle_global_key` exists.
 
-## 9. Audio
+## 9. The start menu
+
+`src/ui/start_menu.cpp` is the list the game opens on, and the one Esc reaches from
+inside a level. It replaces the strip of icons that `make_default_buttons` builds in
+`src/menu.cpp`, which is still there and still reachable with `startmenu=classic`.
+
+`run_start_menu` handles everything that stays on the menu, and returns a
+`StartAction` for the four things that do not: resuming, starting, loading, quitting,
+plus `Idle` for the attract loop. `main_menu` acts on it, because starting a level is
+the game's business. The mode row is marked: see `data::save_mode`.
+
+## 10. Audio
 
 `src/sdlport/sound.cpp`, already on the new SDL3_mixer API:
 
@@ -285,7 +296,7 @@ The sound directory is looked up through the classic-data overlay when one is se
 the Original mode plays as soon as that data is installed. The Remastered mode has no
 free sound set yet, which is why it is silent.
 
-## 10. Lisp and the binding to C++
+## 11. Lisp and the binding to C++
 
 `src/lisp/lisp.cpp` is a complete interpreter: reader, evaluator, garbage collector,
 symbol table. Object behaviour lives in `data/lisp/`.
@@ -322,7 +333,7 @@ Text the new UI adds cannot live there, because `english.lsp` is original data. 
 in `src/i18n/uitext.h` instead, one phrase per entry with an English and a Portuguese
 column.
 
-## 11. Loaders
+## 12. Loaders
 
 | Format | Where | Note |
 | --- | --- | --- |
@@ -341,7 +352,7 @@ not invalidated. `--mode original` overlays the classic set (`--classic-data`, o
 XDG default) on top of the free data rather than replacing it, because the classic
 tarballs carry no levels. Windows and macOS keep their historical paths.
 
-## 12. Editor and networking
+## 13. Editor and networking
 
 The editor is not a separate mode: it is the same loop with `dev & EDIT_MODE` on
 (`src/game.cpp:1925`), which diverts from `current_level->tick()` (`:1938`) to
@@ -356,7 +367,7 @@ This has a useful implication: **the game already has to be deterministic for
 multiplayer to work.** `make_sync()` exists precisely to detect divergence between
 peers. What was missing was not determinism, it was measurement.
 
-## 13. Global state
+## 14. Global state
 
 There is no easy exact count, but the order of magnitude is: ~105 `extern` symbols in
 headers, 27 file-scope definitions in `game.cpp` and 30 in `dev.cpp`.
@@ -381,7 +392,7 @@ There is also `static` state inside functions, such as `frame_timer` and `first`
 `calc_speed()` (`src/game.cpp:1513-1514`), which do not reset between games in the same
 process.
 
-## 14. Sources of non-determinism
+## 15. Sources of non-determinism
 
 In order of importance for the replay work.
 
@@ -408,7 +419,7 @@ Floating point: the logic works in integers (`int32_t` for positions and `lvars`
 Floats appear in the cadence (`avg_ms`) and in `src/lol/`. That is what makes hashing
 only integer state sound.
 
-## 15. What this changed in the plan
+## 16. What this changed in the plan
 
 | Area | Finding | Effect |
 | --- | --- | --- |
