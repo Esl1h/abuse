@@ -163,7 +163,8 @@ Test harness flags (`src/harness.cpp`):
 | `--window-size W H` | Pins the window, which the presented frame depends on |
 | `--out <dir>` | Output directory for the dumps |
 | `--dump-bindings` | Prints the resolved action map |
-| `--dump-options`, `--dump-controls`, `--dump-language`, `--dump-classic-data`, `--dump-menu-hint` | Draws one of the new screens into a scripted frame |
+| `--dump-options`, `--dump-controls`, `--dump-language`, `--dump-classic-data`, `--dump-menu-hint`, `--dump-start-menu`, `--dump-hud` | Draws one of the new screens into a scripted frame |
+| `--frame-alpha F` | Forces the interpolated draw at a fixed point between two ticks |
 | `--mode <original\|remaster>` | Selects the mode without going through the menu |
 | `--classic-data <dir>` | Path to the original data |
 
