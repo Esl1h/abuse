@@ -11,3 +11,59 @@
 /out
 # Visual Studio *Code* with CMake support default output directory
 /build
+
+# Local planning: stays on disk, out of the repository.
+/docs/
+
+# ---------------------------------------------------------------------------
+# Non-free data. Rule 2 of AGENTS.md: the original sound and music never enter
+# the repository or the package. This is a safety net, because
+# data/CMakeLists.txt packages data/sfx and data/music the moment they exist,
+# and scripts/check-licenses.sh already fails if anything shows up under
+# data/classic.
+# ---------------------------------------------------------------------------
+/data/classic/
+/data/sfx/
+/data/music/
+/data/hd/
+
+# ---------------------------------------------------------------------------
+# Local game state, in case someone runs from the tree
+# ---------------------------------------------------------------------------
+/abuserc
+/gamma.lsp
+/save[0-9][0-9][0-9][0-9].spe
+/light.tbl
+/*.rec
+/*.bmp
+
+# ---------------------------------------------------------------------------
+# Build and tooling
+# ---------------------------------------------------------------------------
+/build*/
+CMakeUserPresets.json
+compile_commands.json
+/.cache/
+/.ccache/
+/install/
+
+# ---------------------------------------------------------------------------
+# Editors and AI tooling
+# ---------------------------------------------------------------------------
+/.abacusai
+/.idea/
+/.vscode/
+/.claude/
+CLAUDE.local.md
+*.swp
+
+# ---------------------------------------------------------------------------
+# Debugging and patch leftovers
+# ---------------------------------------------------------------------------
+core
+core.[0-9]*
+*.core
+vgcore.*
+*.orig
+*.rej
+*.log

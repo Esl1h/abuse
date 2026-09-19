@@ -1,0 +1,56 @@
+name: Nightly
+
+on:
+  schedule:
+    # 04:00 UTC.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  sanitizers:
+    name: ASan e UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build imagemagick \
+            libasound2-dev libpulse-dev libudev-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev \
+            libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
+
+      - name: Cache do CPM
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-linux-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-linux-
+
+      - name: Configurar
+        run: cmake --preset asan
+
+      - name: Compilar
+        run: cmake --build --preset asan
+
+      # O preset asan desliga os checks de alinhamento e de ponteiro nulo do
+      # UBSan, with the alignment and null checks off: the 1995 loaders read
+      # structs straight out of file data.
+      - name: Replays sob sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: ./scripts/test-replays.sh ./build/asan/src/abuse
+
+      - name: Unit tests under the sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: ./build/asan/tests/abuse_unit_tests

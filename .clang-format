@@ -1,0 +1,27 @@
+# Estilo do codigo NOVO deste fork (AGENTS.md secao 6).
+# O codigo herdado usa chaves em linha propria; nao reformatar arquivos inteiros.
+# Aplicar apenas nas linhas alteradas: `git clang-format`.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++17
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+AccessModifierOffset: -4
+NamespaceIndentation: None
+FixNamespaceComments: true
+
+IncludeBlocks: Preserve
+SortIncludes: Never

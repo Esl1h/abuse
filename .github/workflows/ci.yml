@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  push:
+    branches: ["master", "sdl3", "fase-*/**"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+
+jobs:
+  # No data file without a manifest entry, no licence outside the allowed
+  # list, nothing from classic/ in the package.
+  licenses:
+    name: Licences (manifest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar manifesto
+        run: ./scripts/check-licenses.sh
+
+  linux:
+    name: Linux (testes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          # CPM builds SDL3 from source: it needs SDL3's own build dependencies.
+          # ImageMagick fornece o 'compare' usado pelos snapshots.
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build \
+            imagemagick \
+            libasound2-dev libpulse-dev libudev-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev \
+            libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
+
+      - name: Cache do CPM
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-linux-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-linux-
+
+      - name: Configurar
+        run: cmake --preset dev
+
+      - name: Compilar
+        run: cmake --build --preset dev
+
+      # Unit tests, replays and snapshots. The snapshots need no Xvfb:
+      # --headless uses SDL's dummy drivers, and the framebuffer is dumped
+      # straight from the indexed surface.
+      - name: Testar
+        run: ctest --preset dev
+
+      - name: Artefatos dos testes que falharam
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-test-output
+          path: |
+            build/dev/Testing/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: abuse-linux
+          path: build/dev/src/abuse
+
+  windows:
+    name: Windows (build)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache do CPM
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-windows-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-windows-
+
+      - name: Configurar
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DABUSE_BUILD_TESTS=ON
+
+      - name: Compilar
+        run: cmake --build build --config Release
+
+      - name: Unit tests
+        run: ctest --test-dir build --build-config Release --output-on-failure -R unit
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: abuse-windows
+          path: build/src/Release/
+
+  macos:
+    name: macOS (build)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: brew install ninja
+
+      - name: Cache do CPM
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-macos-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-macos-
+
+      - name: Configurar
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DABUSE_BUILD_TESTS=ON
+
+      - name: Compilar
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure -R unit
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: abuse-macos
+          path: build/src/abuse
+
+  # Advisory, not blocking. clang-tidy exits zero even with warnings
+  # (WarningsAsErrors is empty in .clang-tidy), and a PR touching a file
+  # herdado imprime dezenas de avisos preexistentes: 165 em level.cpp, 144 em
+  # lisp/lisp.cpp, 84 em game.cpp. O valor do job esta nos modulos novos, e
+  # grows as new code replaces the old.
+  clang-tidy:
+    name: clang-tidy (diff, consultivo)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build clang-tidy \
+            libasound2-dev libpulse-dev libudev-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev \
+            libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
+
+      - name: Cache do CPM
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-linux-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-linux-
+
+      # Only generates compile_commands.json; no need to build the project.
+      - name: Configurar
+        run: cmake --preset dev
+
+      # Only the files the PR changed, as AGENTS.md section 5 requires.
+      - name: Analisar o diff
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          files=$(git diff --name-only --diff-filter=d "$base" HEAD -- '*.cpp' \
+                  | grep -v '^build/' || true)
+          if [ -z "$files" ]; then
+            echo "nenhum .cpp alterado"
+            exit 0
+          fi
+          echo "$files"
+          # shellcheck disable=SC2086
+          clang-tidy -p build/dev $files

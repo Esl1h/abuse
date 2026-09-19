@@ -1,0 +1,25 @@
+# Roda apenas sobre arquivos alterados (AGENTS.md secao 5).
+# Checks escolhidos para codigo novo; o codigo herdado de 1995 nao passa e nao deve
+# ser reformado fora de tarefa dedicada.
+# readability-braces-around-statements ficou de fora: o codebase inteiro omite
+# chaves em comando unico, e a secao 6 do AGENTS.md manda acompanhar o estilo
+# existente.
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  performance-*,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-using,
+  modernize-loop-convert,
+  modernize-make-unique,
+  readability-redundant-control-flow,
+  readability-misleading-indentation,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -performance-avoid-endl
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '^src/(platform|render|input|ui|i18n|audio|data)/'
+FormatStyle: file

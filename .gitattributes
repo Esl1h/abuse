@@ -1,0 +1,34 @@
+* text=auto eol=lf
+
+*.sh      text eol=lf
+*.bat     text eol=crlf
+*.md      text
+*.toml    text
+*.po      text
+*.pot     text
+*.lsp     text
+
+# Original game data: binary, never converted (AGENTS.md rule 1).
+*.spe     binary
+*.wad     binary
+*.pcx     binary
+*.png     binary
+
+# No Git LFS here, on purpose.
+#
+# This repository is a public fork, and GitHub refuses new LFS objects on one:
+# the storage is billed to the parent repository, so a fork can never upload.
+# The reference frames are 9 BMP files of 65 KB, which git stores perfectly
+# well on its own.
+#
+# When the free audio pack arrives it will hit the same wall. The choice then
+# is to keep the files small enough for plain git, or to detach the fork on
+# GitHub so it stops being one.
+data/hd/**            binary
+data/sfx-free/**      binary
+data/music-free/**    binary
+*.ogg     binary
+*.flac    binary
+*.wav     binary
+*.bmp     binary
+*.hex     text
