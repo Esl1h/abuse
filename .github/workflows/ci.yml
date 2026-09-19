@@ -94,7 +94,7 @@ jobs:
           path: build/headless/src/abuse
 
   windows:
-    name: Windows (build)
+    name: Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,8 +112,13 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Unit tests
-        run: ctest --test-dir build --build-config Release --output-on-failure -R unit
+      # Everything, not just the unit tests. The replay suite is the one
+      # that matters here: it checks that the simulation reaches the same
+      # state on this platform as it does on Linux. The snapshot suites skip
+      # themselves when ImageMagick's compare is absent, which it is here.
+      - name: Tests
+        shell: bash
+        run: ctest --test-dir build --build-config Release --output-on-failure
 
       - uses: actions/upload-artifact@v4
         with:
@@ -121,13 +126,13 @@ jobs:
           path: build/src/Release/
 
   macos:
-    name: macOS (build)
+    name: macOS
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Dependencies
-        run: brew install ninja
+        run: brew install ninja imagemagick
 
       - name: CPM cache
         uses: actions/cache@v4
@@ -142,8 +147,8 @@ jobs:
       - name: Build
         run: cmake --build build
 
-      - name: Unit tests
-        run: ctest --test-dir build --output-on-failure -R unit
+      - name: Tests
+        run: ctest --test-dir build --output-on-failure
 
       - uses: actions/upload-artifact@v4
         with:
@@ -151,9 +156,9 @@ jobs:
           path: build/src/abuse
 
   # Advisory, not blocking. clang-tidy exits zero even with warnings
-  # (WarningsAsErrors is empty in .clang-tidy), and a PR touching a file
-  # herdado imprime dezenas de avisos preexistentes: 165 em level.cpp, 144 em
-  # lisp/lisp.cpp, 84 em game.cpp. O valor do job esta nos modulos novos, e
+  # (WarningsAsErrors is empty in .clang-tidy), and a PR touching an
+  # inherited file prints dozens of pre-existing ones: 165 in level.cpp, 144
+  # in lisp/lisp.cpp, 84 in game.cpp. The value is in the new modules, and it
   # grows as new code replaces the old.
   clang-tidy:
     name: clang-tidy (diff, consultivo)

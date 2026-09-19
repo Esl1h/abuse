@@ -55,16 +55,24 @@ target_link_libraries(abuse_unit_tests PRIVATE imlib SDL3::SDL3)
 
 add_test(NAME unit COMMAND abuse_unit_tests)
 
+# The three suites below are shell scripts. CTest runs a command, not a shell,
+# so on a machine without one they simply are not registered: better a suite
+# that is visibly absent than one that fails for the wrong reason. Windows
+# runners do have bash, which is how they run there.
+find_program(ABUSE_BASH bash)
+
+if(ABUSE_BASH)
+
 # Replay determinism. Skipped rather than failed when no replay has been
 # recorded yet, so a fresh clone does not report a red suite for a missing
 # fixture.
 add_test(NAME replays
-    COMMAND ${abuse_SOURCE_DIR}/scripts/test-replays.sh $<TARGET_FILE:abuse>
+    COMMAND ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-replays.sh $<TARGET_FILE:abuse>
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})
 set_tests_properties(replays PROPERTIES SKIP_RETURN_CODE 77)
 
 add_test(NAME snapshots
-    COMMAND ${abuse_SOURCE_DIR}/scripts/test-snapshots.sh $<TARGET_FILE:abuse>
+    COMMAND ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-snapshots.sh $<TARGET_FILE:abuse>
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})
 set_tests_properties(snapshots PROPERTIES SKIP_RETURN_CODE 77)
 
@@ -73,7 +81,7 @@ set_tests_properties(snapshots PROPERTIES SKIP_RETURN_CODE 77)
 # matter what any of those are set to, so none of them are visible in it.
 add_test(NAME window
     COMMAND ${CMAKE_COMMAND} -E env WINDOW=1
-            ${abuse_SOURCE_DIR}/scripts/test-snapshots.sh $<TARGET_FILE:abuse>
+            ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-snapshots.sh $<TARGET_FILE:abuse>
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})
 set_tests_properties(window PROPERTIES SKIP_RETURN_CODE 77)
 
@@ -85,3 +93,7 @@ set_tests_properties(window PROPERTIES SKIP_RETURN_CODE 77)
 # this does not touch.
 set_tests_properties(replays snapshots window PROPERTIES
     ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+
+else()
+    message(STATUS "No bash found: the replay and snapshot suites are not registered")
+endif()
