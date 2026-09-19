@@ -18,6 +18,7 @@
 #include "common.h"
 
 #include "light.h"
+#include "render/lightmap.h"
 #include "image.h"
 #include "video.h"
 #include "palette.h"
@@ -749,12 +750,39 @@ inline void put_8line(uint8_t *in_line, uint8_t *out_line, uint8_t *remap, uint8
 }
 
 
+// Phase 6, block 6.2. Either the level is baked into the pixel, as it has
+// been since 1995, or it is collected into the map and applied in RGB on the
+// way to the window. The walk is the same either way, and so are the levels:
+// what changes is where they land.
+//
+// Not in small_render, which has a lighting path of its own below.
+static bool collect_levels()
+{
+  return abuse::render::rgb_lighting() && !small_render;
+}
+
 void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lookup, uint16_t ambient)
 {
   int lx_run=0,ly_run;                     // light block x & y run size in pixels ==  (1<<lx_run)
 
   if (shutdown_lighting && !disable_autolight)
     ambient=shutdown_lighting_value;
+
+  bool const rgb = collect_levels();
+  abuse::render::LightMap &levels = abuse::render::lightmap();
+
+  ivec2 caa, cbb;
+  sc->GetClip(caa, cbb);
+
+  if (rgb)
+  {
+    // Full brightness under the whole region first: every early return below
+    // means "nothing darkens this frame", and a stale level from the last
+    // one would darken it anyway.
+    levels.resize(main_screen->Size().x, main_screen->Size().y);
+    for (int y = caa.y; y < cbb.y; y++)
+      levels.fill(caa.x, y, cbb.x - caa.x, abuse::render::kFullLight);
+  }
 
   switch (light_detail)
   {
@@ -774,8 +802,6 @@ void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lo
   else min_light_level=(int)ambient+ambient_ramp;
 
   if (ambient==63) return ;
-  ivec2 caa, cbb;
-  sc->GetClip(caa, cbb);
 
   light_patch *first = make_patch_list(cbb.x - caa.x, cbb.y - caa.y, screenx, screeny);
 
@@ -818,7 +844,15 @@ void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lo
       for (; (lp->y1>y-caa.y || lp->y2<y-caa.y ||
                   lp->x1>suffix_x || lp->x2<suffix_x); lp=lp->next);
       uint8_t * caddr=(uint8_t *)screen_line + cbb.x - caa.x - suffix;
-      uint8_t *r=light_lookup+(((int32_t)calc_light_value(lp,suffix_x+screenx,calcy)<<8));
+      int level=calc_light_value(lp,suffix_x+screenx,calcy);
+      if (rgb)
+      {
+        for (int row=0; row<todoy; row++)
+          levels.fill(cbb.x - suffix, y + row, suffix, level);
+      }
+      else
+      {
+      uint8_t *r=light_lookup+(((int32_t)level<<8));
       switch (todoy)
       {
     case 4 :
@@ -834,6 +868,7 @@ void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lo
       MAP_PUT(caddr,r,suffix);
     }
       }
+      }
     }
 
     if (prefix)
@@ -842,8 +877,16 @@ void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lo
       for (; (lp->y1>y-caa.y || lp->y2<y-caa.y ||
                   lp->x1>prefix_x || lp->x2<prefix_x); lp=lp->next);
 
-      uint8_t *r=light_lookup+(((int32_t)calc_light_value(lp,prefix_x+screenx,calcy)<<8));
+      int level=calc_light_value(lp,prefix_x+screenx,calcy);
       uint8_t * caddr=(uint8_t *)screen_line;
+      if (rgb)
+      {
+        for (int row=0; row<todoy; row++)
+          levels.fill(caa.x, y + row, prefix, level);
+      }
+      else
+      {
+      uint8_t *r=light_lookup+(((int32_t)level<<8));
       switch (todoy)
       {
     case 4 :
@@ -858,6 +901,7 @@ void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lo
     case 1 :
     { MAP_PUT(caddr,r,prefix); }
       }
+      }
       screen_line+=prefix;
     }
 
@@ -871,6 +915,17 @@ void light_screen(image *sc, int32_t screenx, int32_t screeny, uint8_t *light_lo
       *rem=calc_light_value(lp,x+screenx,calcy);
     }
 
+    if (rgb)
+    {
+      while (todoy--)
+      {
+        for (int run=0; run<count; run++)
+          levels.fill(caa.x + prefix + run * 8, y, 8, remap_line[run]);
+        y++;
+        screen_line+=scr_w;
+      }
+    }
+    else
     switch (todoy)
     {
       case 4 :

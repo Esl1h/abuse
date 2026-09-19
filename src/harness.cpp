@@ -30,6 +30,7 @@
 #include "ui/options_screen.h"
 #include "ui/classic_data_screen.h"
 #include "ui/language_screen.h"
+#include "render/lightmap.h"
 #include "ui/start_menu.h"
 #include "ui/hud.h"
 #include "configuration.h"
@@ -202,6 +203,8 @@ void parse_args(int argc, char **argv)
             // goes into the 320x200 buffer, and by then it is already there.
             abuse::ui::set_classic_hud(false);
         }
+        else if (!strcmp(argv[i], "--rgb-light"))
+            abuse::render::set_rgb_lighting(true);
         else if (!strcmp(argv[i], "--frame-alpha"))
         {
             opt.frame_alpha = (float)take_fraction(argc, argv, i, "--frame-alpha");

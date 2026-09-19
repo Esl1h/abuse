@@ -44,6 +44,7 @@
 #include "compat.h"
 #include "data/paths.h"
 #include "render/options.h"
+#include "render/lightmap.h"
 #include "input/gamepad.h"
 #include "input/rumble.h"
 #include "input/aim.h"
@@ -184,6 +185,9 @@ void createRCFile( char *rcfile )
         fputs( "; The mix, as percentages. These survive a restart; the volume\n", fd );
         fputs( "; window in the menu is the slider for the session.\n", fd );
         fputs( ";volume_master=100\n;volume_sfx=100\n;volume_music=100\n;volume_ui=100\n\n", fd );
+        fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
+        fputs( "; without the banding. Experimental, and never in Original mode.\n", fd );
+        fputs( ";rgblight=on\n\n", fd );
         fputs( "; Smooth movement: positions blended between logical ticks.\n", fd );
         fputs( "; The world still advances 15 times a second either way.\n", fd );
         fputs( ";interpolate=off\n\n", fd );
@@ -368,6 +372,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown volume '%s', expected master, sfx,"
                             " music or ui\n", which );
+            }
+            else if( strcasecmp( result, "rgblight" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = false;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::render::set_rgb_lighting( on );
+                else
+                    printf( "Config: unknown rgblight '%s', expected on or off\n",
+                            result );
             }
             else if( strcasecmp( result, "interpolate" ) == 0 )
             {

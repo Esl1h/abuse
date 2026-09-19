@@ -29,6 +29,7 @@
 #include "filter.h"
 #include "video.h"
 #include "render/options.h"
+#include "render/lightmap.h"
 #include "ui/overlay.h"
 #include "harness.h"
 #include "image.h"
@@ -469,6 +470,37 @@ void request_window_capture(char const *path)
         SDL_strlcpy(g_window_capture, path, sizeof(g_window_capture));
 }
 
+// Phase 6, block 6.2: the same conversion SDL_BlitSurface does, index to
+// ARGB through the palette, with the light level applied to the real colour
+// instead of having been baked into the index by a palette lookup.
+//
+// 64000 pixels a frame. The blit already touches every one of them; this
+// adds a subtraction per channel, which is why the whole thing needs no GPU.
+static void convert_lit(SDL_Surface *screen)
+{
+    SDL_Palette const *pal = SDL_GetSurfacePalette(surface);
+    abuse::render::LightMap const &levels = abuse::render::lightmap();
+
+    if (!pal || levels.width() < surface->w || levels.height() < surface->h)
+    {
+        SDL_BlitSurface(surface, NULL, screen, NULL);
+        return;
+    }
+
+    for (int y = 0; y < surface->h; y++)
+    {
+        uint8_t const *src = (uint8_t const *)surface->pixels + y * surface->pitch;
+        uint32_t *dst = (uint32_t *)((uint8_t *)screen->pixels + y * screen->pitch);
+        uint8_t const *level = levels.row(y);
+
+        for (int x = 0; x < surface->w; x++)
+        {
+            SDL_Color const &c = pal->colors[src[x]];
+            dst[x] = abuse::render::shade(c.r, c.g, c.b, level[x]);
+        }
+    }
+}
+
 void update_window_done()
 {
     // Convert to match the display texture
@@ -476,7 +508,10 @@ void update_window_done()
     if (SDL_LockTextureToSurface(texture, NULL, &screen))
     {
         // Copy over to the display texture
-        SDL_BlitSurface(surface, NULL, screen, NULL);
+        if (abuse::render::rgb_lighting())
+            convert_lit(screen);
+        else
+            SDL_BlitSurface(surface, NULL, screen, NULL);
         SDL_UnlockTexture(texture);
     }
     uint8_t const *bar = abuse::render::options().letterbox;
