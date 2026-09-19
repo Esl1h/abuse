@@ -1030,9 +1030,11 @@ void Game::draw_map(view *v, int interpolate)
     main_screen->Bar(ivec2(aa.x, bb.y), bb, color);
 
     wm->font()->PutString(main_screen, aa + ivec2(5), help_text, color);
-    if(color > 30)
-        help_text_frames = -1;
-    else help_text_frames++;
+
+    // The counter that fades this out advances in step(), once per logical
+    // tick. It used to advance here, once per frame drawn, which was the
+    // same thing until the frame rate came loose from the tick rate: at
+    // 165 Hz the message was gone in a fifth of a second instead of two.
 
       }
     }
@@ -2021,6 +2023,15 @@ void net_receive()
 void Game::step()
 {
   LSpace::Tmp.Clear();
+
+  // The help message fades over about two seconds, which is thirty ticks.
+  // See the note where it is drawn.
+  if(help_text_frames >= 0)
+  {
+    help_text_frames++;
+    if(2 + Max(0, help_text_frames - 10) > 30)
+      help_text_frames = -1;
+  }
 
   // The right stick orbits the player while a level is being played, and is a
   // plain mouse everywhere else, which is how the menus are navigated. Nothing
