@@ -83,6 +83,25 @@ char const *filter_name(Filter f)
     return "pixelart";
 }
 
+bool parse_switch(char const *text, bool &out)
+{
+    if (!text)
+        return false;
+    if (equals(text, "on") || equals(text, "true") || equals(text, "yes")
+        || equals(text, "1"))
+    {
+        out = true;
+        return true;
+    }
+    if (equals(text, "off") || equals(text, "false") || equals(text, "no")
+        || equals(text, "0"))
+    {
+        out = false;
+        return true;
+    }
+    return false;
+}
+
 bool parse_letterbox(char const *text, uint8_t out[3])
 {
     if (!text)

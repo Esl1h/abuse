@@ -10,6 +10,20 @@
 
 namespace abuse::timing {
 
+namespace {
+float g_frame_alpha = 0.0f;
+}
+
+void set_frame_alpha(float alpha)
+{
+    g_frame_alpha = alpha < 0.0f ? 0.0f : (alpha > 1.0f ? 1.0f : alpha);
+}
+
+float frame_alpha()
+{
+    return g_frame_alpha;
+}
+
 Pacer::Pacer(double tick_ms)
     : m_tick_ms(tick_ms > 0.0 ? tick_ms : kTickMs)
 {

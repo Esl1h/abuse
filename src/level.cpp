@@ -27,6 +27,11 @@
 
 #include "light.h"
 #include "level.h"
+#include "timing/pacer.h"
+
+#include <math.h>
+
+#include <vector>
 #include "game.h"
 #include "intsect.h"
 #include "lisp.h"
@@ -583,29 +588,62 @@ game_object *level::all_boundary_setback(game_object *subject, int32_t x1, int32
 
 //bFILE *rcheck=NULL,*rcheck_lp=NULL;
 
+// Phase 6, block 6.1. Objects drawn between the position they had at the last
+// tick and the one they have now, so a 60 Hz display shows movement instead of
+// 15 steps a second.
+//
+// Two things about the version this replaces. It blended at a fixed midpoint,
+// which is only correct when the frame rate is exactly twice the tick rate.
+// And it restored the real position *from* last_x after writing the old
+// position into it, which destroyed the previous-tick position: from the
+// second frame of the same tick on, the blend had nothing to blend with and
+// the object stood still until the next tick moved it.
+//
+// The real positions go into a buffer instead, and nothing the simulation
+// reads is touched: that is what keeps the replay hash identical whether this
+// runs or not.
 void level::interpolate_draw_objects(view *v)
 {
-  int32_t old_x,old_y;
   current_view=v;
+
+  float const alpha = abuse::timing::frame_alpha();
+
+  // Reused between frames. The active list is bounded by what is on screen,
+  // and this is called once per frame.
+  static std::vector<ivec2> real;
+  real.clear();
 
   game_object *o=first_active;
   for (; o; o=o->next_active)
   {
-    old_x=o->x;
-    old_y=o->y;
-    o->x=(o->last_x+o->x)/2;
-    o->y=(o->last_y+o->y)/2;
-    o->last_x=old_x;
-    o->last_y=old_y;
+    real.push_back(ivec2(o->x, o->y));
+
+    int32_t dx = o->x - o->last_x;
+    int32_t dy = o->y - o->last_y;
+
+    // A teleport is not movement. Blending across one would drag the object
+    // over everything in between for a frame or two.
+    int32_t const kJump = 64;
+    if (dx > -kJump && dx < kJump && dy > -kJump && dy < kJump)
+    {
+      // Rounded, not truncated. Positions are whole pixels and most things
+      // in Abuse move one or two a tick, so truncation would blend them to
+      // the old position for the whole interval and then snap: no smoother
+      // than not interpolating at all.
+      o->x = o->last_x + (int32_t)lroundf((float)dx * alpha);
+      o->y = o->last_y + (int32_t)lroundf((float)dy * alpha);
+    }
   }
+
 
   for (o=first_active; o; o=o->next_active)
     o->draw();
 
-  for (o=first_active; o; o=o->next_active)
+  size_t i = 0;
+  for (o=first_active; o && i < real.size(); o=o->next_active, i++)
   {
-    o->x=o->last_x;
-    o->y=o->last_y;
+    o->x = real[i].x;
+    o->y = real[i].y;
   }
 }
 

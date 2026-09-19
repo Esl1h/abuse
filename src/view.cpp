@@ -26,6 +26,7 @@
 #include "game.h"
 
 #include "view.h"
+#include "timing/pacer.h"
 #include "input/aim.h"
 #include "data/paths.h"
 #include "lisp.h"
@@ -130,12 +131,21 @@ int32_t view::xoff()
     return Max(0, m_lastpos.x - (m_bb.x - m_aa.x + 1) / 2 + m_shift.x + pan_x);
 }
 
+// Between the camera position of the last two ticks. The midpoint this used
+// to take was right only when the frame rate was exactly twice the tick rate;
+// now the frame says where it sits. Phase 6, block 6.1.
+static int32_t blend(int32_t from, int32_t to)
+{
+    float a = abuse::timing::frame_alpha();
+    return from + (int32_t)((float)(to - from) * a);
+}
+
 int32_t view::interpolated_xoff()
 {
     if (!m_focus)
         return pan_x;
 
-    return Max(0, (m_lastlastpos.x + m_lastpos.x) / 2
+    return Max(0, blend(m_lastlastpos.x, m_lastpos.x)
                     - (m_bb.x - m_aa.x + 1) / 2 + m_shift.x + pan_x);
 }
 
@@ -152,7 +162,7 @@ int32_t view::interpolated_yoff()
     if (!m_focus)
         return pan_y;
 
-    return Max(0, (m_lastlastpos.y + m_lastpos.y) / 2
+    return Max(0, blend(m_lastlastpos.y, m_lastpos.y)
                     - (m_bb.y - m_aa.y + 1) / 2 - m_shift.y + pan_y);
 }
 

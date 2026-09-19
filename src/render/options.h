@@ -38,6 +38,11 @@ struct Options
     bool vsync = true;
     int fps_limit = 0;              // 0 = no limit beyond vsync
     uint8_t letterbox[3] = {0, 0, 0};
+
+    // Draw positions blended between the last two logical ticks. The world
+    // still advances 15 times a second; this is only about what is shown in
+    // between. Phase 6, block 6.1.
+    bool interpolate = true;
 };
 
 // Parsing, kept away from SDL so it can be unit tested. Both return false and
@@ -49,6 +54,10 @@ bool parse_filter(char const *name, Filter &out);
 // Names as written in abuserc. Round trip with the parsers above.
 char const *scale_mode_name(ScaleMode m);
 char const *filter_name(Filter f);
+
+// "on"/"off", and the spellings a person actually types. False and untouched
+// for anything else, like the parsers above.
+bool parse_switch(char const *text, bool &out);
 
 // "rrggbb", with or without a leading '#'.
 bool parse_letterbox(char const *text, uint8_t out[3]);

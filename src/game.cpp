@@ -74,6 +74,8 @@
 #include "netcfg.h"
 #include "sdlport/util.h"
 #include "harness.h"
+#include "render/options.h"
+#include "data/paths.h"
 #include "timing/pacer.h"
 
 #define SHIFT_RIGHT_DEFAULT 0
@@ -1531,17 +1533,29 @@ void Game::update_screen()
     }
       }
 
+      // Phase 6, block 6.1: one frame, blended by where it sits between two
+      // ticks. What was here drew an interpolated frame, presented it, and
+      // then drew the real one over it, which was the best a loop locked to
+      // one frame per tick could do. The frame rate is free now, so the
+      // blend belongs to the frame itself.
+      // Off in the Original mode, which is the reference the snapshots
+      // compare against, and off under the harness, where one frame is one
+      // tick: there the alpha is zero, and blending with it would draw the
+      // previous tick instead of the current one.
+      bool const smooth = abuse::render::options().interpolate
+                          && !abuse::harness::headless()
+                          && abuse::data::mode() != abuse::data::Mode::Original;
+
+      // ...except when a scripted run asks for a specific point between two
+      // ticks, which is how the blend gets a golden frame of its own.
+      float forced = 0.0f;
+      bool const scripted = abuse::harness::frame_alpha(forced);
+      if (scripted)
+          abuse::timing::set_frame_alpha(forced);
       for(f = first_view; f; f = f->next)
       {
         if(f->drawable())
-    {
-      if(interpolate_draw)
-      {
-            draw_map(f, 1);
-        wm->flush_screen();
-      }
-          draw_map(f, 0);
-    }
+          draw_map(f, smooth || scripted);
       }
       if(current_automap)
       current_automap->draw();
@@ -2585,6 +2599,10 @@ int main(int argc, char *argv[])
             {
                 ticks = pacer.advance(frame_clock.PollMs());
                 frame_clock.GetMs();
+                // Where the frame about to be drawn sits between the last
+                // tick and the next. Read by the camera and by the object
+                // draw; see abuse::timing::frame_alpha.
+                abuse::timing::set_frame_alpha(pacer.alpha());
             }
 
             for (int t = 0; t < ticks; t++)

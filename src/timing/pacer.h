@@ -22,6 +22,16 @@ namespace abuse::timing {
 constexpr double kTickHz = 15.0;
 constexpr double kTickMs = 1000.0 / kTickHz;
 
+// Where the frame being drawn sits between the last logical tick and the next,
+// in [0,1). Isolated state, set once per frame by the main loop from the
+// pacer, read by the drawing code, which has no other way to reach the pacer:
+// it is a local of the loop and the draw is several calls deep.
+//
+// Zero means "draw the last tick exactly", which is what a scripted run wants:
+// one tick per frame, nothing to blend.
+void set_frame_alpha(float alpha);
+float frame_alpha();
+
 class Pacer
 {
 public:

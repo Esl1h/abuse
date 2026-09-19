@@ -18,6 +18,7 @@
 #include "common.h"
 
 #include "dev.h"
+#include "render/options.h"
 #include "input.h"
 #include "objects.h"
 #include "id.h"
@@ -2270,7 +2271,11 @@ void dev_controll::handle_event(Event &ev)
 
     case ID_INTERPOLATE_DRAW :
     {
-      interpolate_draw=!interpolate_draw;
+      // Phase 6, block 6.1: the drawing reads the render option now, so the
+      // old dev flag is kept in step with it rather than left to mean
+      // nothing.
+      abuse::render::options().interpolate = !abuse::render::options().interpolate;
+      interpolate_draw = abuse::render::options().interpolate;
     } break;
 
     case ID_DISABLE_AUTOLIGHT :
