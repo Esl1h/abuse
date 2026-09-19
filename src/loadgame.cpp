@@ -94,13 +94,18 @@ int get_save_spot()
   int i=MAX_SAVE_GAMES,last_free=0;
   for (; i>0; )
   {
-    char name[20];
-    snprintf(name,20,"%ssave%04d.spe", get_save_filename_prefix(),i);
+    // 20 bytes could not hold the save prefix plus "save0001.spe": the name
+    // was truncated, every open failed, and the fclose below then ran on a
+    // null pointer and took the process down with "free(): invalid size".
+    char name[512];
+    snprintf(name,sizeof(name),"%ssave%04d.spe", get_save_filename_prefix(),i);
     FILE *fp=open_FILE(name,"rb");
     if (fp)
+    {
+      fclose(fp);
       i=0;
+    }
     else { last_free=i; i--; }
-    fclose(fp);
   }
 
   if (last_free) return last_free;    // if there are any slots not created yet...
@@ -123,6 +128,11 @@ int get_save_spot()
 
 
     if (ev.type==EV_CLOSE_WINDOW && ev.window==l_win)
+      quit=1;
+
+    // The window has no close button, so without this the only way out of the
+    // save-slot picker is to pick a slot. Esc cancels, as everywhere else.
+    if (ev.type==EV_KEY && ev.key==JK_ESC)
       quit=1;
   } while (!got_level && !quit);
 

@@ -106,6 +106,11 @@ void scroller::dragger_area(int &x1, int &y1, int &x2, int &y2)
 int scroller::bh() { if (vert) return 15; else return 13; }
 int scroller::bw() { if (vert) return 12; else return 14; }
 
+// Size of the arrow bitmaps themselves, which is not the size of the button
+// that frames them.
+int scroller::icon_w() { if (vert) return 8; else return 10; }
+int scroller::icon_h() { if (vert) return 10; else return 8; }
+
 uint8_t *scroller::b1()
 {
   if (vert) return vs_up_arrow;
@@ -129,8 +134,12 @@ void scroller::draw_first(image *screen)
   screen->WidgetBar(ivec2(b2x(), b2y()),
                     ivec2(b2x() + bw() - 1, b2y() + bh() - 1),
                     wm->bright_color(), wm->medium_color(), wm->dark_color());
-  show_icon(screen,b1x()+2,b1y()+2,bw()-4,bh()-4,b1());
-  show_icon(screen,b2x()+2,b2y()+2,bw()-4,bh()-4,b2());
+  // The arrow bitmaps are 8x10 upright and 10x8 on their side, 80 bytes each.
+  // Passing bw()-4 by bh()-4 asked show_icon for 88 or 90 bytes and read past
+  // the end of the global array; AddressSanitizer reports it as a
+  // global-buffer-overflow when any window with a scrollbar is drawn.
+  show_icon(screen,b1x()+2,b1y()+2,icon_w(),icon_h(),b1());
+  show_icon(screen,b2x()+2,b2y()+2,icon_w(),icon_h(),b2());
 
   int x1,y1,x2,y2;
   dragger_area(x1,y1,x2,y2);

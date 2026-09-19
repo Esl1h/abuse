@@ -278,12 +278,18 @@ void image::PutPart(image *im, ivec2 pos, ivec2 aa, ivec2 bb, int transparent)
     bb = Min(bb, cbb - pos + aa);
     if (!(aa < bb))
         return;
-    // clamp aa to positive numbers
-    // not sure how they can go negative but it causes a crash if they do
+    // aa can be negative when the source rectangle starts off the left or top
+    // edge of the source image. Clamping it up to zero is right, but it moves
+    // aa towards bb, and when the whole rectangle lies off the edge both are
+    // negative: the guard above passes, the clamp pushes aa past bb, and the
+    // span below comes out negative. memcpy then gets a negative size, which
+    // is what corrupted the heap and aborted the game from the save screen
+    // ("free(): invalid size", found with AddressSanitizer: negative-size-param).
     if (aa.x < 0 || aa.y < 0)
     {
-        printf("Warning: image::PutPart with negative size (want to put image at %d,%d clipped size is [%dx%d])\n", pos.x, pos.y, aa.x, aa.y);
         aa = Max(ivec2(0), aa);
+        if (!(aa < bb))
+            return;
     }
 
     ivec2 span = bb - aa;

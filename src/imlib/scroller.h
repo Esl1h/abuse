@@ -20,6 +20,8 @@ protected :
 
   int bh();
   int bw();
+  int icon_w();
+  int icon_h();
   void drag_area(int &x1, int &y1, int &x2, int &y2);
   void dragger_area(int &x1, int &y1, int &x2, int &y2);
   int b1x() { if (vert) return m_pos.x+l; else return m_pos.x; }
