@@ -17,10 +17,15 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#ifdef _MSC_VER
-// For simplicity sake, just make snprintf sprintf_s even though they aren't quite the same
-#define snprintf	sprintf_s
-#endif
+// There used to be a `#define snprintf sprintf_s` here, from the days when
+// MSVC had no conforming snprintf. It is worse than the problem: sprintf_s
+// calls the invalid parameter handler when the output would not fit, and the
+// default handler ends the process. Every one of the 130 call sites in this
+// tree assumes the C99 behaviour, which is to truncate and carry on, and a
+// long install path is all it would take.
+//
+// The Universal CRT, so MSVC 2015 and newer, has a conforming snprintf. This
+// is built with 2022.
 
 #ifdef WIN32
 # define PATH_SEPARATOR	"\\"

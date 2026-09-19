@@ -193,16 +193,15 @@ char const *get_login()
         return cur_user_name;
 
 #ifdef WIN32
-  DWORD bufferSize = 120;
-  TCHAR *login;
-  login = (TCHAR*) malloc(bufferSize * sizeof(TCHAR));
-  if (GetUserName(login, &bufferSize))
-  {
-    return (char*) login;
-  } else
-  {
-    return "unknown";
-  }
+    // Into the same buffer the rest of the game reads, and only as much of
+    // it as fits. What was here allocated 120 bytes on every call, never
+    // freed them, and handed the caller a name of any length for a strcpy
+    // into a 100 byte field.
+    DWORD size = sizeof(cur_user_name);
+    if (!GetUserName(cur_user_name, &size))
+        return "unknown";
+    cur_user_name[sizeof(cur_user_name) - 1] = 0;
+    return cur_user_name;
 #else
     char const *login = getlogin();
     return login ? login : "unknown";
@@ -211,7 +210,9 @@ char const *get_login()
 
 void set_login(char const *name)
 {
-    strncpy(cur_user_name, name, 20);
+    // strncpy does not terminate when the source fills the buffer.
+    strncpy(cur_user_name, name, sizeof(cur_user_name) - 1);
+    cur_user_name[sizeof(cur_user_name) - 1] = 0;
 }
 
 view::view(game_object *focus, view *Next, int number)

@@ -806,14 +806,22 @@ void *l_caller(long number, void *args)
     } break;
     case 25 :
     {
-#ifdef __linux__
-      return LSymbol::FindOrCreate("LINUX");
-#endif
-#ifdef __sgi
-      return LSymbol::FindOrCreate("IRIX");
-#endif
-#ifdef __WIN32
+      // The platform, as a symbol. The Windows arm tested __WIN32, which no
+      // compiler defines: MSVC defines _WIN32 and the build adds WIN32. So
+      // on Windows every arm was false and the case fell out of the switch
+      // without returning anything at all.
+      //
+      // macOS and the BSDs were never here either, and they run this now.
+#if defined(WIN32) || defined(_WIN32)
       return LSymbol::FindOrCreate("WIN32");
+#elif defined(__linux__)
+      return LSymbol::FindOrCreate("LINUX");
+#elif defined(__APPLE__)
+      return LSymbol::FindOrCreate("MACOS");
+#elif defined(__sgi)
+      return LSymbol::FindOrCreate("IRIX");
+#else
+      return LSymbol::FindOrCreate("UNIX");
 #endif
     } break;
     case 26 :
