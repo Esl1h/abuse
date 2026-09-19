@@ -186,6 +186,10 @@ clang-tidy -p build/dev $(git diff --name-only -- '*.cpp')
 
 `./scripts/check-licenses.sh` checks the data manifest and runs in CI.
 
+`./scripts/scan-levels.sh build/dev/src/abuse` walks every level at each wider
+aspect ratio and reports how much light there is down each edge of the frame, which
+is how a level that was never drawn that far out gets found.
+
 To make a replay that does something:
 
 ```sh
