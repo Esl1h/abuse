@@ -11,7 +11,7 @@ env:
 
 jobs:
   sanitizers:
-    name: ASan e UBSan
+    name: ASan and UBSan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,23 +29,22 @@ jobs:
             libwayland-dev wayland-protocols libdecor-0-dev \
             libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
 
-      - name: Cache do CPM
+      - name: CPM cache
         uses: actions/cache@v4
         with:
           path: ${{ env.CPM_SOURCE_CACHE }}
           key: cpm-linux-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: cpm-linux-
 
-      - name: Configurar
+      - name: Configure
         run: cmake --preset asan
 
-      - name: Compilar
+      - name: Build
         run: cmake --build --preset asan
 
-      # O preset asan desliga os checks de alinhamento e de ponteiro nulo do
-      # UBSan, with the alignment and null checks off: the 1995 loaders read
-      # structs straight out of file data.
-      - name: Replays sob sanitizers
+      # The asan preset turns off UBSan's alignment and null-pointer checks:
+      # the 1995 loaders read structs straight out of file data.
+      - name: Replays under the sanitizers
         env:
           ASAN_OPTIONS: detect_leaks=0
         run: ./scripts/test-replays.sh ./build/asan/src/abuse

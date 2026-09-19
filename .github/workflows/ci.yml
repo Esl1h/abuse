@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verificar manifesto
+      - name: Check the manifest
         run: ./scripts/check-licenses.sh
 
   linux:
@@ -46,26 +46,29 @@ jobs:
             libwayland-dev wayland-protocols libdecor-0-dev \
             libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
 
-      - name: Cache do CPM
+      - name: CPM cache
         uses: actions/cache@v4
         with:
           path: ${{ env.CPM_SOURCE_CACHE }}
           key: cpm-linux-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: cpm-linux-
 
-      - name: Configurar
-        run: cmake --preset dev
+      # The headless preset exists for exactly this: no ccache, no mold and
+      # no native MIDI, none of which a runner has. The dev preset hard-sets
+      # -fuse-ld=mold, and CMake fails its very first compiler test without it.
+      - name: Configure
+        run: cmake --preset headless
 
-      - name: Compilar
-        run: cmake --build --preset dev
+      - name: Build
+        run: cmake --build --preset headless
 
       # Unit tests, replays and snapshots. The snapshots need no Xvfb:
       # --headless uses SDL's dummy drivers, and the framebuffer is dumped
       # straight from the indexed surface.
-      - name: Testar
-        run: ctest --preset dev
+      - name: Test
+        run: ctest --preset headless
 
-      - name: Artefatos dos testes que falharam
+      - name: Artefacts of the failing tests
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -85,17 +88,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache do CPM
+      - name: CPM cache
         uses: actions/cache@v4
         with:
           path: ${{ env.CPM_SOURCE_CACHE }}
           key: cpm-windows-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: cpm-windows-
 
-      - name: Configurar
+      - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DABUSE_BUILD_TESTS=ON
 
-      - name: Compilar
+      - name: Build
         run: cmake --build build --config Release
 
       - name: Unit tests
@@ -115,17 +118,17 @@ jobs:
       - name: Dependencies
         run: brew install ninja
 
-      - name: Cache do CPM
+      - name: CPM cache
         uses: actions/cache@v4
         with:
           path: ${{ env.CPM_SOURCE_CACHE }}
           key: cpm-macos-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: cpm-macos-
 
-      - name: Configurar
+      - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DABUSE_BUILD_TESTS=ON
 
-      - name: Compilar
+      - name: Build
         run: cmake --build build
 
       - name: Unit tests
@@ -162,7 +165,7 @@ jobs:
             libwayland-dev wayland-protocols libdecor-0-dev \
             libdrm-dev libgbm-dev libegl1-mesa-dev libgl1-mesa-dev
 
-      - name: Cache do CPM
+      - name: CPM cache
         uses: actions/cache@v4
         with:
           path: ${{ env.CPM_SOURCE_CACHE }}
@@ -170,11 +173,11 @@ jobs:
           restore-keys: cpm-linux-
 
       # Only generates compile_commands.json; no need to build the project.
-      - name: Configurar
-        run: cmake --preset dev
+      - name: Configure
+        run: cmake --preset headless
 
       # Only the files the PR changed, as AGENTS.md section 5 requires.
-      - name: Analisar o diff
+      - name: Analyse the diff
         run: |
           base="${{ github.event.pull_request.base.sha }}"
           files=$(git diff --name-only --diff-filter=d "$base" HEAD -- '*.cpp' \
