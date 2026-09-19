@@ -142,7 +142,7 @@ for the language and then for the gamma calibration, once each.
 
 **The Remastered mode has no sound yet.** The free data carries no effects and no music;
 that is phase 5. The Original mode plays as soon as the original data is installed with
-`scripts/fetch-classic-data.sh`.
+`scripts/fetch-classic-data.sh`, or `scripts/fetch-classic-data.ps1` on Windows.
 
 ## 5. Tests
 

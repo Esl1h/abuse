@@ -84,6 +84,9 @@ the menu, or from the command line:
 ./build/release/src/abuse -datadir ./data --mode original
 ```
 
+On Windows: `powershell -ExecutionPolicy Bypass -File scripts\fetch-classic-data.ps1`,
+which does the same thing and puts the data where that platform looks for it.
+
 The menu writes the choice down, so it survives the next launch.
 
 Those files are not redistributable, which is why the script downloads them
