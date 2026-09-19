@@ -225,6 +225,17 @@ resolves the level for a point. The lighting depends on the indexed palette, whi
 why reproducing it in a shader with byte-identical results is not trivial, and why the
 CPU path has to stay available for the classic preset.
 
+The table is **subtractive**: level 63 is the colour itself and each level below takes
+one off every channel, the result snapped to the nearest of the 256 palette entries.
+That snap is the banding, and it is why there is no room for a coloured light.
+
+`src/render/lightmap.cpp` is the same curve without the snap. With `rgblight=on` the
+lighting pass writes its levels into a map instead of remapping indices, and
+`update_window_done` applies them to the real colour during the conversion to ARGB:
+64000 pixels a frame, on the CPU, no GPU needed. Dark areas come out brighter than the
+classic path, because the snap was landing below what the curve asked for. Off by
+default, and never in the Original mode.
+
 ## 8. Input
 
 Flow: SDL → the engine's own `Event` → `view::get_input()` → packet →
