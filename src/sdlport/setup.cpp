@@ -49,6 +49,7 @@
 #include "input/aim.h"
 #include "harness.h"
 #include "i18n/language.h"
+#include "audio/buses.h"
 #include "ui/hexfont.h"
 #include "ui/start_menu.h"
 #include "ui/hud.h"
@@ -176,6 +177,9 @@ void createRCFile( char *rcfile )
         fputs( "; degrees.\naimassistcone=25\n\n", fd );
 //        fputs( "; Set the width of the window\nx=320\n\n", fd );
 //        fputs( "; Set the height of the window\ny=200\n\n", fd );
+        fputs( "; The mix, as percentages. These survive a restart; the volume\n", fd );
+        fputs( "; window in the menu is the slider for the session.\n", fd );
+        fputs( ";volume_master=100\n;volume_sfx=100\n;volume_music=100\n;volume_ui=100\n\n", fd );
         fputs( "; Smooth movement: positions blended between logical ticks.\n", fd );
         fputs( "; The world still advances 15 times a second either way.\n", fd );
         fputs( ";interpolate=off\n\n", fd );
@@ -330,6 +334,26 @@ void readRCFile()
                 else
                     printf( "Config: unknown startmenu '%s', expected modern or classic\n",
                             result );
+            }
+            else if( strncasecmp( result, "volume_", 7 ) == 0 )
+            {
+                // volume_master, volume_sfx, volume_music, volume_ui, each a
+                // percentage. The mix that survives a restart; the volume
+                // window in the menu is still the slider for the session.
+                char const *which = result + 7;
+                result = strtok( NULL, "\n" );
+                float gain = 1.0f;
+                abuse::audio::Bus bus;
+                if( !result || !abuse::audio::parse_percent( result, gain ) )
+                    printf( "Config: volume_%s wants a percentage, got '%s'\n",
+                            which, result ? result : "" );
+                else if( strcasecmp( which, "master" ) == 0 )
+                    abuse::audio::set_master( gain );
+                else if( abuse::audio::parse_bus( which, bus ) )
+                    abuse::audio::set_gain( bus, gain );
+                else
+                    printf( "Config: unknown volume '%s', expected master, sfx,"
+                            " music or ui\n", which );
             }
             else if( strcasecmp( result, "interpolate" ) == 0 )
             {

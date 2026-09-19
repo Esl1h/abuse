@@ -36,6 +36,8 @@
 
 #include "sound.h"
 
+#include "audio/buses.h"
+#include "audio/voices.h"
 #include "data/paths.h"
 #include "hmi.h"
 #include "specs.h"
@@ -50,6 +52,11 @@ static MIX_Mixer* mixer = NULL;
 // Very tempted to make this a std::vector and dynamically grow as needed
 static MIX_Track** tracks = NULL;
 static size_t numberTracks = 0;
+
+// Phase 5, task 5.1. Which track a sound gets, and what happens when they are
+// all busy: see audio/voices.h. The policy is there, free of SDL, so it can
+// be tested without a device; this file only tells it what the hardware did.
+static abuse::audio::VoicePool voices;
 
 #ifdef MUSIC_NATIVE_MIDI
 static bool haveNativeMidi = 0;
@@ -104,22 +111,36 @@ void allocate_tracks(size_t count)
     }
     numberTracks = count;
     tracks = newTracks;
+    voices.reset((int)count);
 }
 
-MIX_Track* find_available_track()
+// `priority` decides who gets a voice when they are all busy. Louder means
+// more important, which is a decent proxy in a game that already attenuates
+// by distance: a shot across the level does not silence one at the player's
+// feet. A caller that knows better passes one of the named priorities.
+MIX_Track* find_available_track(int priority)
 {
     if (tracks == NULL)
     {
         return NULL;
     }
+
+    // Only the mixer knows what finished on its own, so tell the policy
+    // before asking it anything.
     for (size_t i = 0; i < numberTracks; i++)
-    {
         if (!MIX_TrackPlaying(tracks[i]))
-        {
-            return tracks[i];
-        }
-    }
-    return NULL;
+            voices.release((int)i);
+
+    int slot = voices.acquire(priority, SDL_GetTicks());
+    if (slot == abuse::audio::VoicePool::kNone)
+        return NULL;
+
+    // Taken from something still sounding: stop it first, or the two overlap
+    // on one track.
+    if (MIX_TrackPlaying(tracks[slot]))
+        MIX_StopTrack(tracks[slot], 0);
+
+    return tracks[slot];
 }
 
 //
@@ -324,12 +345,13 @@ void sound_effect::play(int volume, int pitch, int panpot)
     if (m_chunk == NULL)
         return;
 
-    MIX_Track* track = find_available_track();
+    MIX_Track* track = find_available_track(volume);
     if (track == NULL)
         return;
     if (!MIX_SetTrackAudio(track, m_chunk))
         return;
-    MIX_SetTrackGain(track, volume / 255.0f);
+    MIX_SetTrackGain(track, abuse::audio::voice_gain(abuse::audio::Bus::Sfx,
+                                                    volume));
     MIX_StereoGains stereo;
     stereo.left = panpot / 255.0f;
     stereo.right = 1.0f - stereo.left;
@@ -436,17 +458,20 @@ void song::play( unsigned char volume )
     song_id = 1;
 
 #ifdef MUSIC_NATIVE_MIDI
-    NativeMidi_SetVolume(volume / 255.0f);
+    NativeMidi_SetVolume(abuse::audio::voice_gain(abuse::audio::Bus::Music,
+                                                  volume));
     NativeMidi_Start(music, 0);
 #else
     if (activeTrack == NULL)
     {
-        activeTrack = find_available_track();
+        activeTrack = find_available_track(abuse::audio::kUi);
         if (activeTrack == NULL)
             return;
     }
     MIX_SetTrackAudio(activeTrack, music);
-    MIX_SetTrackGain(activeTrack, volume / 255.0f);
+    MIX_SetTrackGain(activeTrack,
+                     abuse::audio::voice_gain(abuse::audio::Bus::Music,
+                                              volume));
     MIX_PlayTrack(activeTrack, 0);
 #endif
 }
@@ -481,12 +506,15 @@ int song::playing()
 void song::set_volume( int volume )
 {
 #ifdef MUSIC_NATIVE_MIDI
-    NativeMidi_SetVolume(volume / 255.0f);
+    NativeMidi_SetVolume(abuse::audio::voice_gain(abuse::audio::Bus::Music,
+                                                  volume));
 #else
     // TODO: Probably should persist this
     if (activeTrack != NULL)
     {
-        MIX_SetTrackGain(activeTrack, volume / 255.0f);
+        MIX_SetTrackGain(activeTrack,
+                         abuse::audio::voice_gain(abuse::audio::Bus::Music,
+                                                  volume));
     }
 #endif
 }
