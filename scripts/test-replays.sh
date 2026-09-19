@@ -14,16 +14,28 @@ if [ ${#recs[@]} -eq 0 ]; then
     exit 77
 fi
 
+errors=$(mktemp)
+trap 'rm -f "$errors"' EXIT
+
 rc=0
 for rec in "${recs[@]}"; do
     name=$(basename "$rec" .rec)
     golden="tests/golden/hash/$name.$mode.hash"
 
-    out=$("$bin" --headless -nodelay --playback "$rec" --state-hash -datadir ./data 2>/dev/null \
-          | grep '^final' || true)
+    set +e
+    raw=$("$bin" --headless -nodelay --playback "$rec" --state-hash -datadir ./data 2>"$errors")
+    status=$?
+    set -e
+    out=$(printf '%s\n' "$raw" | grep '^final' || true)
 
     if [ -z "$out" ]; then
-        echo "FAIL: $name ($mode) produced no hash"
+        # Say why. A suite that hides the reason for failing costs more time
+        # than it saves, and this one first failed on a platform none of us
+        # can run it on.
+        echo "FAIL: $name ($mode) produced no hash (exit $status)"
+        echo "  $bin --headless -nodelay --playback $rec --state-hash -datadir ./data"
+        printf '%s\n' "$raw" | tail -n 5 | sed 's/^/  out| /'
+        tail -n 10 "$errors" | sed 's/^/  err| /'
         rc=1
         continue
     fi
