@@ -23,6 +23,7 @@ add_executable(abuse
     compat.cpp compat.h
     data/config_file.cpp data/config_file.h data/paths.cpp data/paths.h
     render/options.cpp render/options.h
+    render/lightmap.cpp render/lightmap.h
     audio/buses.cpp audio/buses.h
     audio/voices.cpp audio/voices.h
     audio/limiter.cpp audio/limiter.h
