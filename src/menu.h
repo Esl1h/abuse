@@ -15,4 +15,11 @@
 int menu(void *args, JCFont *font);             // reurns -1 on esc
 void main_menu();
 
+// The classic volume window, which runs its own loop until it is closed.
+// Reached from the icon menu and from the start menu.
+void show_volume_window();
+
+// Writes the current difficulty to hardness.lsp.
+void save_difficulty();
+
 #endif

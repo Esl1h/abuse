@@ -64,6 +64,7 @@
 #include "chat.h"
 #include "ui/hexfont.h"
 #include "ui/options_screen.h"
+#include "ui/start_menu.h"
 #include "ui/classic_data_screen.h"
 #include "ui/language_screen.h"
 #include "ui/overlay.h"
@@ -1557,7 +1558,9 @@ void Game::update_screen()
     ;                           // a scripted capture owns it this frame
   else if(state == PAUSE_STATE && abuse::ui::draw_pad_lost_notice())
     ;                           // the notice drew itself
-  else if(state == MENU_STATE)
+  else if(state == MENU_STATE && abuse::ui::classic_start_menu())
+    // Only the icons need the hint: the start menu has the two screens on it
+    // as rows, in words.
     abuse::ui::draw_options_hint();
   else
     abuse::ui::overlay().Clear();

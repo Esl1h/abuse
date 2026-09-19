@@ -101,6 +101,37 @@ inline constexpr Phrase kClassicOpened  = { "opened in your browser",
 inline constexpr Phrase kClassicNoOpen  = { "no browser opened; the address is above",
                                             "nenhum navegador abriu; o endere\xe7o est\xe1 acima" };
 
+// ---- start menu -----------------------------------------------------------
+
+inline constexpr Phrase kStartResume    = { "Resume", "Voltar ao jogo" };
+inline constexpr Phrase kStartPlay      = { "New game", "Novo jogo" };
+inline constexpr Phrase kStartContinue  = { "Continue", "Continuar" };
+inline constexpr Phrase kStartDifficulty= { "Difficulty", "Dificuldade" };
+inline constexpr Phrase kStartBrightness= { "Brightness", "Brilho" };
+inline constexpr Phrase kStartVolume    = { "Volume", "Volume" };
+inline constexpr Phrase kStartCredits   = { "Credits", "Cr\xe9" "ditos" };
+inline constexpr Phrase kStartQuit      = { "Quit", "Sair" };
+inline constexpr Phrase kStartHelp      = { "arrows move, Enter chooses",
+                                            "setas movem, Enter escolhe" };
+
+inline constexpr Phrase kDiffEasy       = { "Easy", "F\xe1" "cil" };
+inline constexpr Phrase kDiffMedium     = { "Medium", "M\xe9" "dio" };
+inline constexpr Phrase kDiffHard       = { "Hard", "Dif\xed" "cil" };
+inline constexpr Phrase kDiffExtreme    = { "Extreme", "Extremo" };
+
+// ---- credits --------------------------------------------------------------
+
+inline constexpr Phrase kCreditGame     = { "The game, 1995", "O jogo, 1995" };
+inline constexpr Phrase kCreditPort     = { "SDL port and free data",
+                                            "Port SDL e dados livres" };
+inline constexpr Phrase kCreditFork     = { "CMake and SDL3 fork",
+                                            "Fork com CMake e SDL3" };
+inline constexpr Phrase kCreditThis     = { "Data, licences and history",
+                                            "Dados, licen\xe7" "as e hist\xf3" "ria" };
+inline constexpr Phrase kCreditLicence  = { "Code GPL-2.0, game data public domain",
+                                            "C\xf3" "digo GPL-2.0, dados em dom\xed" "nio p\xfa" "blico" };
+inline constexpr Phrase kCreditBack     = { "Esc goes back", "Esc volta" };
+
 // ---- notices --------------------------------------------------------------
 
 inline constexpr Phrase kPadLost        = { "Controller disconnected",

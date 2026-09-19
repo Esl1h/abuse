@@ -36,6 +36,7 @@ add_executable(abuse
     ui/options_screen.cpp ui/options_screen.h
     ui/classic_data_screen.cpp ui/classic_data_screen.h
     ui/language_screen.cpp ui/language_screen.h
+    ui/start_menu.cpp ui/start_menu.h
     lol/matrix.cpp lol/matrix.h
     lol/timer.cpp lol/timer.h
     specache.cpp specache.h

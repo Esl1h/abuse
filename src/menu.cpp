@@ -22,6 +22,7 @@
 
 #include "menu.h"
 #include "ui/options_screen.h"
+#include "ui/start_menu.h"
 #include "lisp.h"
 #include "game.h"
 #include "timing.h"
@@ -250,7 +251,7 @@ int menu(void *args, JCFont *font)             // reurns -1 on esc
   return choice;
 }
 
-static void create_volume_window()
+void show_volume_window()
 {
     volume_window = new VolumeWindow();
     volume_window->inm->allow_no_selections();
@@ -450,7 +451,7 @@ void menu_handler(Event &ev, InputManager *inm)
 
     case ID_VOLUME :
     if (!volume_window)
-    { create_volume_window(); } break;
+    { show_volume_window(); } break;
 
     case ID_MEDIUM :
     {
@@ -630,8 +631,71 @@ ico_button *make_conditional_buttons(int x,int &y)
   return start_list;
 }
 
+// The start menu of phase 4, task 4.4. Everything it does not do itself
+// happens here, because starting a level is the game's business and not the
+// menu's.
+static void modern_main_menu()
+{
+    switch (abuse::ui::run_start_menu())
+    {
+    case abuse::ui::StartAction::Resume:
+        the_game->set_state(RUN_STATE);
+        break;
+
+    case abuse::ui::StartAction::Play:
+        the_game->load_level(level_file);
+        the_game->set_state(RUN_STATE);
+        for (view *v = player_list; v; v = v->next)
+            if (v->m_focus)
+                v->reset_player();
+        break;
+
+    case abuse::ui::StartAction::Continue:
+    {
+        int got_level = load_game(0, symbol_str("LOAD"));
+        the_game->reset_keymap();
+        if (got_level)
+        {
+            char name[255];
+            snprintf(name, 255, "%ssave%04d.spe", get_save_filename_prefix(),
+                     got_level);
+            the_game->load_level(name);
+            the_game->set_state(RUN_STATE);
+        }
+        break;
+    }
+
+    case abuse::ui::StartAction::Quit:
+        the_game->end_session();
+        break;
+
+    case abuse::ui::StartAction::Idle:
+        // The attract loop: the demos named in the Lisp data, one per idle
+        // spell, the way the icon menu has always run them.
+        if (!current_demo)
+        {
+            LSymbol *d = LSymbol::FindOrCreate("demos");
+            if (DEFINEDP(d->GetValue()))
+                current_demo = d->GetValue();
+        }
+        if (current_demo)
+        {
+            demo_man.set_state(demo_manager::PLAYING,
+                               lstring_value(CAR(current_demo)));
+            current_demo = CDR(current_demo);
+        }
+        break;
+    }
+}
+
 void main_menu()
 {
+    if (!abuse::ui::classic_start_menu())
+    {
+        modern_main_menu();
+        return;
+    }
+
     int y=yres/2-100;
     ico_button *list=make_conditional_buttons(xres-33,y);
     list=make_default_buttons(xres-33,y,list);

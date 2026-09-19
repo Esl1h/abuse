@@ -49,6 +49,7 @@
 #include "harness.h"
 #include "i18n/language.h"
 #include "ui/hexfont.h"
+#include "ui/start_menu.h"
 #include "configuration.h"
 #include "specs.h"
 #include "keys.h"
@@ -168,6 +169,8 @@ void createRCFile( char *rcfile )
         fputs( "; degrees.\naimassistcone=25\n\n", fd );
 //        fputs( "; Set the width of the window\nx=320\n\n", fd );
 //        fputs( "; Set the height of the window\ny=200\n\n", fd );
+        fputs( "; Start menu: modern is the list, classic the strip of icons.\n", fd );
+        fputs( ";startmenu=classic\n\n", fd );
         fputs( "; Language of the in-game text: en, fr, de, pt_BR.\n", fd );
         fputs( "; Left out, the system locale decides. xx_XX is the pseudo\n", fd );
         fputs( "; language, for spotting text that does not fit.\n", fd );
@@ -304,6 +307,16 @@ void readRCFile()
                     abuse::ui::set_extended_font( extended );
                 else
                     printf( "Config: unknown font '%s', expected classic or extended\n",
+                            result );
+            }
+            else if( strcasecmp( result, "startmenu" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool classic = false;
+                if( result && abuse::ui::parse_start_menu_choice( result, classic ) )
+                    abuse::ui::set_classic_start_menu( classic );
+                else
+                    printf( "Config: unknown startmenu '%s', expected modern or classic\n",
                             result );
             }
             else if( strcasecmp( result, "keypreset" ) == 0 )
