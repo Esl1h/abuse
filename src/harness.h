@@ -25,6 +25,16 @@ bool headless();
 // runs one frame per tick, where there is nothing to blend.
 bool frame_alpha(float &out);
 
+// --viewport W H: the size of the buffer the game draws into, which is
+// 320x200 everywhere else. Phase 6.5 needs to see what a wider one looks
+// like before deciding anything, and the engine has refused -size outside
+// the editor since 1995.
+//
+// A measuring tool, not a feature: it is honoured only under --headless, and
+// the HUD is still drawn as if the buffer were 320 wide, which is one of the
+// things the measurement is meant to show.
+bool viewport_size(int &w, int &h);
+
 // --level-info: prints the size of the level that was loaded, in tiles and
 // in pixels, and how much of it a viewport of each aspect ratio would need.
 // Read-only, and the run ends right after.

@@ -27,6 +27,7 @@
 
 #include "view.h"
 #include "render/shake.h"
+#include "harness.h"
 #include "timing/pacer.h"
 #include "input/aim.h"
 #include "data/paths.h"
@@ -772,8 +773,22 @@ void recalc_local_view_space()   // calculates view areas for local players, sho
     int Yres=small_render ? yres/2 : yres;
 
     int h=Yres/t;
+
+    // The view is as wide as four thirds of its height, which is where the
+    // game's aspect ratio actually lives: not in the buffer, in this line.
+    // A wider buffer alone draws a 320 wide strip in the middle of it.
     int w=h*320/200,y=5;
     if (w<300) w=300;
+
+    // Phase 6.5 measurement: with --viewport the view follows the buffer, so
+    // a capture shows what widescreen would look like rather than a strip.
+    // Headless only, and the enemy activation area is untouched, which is
+    // the part that would change the game if it followed along.
+    {
+        int vw = 0, vh = 0;
+        if (abuse::harness::viewport_size(vw, vh))
+            w = Xres - 4;
+    }
 
     for (view *f=player_list; f; f=f->next)
     {

@@ -722,6 +722,18 @@ void setup( int argc, char **argv )
     flags.grabmouse          = 0;    // Don't grab the mouse
     flags.xres = xres        = 320;  // Default window width
     flags.yres = yres        = 200;  // Default window height
+
+    // A wider buffer, for the phase 6.5 measurements only: see
+    // abuse::harness::viewport_size. The engine has refused -size outside
+    // the editor since 1995, and that refusal stays where it is.
+    {
+        int vw = 0, vh = 0;
+        if( abuse::harness::viewport_size( vw, vh ) )
+        {
+            flags.xres = xres = vw;
+            flags.yres = yres = vh;
+        }
+    }
     keys.up                  = key_value( "UP" );
     keys.down                = key_value( "DOWN" );
     keys.left                = key_value( "LEFT" );

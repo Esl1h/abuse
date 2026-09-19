@@ -49,6 +49,8 @@ struct Options {
     bool dump_window = false;
     bool mode_given = false;
     bool level_info = false;
+    int viewport_w = 0;
+    int viewport_h = 0;
     // Interpolation is off under the harness, because one frame is one tick
     // there. This forces a blend anyway, at a fixed point, so a scripted
     // frame can show what the player would see between two ticks.
@@ -301,6 +303,11 @@ void parse_args(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "--scanlines"))
             abuse::render::options().scanlines = true;
+        else if (!strcmp(argv[i], "--viewport"))
+        {
+            opt.viewport_w = (int)take_number(argc, argv, i, "--viewport");
+            opt.viewport_h = (int)take_number(argc, argv, i, "--viewport");
+        }
         else if (!strcmp(argv[i], "--level-info"))
             opt.level_info = true;
         else if (!strcmp(argv[i], "--input-script"))
@@ -395,6 +402,17 @@ bool window_size(int &w, int &h)
         return false;
     w = opt.window_w;
     h = opt.window_h;
+    return true;
+}
+
+bool viewport_size(int &w, int &h)
+{
+    // Headless only. A player asking for this would get a game whose status
+    // bar is in the wrong place; a measurement wants exactly that picture.
+    if (!opt.headless || opt.viewport_w < 64 || opt.viewport_h < 64)
+        return false;
+    w = opt.viewport_w;
+    h = opt.viewport_h;
     return true;
 }
 
