@@ -125,6 +125,100 @@ long take_number(int argc, char **argv, int &i, char const *what)
 // The engine resolves relative names against the data directory prefix, which
 // is right for game assets and wrong for a path the user typed. Make replay
 // paths absolute so they mean what the shell means.
+namespace {
+
+// One entry per line of the script: what is held down, and for how long.
+struct ScriptStep
+{
+    uint8_t flags = 0;
+    int ticks = 0;
+};
+
+std::vector<ScriptStep> g_script;
+size_t g_script_at = 0;
+int g_script_left = 0;
+
+// The packet layout, which is also what to_flags produces: see
+// abuse::input::to_flags and view::get_input.
+bool name_to_flag(char const *name, uint8_t &bit)
+{
+    struct { char const *name; uint8_t bit; } const table[] = {
+        { "right",   1 },
+        { "left",    2 },
+        { "down",    4 },
+        { "up",      8 },
+        { "jump",    8 },
+        { "fire",    16 },
+        { "special", 32 },
+        { "none",    0 },
+    };
+
+    for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); i++)
+        if (!strcasecmp(name, table[i].name))
+        {
+            bit = table[i].bit;
+            return true;
+        }
+    return false;
+}
+
+void load_input_script(char const *path)
+{
+    FILE *f = fopen(path, "r");
+    if (!f)
+    {
+        fprintf(stderr, "unable to read the input script '%s'\n", path);
+        exit(2);
+    }
+
+    char line[512];
+    int number = 0;
+    while (fgets(line, sizeof(line), f))
+    {
+        number++;
+
+        char *hash = strchr(line, '#');
+        if (hash)
+            *hash = 0;
+
+        char *word = strtok(line, " \t\r\n");
+        if (!word)
+            continue;
+
+        ScriptStep step;
+        step.ticks = atoi(word);
+        if (step.ticks < 1)
+        {
+            fprintf(stderr, "%s:%d: expected a tick count, got '%s'\n",
+                    path, number, word);
+            exit(2);
+        }
+
+        while ((word = strtok(NULL, " \t\r\n")) != NULL)
+        {
+            uint8_t bit = 0;
+            if (!name_to_flag(word, bit))
+            {
+                fprintf(stderr, "%s:%d: unknown action '%s'\n",
+                        path, number, word);
+                exit(2);
+            }
+            step.flags |= bit;
+        }
+
+        g_script.push_back(step);
+    }
+    fclose(f);
+
+    if (g_script.empty())
+    {
+        fprintf(stderr, "the input script '%s' has no steps\n", path);
+        exit(2);
+    }
+}
+
+}
+
 char *absolute(char *path)
 {
     if (!path || path[0] == '/')
@@ -206,6 +300,8 @@ void parse_args(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "--scanlines"))
             abuse::render::options().scanlines = true;
+        else if (!strcmp(argv[i], "--input-script"))
+            load_input_script(take_value(argc, argv, i, "--input-script"));
         else if (!strcmp(argv[i], "--rgb-light"))
             abuse::render::set_rgb_lighting(true);
         else if (!strcmp(argv[i], "--frame-alpha"))
@@ -296,6 +392,30 @@ bool window_size(int &w, int &h)
         return false;
     w = opt.window_w;
     h = opt.window_h;
+    return true;
+}
+
+bool scripted_input(uint8_t &flags)
+{
+    if (g_script.empty())
+        return false;
+
+    // Past the end the player simply stands still, so a run can outlive its
+    // script without the last key staying held down.
+    if (g_script_at >= g_script.size())
+    {
+        flags = 0;
+        return true;
+    }
+
+    if (g_script_left <= 0)
+        g_script_left = g_script[g_script_at].ticks;
+
+    flags = g_script[g_script_at].flags;
+
+    if (--g_script_left <= 0)
+        g_script_at++;
+
     return true;
 }
 

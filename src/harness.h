@@ -25,6 +25,24 @@ bool headless();
 // runs one frame per tick, where there is nothing to blend.
 bool frame_alpha(float &out);
 
+// --input-script <file>: a player driven from a text file instead of from a
+// keyboard, one line per stretch of ticks:
+//
+//     # comment
+//     30 right
+//     10 right fire
+//     15 none
+//
+// The three replays this project started with are 400 ticks of nobody
+// touching anything, which is how an interpolation bug reached a human
+// before it reached a test. This is how a replay with movement gets made:
+// run with --level and --record, and the game writes a real recording of
+// what the script did.
+//
+// Consumed one tick per call, which is how often the engine asks for input.
+// False when no script is loaded, and the keyboard answers as usual.
+bool scripted_input(uint8_t &flags);
+
 // True when --mode was given, so the remembered mode knows to stand aside:
 // a flag the player typed beats a file they forgot about.
 bool mode_from_command_line();

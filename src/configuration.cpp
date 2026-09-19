@@ -23,6 +23,7 @@
 #include "lisp.h"
 #include "jwindow.h"
 #include "configuration.h"
+#include "harness.h"
 #include "input/actions.h"
 #include "input/gamepad.h"
 
@@ -511,6 +512,26 @@ void print_action_map()
 
 void get_movement(int player, int &x, int &y, int &b1, int &b2, int &b3, int &b4)
 {
+    // A scripted player, when the harness was given one. Before the check
+    // below and not after: --headless skips readRCFile, so key_players is
+    // still zero there and the real path would answer "no input" before the
+    // script was ever asked. It produces the same byte the action map would,
+    // which is why nothing downstream, --record included, can tell the
+    // difference. See abuse::harness::scripted_input.
+    {
+        uint8_t scripted = 0;
+        if( abuse::harness::scripted_input( scripted ) )
+        {
+            x  = (scripted & 1)  ? 1 : ((scripted & 2) ? -1 : 0);
+            y  = (scripted & 4)  ? 1 : ((scripted & 8) ? -1 : 0);
+            b1 = (scripted & 16) ? 1 : 0;
+            b2 = (scripted & 32) ? 1 : 0;
+            b3 = (scripted & 64) ? 1 : 0;
+            b4 = (scripted & 128) ? 1 : 0;
+            return;
+        }
+    }
+
     if( player >= key_players )
     {
         // FIXME: inherited oddity, b4 keeps its previous value.
@@ -523,6 +544,7 @@ void get_movement(int player, int &x, int &y, int &b1, int &b2, int &b3, int &b4
     // packet layout lives in abuse::input::to_flags; the engine still wants
     // the values unpacked, so they are unpacked here and nowhere else.
     using namespace abuse::input;
+
     bool pressed[(int)Action::Count];
     resolve( g_actions, probe_binding, NULL, pressed );
 

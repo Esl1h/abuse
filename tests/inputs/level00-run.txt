@@ -1,0 +1,20 @@
+# A player who actually does something, for a replay that exercises movement.
+# One line per stretch: <ticks> <actions>, with the actions held for all of
+# them. Known actions: left, right, up (or jump), down, fire, special, none.
+#
+# Kept short and repetitive on purpose. What it has to produce is a hash that
+# changes when the simulation changes, and frames where things have moved
+# since the last one; it is not trying to play well.
+
+20 none          # settle after the level loads
+25 right
+5  right jump
+20 right
+10 fire
+15 left
+5  left jump
+20 left
+10 none
+15 right fire
+20 right
+10 none
