@@ -63,7 +63,9 @@ if [ "$window" = 1 ]; then
         "controls-en 1280 720 en --dump-controls" \
         "classic-en 1280 720 en --dump-classic-data --mode original --classic-data /opt/abuse/classic" \
         "language-en 1280 720 en --dump-language" \
-        "menuhint-en 1280 720 en --dump-menu-hint"
+        "menuhint-en 1280 720 en --dump-menu-hint" \
+        "startmenu-en 1280 720 en --dump-start-menu" \
+        "startmenu-pt 1024 600 pt_BR --dump-start-menu"
     do
         # shellcheck disable=SC2086 # the fields are meant to split
         set -- $shot

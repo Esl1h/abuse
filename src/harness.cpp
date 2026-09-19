@@ -30,6 +30,7 @@
 #include "ui/options_screen.h"
 #include "ui/classic_data_screen.h"
 #include "ui/language_screen.h"
+#include "ui/start_menu.h"
 #include "configuration.h"
 #include "lisp.h"
 #include "lisp_gc.h"
@@ -44,7 +45,8 @@ struct Options {
     bool dump_bindings = false;
     bool dump_window = false;
     bool mode_given = false;
-    enum class Screen { None, Options, Rebind, ClassicData, MenuHint, Language };
+    enum class Screen { None, Options, Rebind, ClassicData, MenuHint, Language,
+                        StartMenu };
     Screen dump_screen = Screen::None;
     int window_w = 0;
     int window_h = 0;
@@ -170,6 +172,8 @@ void parse_args(int argc, char **argv)
             opt.dump_screen = Options::Screen::MenuHint;
         else if (!strcmp(argv[i], "--dump-language"))
             opt.dump_screen = Options::Screen::Language;
+        else if (!strcmp(argv[i], "--dump-start-menu"))
+            opt.dump_screen = Options::Screen::StartMenu;
         else if (!strcmp(argv[i], "--window-size"))
         {
             opt.window_w = (int)take_number(argc, argv, i, "--window-size");
@@ -451,6 +455,8 @@ bool draw_overlay_for_capture()
         abuse::ui::draw_classic_data_screen(0);
     else if (opt.dump_screen == Options::Screen::MenuHint)
         abuse::ui::draw_options_hint();
+    else if (opt.dump_screen == Options::Screen::StartMenu)
+        abuse::ui::draw_start_menu_pinned(0);
     else if (opt.dump_screen == Options::Screen::Language)
     {
         // The whole screen, art included, which is what the player sees.
