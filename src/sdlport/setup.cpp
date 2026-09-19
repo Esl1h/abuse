@@ -40,6 +40,7 @@
 #include <signal.h>
 #include <SDL3/SDL.h>
 
+#include "compat.h"
 #include "data/paths.h"
 #include "render/options.h"
 #include "input/gamepad.h"
@@ -79,13 +80,11 @@ static void make_dirs(char const *path)
         if (*p == '/' && p[1] != '\0')
         {
             *p = '\0';
-            mkdir(buffer, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP
-                          | S_IROTH | S_IXOTH);
+            abuse::make_directory(buffer);
             *p = '/';
         }
     }
-    mkdir(buffer, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP
-                  | S_IROTH | S_IXOTH);
+    abuse::make_directory(buffer);
 }
 
 //

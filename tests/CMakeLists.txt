@@ -20,6 +20,7 @@ add_executable(abuse_unit_tests
     unit/test_menu_list.cpp
     unit/test_uitext.cpp
     unit/test_specs.cpp
+    ${abuse_SOURCE_DIR}/src/compat.cpp
     ${abuse_SOURCE_DIR}/src/data/paths.cpp
     ${abuse_SOURCE_DIR}/src/data/config_file.cpp
     ${abuse_SOURCE_DIR}/src/render/options.cpp

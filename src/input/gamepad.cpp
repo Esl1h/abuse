@@ -10,7 +10,7 @@
 
 #include <math.h>
 #include <stddef.h>
-#include <strings.h>
+#include "compat.h"
 
 namespace abuse::input {
 

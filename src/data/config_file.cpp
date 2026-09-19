@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <strings.h>
+#include "compat.h"
 
 namespace abuse::data {
 

@@ -20,6 +20,7 @@ endif()
 
 add_executable(abuse
     common.h
+    compat.cpp compat.h
     data/config_file.cpp data/config_file.h data/paths.cpp data/paths.h
     render/options.cpp render/options.h
     timing/pacer.cpp timing/pacer.h

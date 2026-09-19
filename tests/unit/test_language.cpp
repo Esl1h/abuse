@@ -3,6 +3,8 @@
 #include <initializer_list>
 #include <string.h>
 
+#include "compat.h"
+
 #include "i18n/language.h"
 
 using namespace abuse::i18n;

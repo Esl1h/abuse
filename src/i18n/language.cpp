@@ -9,7 +9,7 @@
 #include "language.h"
 
 #include <string.h>
-#include <strings.h>
+#include "compat.h"
 
 #include <SDL3/SDL.h>
 

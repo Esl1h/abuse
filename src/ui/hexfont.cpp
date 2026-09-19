@@ -14,6 +14,8 @@
 
 #include "hexfont.h"
 
+#include "compat.h"
+
 #include <stdlib.h>
 #include <string.h>
 
