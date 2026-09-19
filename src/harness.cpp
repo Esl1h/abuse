@@ -43,6 +43,7 @@ struct Options {
     bool want_hash = false;
     bool dump_bindings = false;
     bool dump_window = false;
+    bool mode_given = false;
     enum class Screen { None, Options, Rebind, ClassicData, MenuHint, Language };
     Screen dump_screen = Screen::None;
     int window_w = 0;
@@ -193,10 +194,12 @@ void parse_args(int argc, char **argv)
         else if (!strcmp(argv[i], "--mode"))
         {
             char *value = take_value(argc, argv, i, "--mode");
-            if (!strcmp(value, "original"))
-                abuse::data::set_mode(abuse::data::Mode::Original);
-            else if (!strcmp(value, "remaster"))
-                abuse::data::set_mode(abuse::data::Mode::Remaster);
+            abuse::data::Mode m;
+            if (abuse::data::parse_mode(value, m))
+            {
+                abuse::data::set_mode(m);
+                opt.mode_given = true;
+            }
             else
             {
                 fprintf(stderr, "--mode expects original or remaster, got '%s'\n",
@@ -251,6 +254,11 @@ bool window_size(int &w, int &h)
     w = opt.window_w;
     h = opt.window_h;
     return true;
+}
+
+bool mode_from_command_line()
+{
+    return opt.mode_given;
 }
 
 bool headless()

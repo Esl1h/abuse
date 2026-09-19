@@ -26,6 +26,13 @@ enum class Mode
 void set_mode(Mode m);
 Mode mode();
 
+// "original" or "remaster", the spelling used by --mode and by the mode file.
+// parse_mode leaves `out` alone and returns false for anything else, so a typo
+// keeps the current mode rather than silently switching it.
+char const *mode_name(Mode m);
+bool parse_mode(char const *name, Mode &out);
+
+
 // --classic-data <dir>: explicit location of the original data. Wins over
 // the default when the mode is Original.
 void set_classic_data(std::string dir);
@@ -49,6 +56,16 @@ struct Env
     std::string xdg_config_home;
 };
 Env system_env();
+
+// The chosen mode, remembered across runs.
+//
+// It cannot live in abuserc: that file sits in a directory named after the
+// mode, so reading it would already require knowing which mode to read. This
+// is a one-line file a level above them, <config>/abuse/mode, holding nothing
+// but "original" or "remaster".
+std::string mode_file(const Env &env);
+bool load_saved_mode(const Env &env, Mode &out);
+bool save_mode(const Env &env, Mode m);
 
 // XDG base directories with their defaults.
 std::string data_home(const Env &env);    // $XDG_DATA_HOME or ~/.local/share

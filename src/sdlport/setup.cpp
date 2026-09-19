@@ -60,6 +60,7 @@ flags_struct flags;
 
 // Only when the player has not chosen one does the system locale get a say.
 static bool g_language_from_config = false;
+
 keys_struct keys;
 
 extern int xres, yres;
@@ -669,6 +670,19 @@ void setup( int argc, char **argv )
     // light.tbl and abuserc, and replays keep their baseline.
     {
         abuse::data::Env env = abuse::data::system_env();
+
+        // Before anything else here: every path below is named after the
+        // mode, so the mode has to be settled first. --mode still wins, which
+        // is why the saved value is only consulted when the flag was absent.
+        // The harness ignores the file entirely, for the same reason it
+        // ignores the locale: a snapshot must not depend on what the host
+        // last played.
+        abuse::data::Mode saved;
+        if (!abuse::harness::mode_from_command_line()
+            && !abuse::harness::headless()
+            && abuse::data::load_saved_mode(env, saved))
+            abuse::data::set_mode(saved);
+
         if (env.home.empty())
         {
             printf( "WARNING: Unable to get $HOME environment variable.\n" );

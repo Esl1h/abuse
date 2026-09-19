@@ -20,6 +20,10 @@ void parse_args(int argc, char **argv);
 
 bool headless();
 
+// True when --mode was given, so the remembered mode knows to stand aside:
+// a flag the player typed beats a file they forgot about.
+bool mode_from_command_line();
+
 // --window-size W H. What the window snapshots compare is the presented frame,
 // and scale mode, filter and letterbox all depend on the shape of the window
 // it was presented into, so a scripted run has to pin it. False when the run

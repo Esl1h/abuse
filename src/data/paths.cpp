@@ -12,6 +12,8 @@
 
 #include "compat.h"
 
+#include <string.h>
+
 #include <cstdlib>
 
 namespace abuse::data {
@@ -22,7 +24,10 @@ Mode g_mode = Mode::Remaster;
 std::string g_classic_data;
 bool g_has_classic_data = false;
 
-std::string mode_name(Mode m)
+// The directory a mode keeps its saves and config in. Deliberately "classic"
+// and not "original": that is the name on disk since phase 1, and changing it
+// would move everyone's saves.
+std::string mode_dir_name(Mode m)
 {
     return m == Mode::Original ? "classic" : "remaster";
 }
@@ -50,6 +55,61 @@ void set_classic_data(std::string dir)
 bool has_classic_data()
 {
     return g_has_classic_data;
+}
+
+char const *mode_name(Mode m)
+{
+    return m == Mode::Original ? "original" : "remaster";
+}
+
+bool parse_mode(char const *name, Mode &out)
+{
+    if (!name)
+        return false;
+    if (strcasecmp(name, "original") == 0)
+    {
+        out = Mode::Original;
+        return true;
+    }
+    if (strcasecmp(name, "remaster") == 0)
+    {
+        out = Mode::Remaster;
+        return true;
+    }
+    return false;
+}
+
+std::string mode_file(const Env &env)
+{
+    return config_home(env) + "/abuse/mode";
+}
+
+bool load_saved_mode(const Env &env, Mode &out)
+{
+    FILE *f = fopen(mode_file(env).c_str(), "rb");
+    if (!f)
+        return false;
+
+    char buf[32] = {};
+    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+
+    // Trim whatever an editor left behind.
+    while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == '\r' || buf[n - 1] == ' '))
+        buf[--n] = 0;
+
+    return parse_mode(buf, out);
+}
+
+bool save_mode(const Env &env, Mode m)
+{
+    std::string path = mode_file(env);
+    FILE *f = fopen(path.c_str(), "wb");
+    if (!f)
+        return false;
+    bool ok = fprintf(f, "%s\n", mode_name(m)) > 0;
+    fclose(f);
+    return ok;
 }
 
 bool classic_data_present()
@@ -105,12 +165,12 @@ std::string config_home(const Env &env)
 
 std::string config_dir(Mode m, const Env &env)
 {
-    return config_home(env) + "/abuse/" + mode_name(m) + "/";
+    return config_home(env) + "/abuse/" + mode_dir_name(m) + "/";
 }
 
 std::string writable_dir(Mode m, const Env &env)
 {
-    return data_home(env) + "/abuse/" + mode_name(m) + "/";
+    return data_home(env) + "/abuse/" + mode_dir_name(m) + "/";
 }
 
 std::string classic_data_default(const Env &env)
