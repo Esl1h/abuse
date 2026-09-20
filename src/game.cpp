@@ -1058,14 +1058,59 @@ void Game::draw_map(view *v, int interpolate)
       {
     int color = 2 + Max(0, help_text_frames - 10);
 
+    // Wrapped to the width of the view. It used to be drawn as one line
+    // whatever its length, and a message that did not fit simply ran past
+    // the right edge and was cut off by the clip: "press down to activate
+    // platfor". English mostly fits; German and Portuguese mostly do not.
+    int const glyph = wm->font()->Size().x;
+    int const room = (v->m_bb.x - v->m_aa.x - 10) / (glyph > 0 ? glyph : 8);
+
+    char lines[3][256];
+    int line_count = 0;
+    {
+        char const *at = help_text;
+        while (*at && line_count < 3)
+        {
+            int take = (int)strlen(at);
+            if (take > room)
+            {
+                // Back up to a space, so words stay whole. A word longer
+                // than the line is broken rather than lost.
+                take = room;
+                int space = take;
+                while (space > 0 && at[space] != ' ')
+                    space--;
+                if (space > 0)
+                    take = space;
+            }
+            if (take <= 0)
+                break;
+
+            int copy = take < 255 ? take : 255;
+            memcpy(lines[line_count], at, copy);
+            lines[line_count][copy] = 0;
+            line_count++;
+
+            at += take;
+            while (*at == ' ')
+                at++;
+        }
+    }
+    if (line_count < 1)
+        line_count = 1, lines[0][0] = 0;
+
     ivec2 aa = v->m_aa;
-    ivec2 bb(v->m_bb.x, v->m_aa.y + wm->font()->Size().y + 10);
+    ivec2 bb(v->m_bb.x,
+             v->m_aa.y + wm->font()->Size().y * line_count + 10);
 
     remap_area(main_screen, aa.x, aa.y, bb.x, bb.y, white_light + 40 * 256);
     main_screen->Bar(aa, ivec2(bb.x, aa.y), color);
     main_screen->Bar(ivec2(aa.x, bb.y), bb, color);
 
-    wm->font()->PutString(main_screen, aa + ivec2(5), help_text, color);
+    for (int line = 0; line < line_count; line++)
+        wm->font()->PutString(main_screen,
+                              aa + ivec2(5, 5 + line * wm->font()->Size().y),
+                              lines[line], color);
 
     // The counter that fades this out advances in step(), once per logical
     // tick. It used to advance here, once per frame drawn, which was the
