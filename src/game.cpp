@@ -560,6 +560,12 @@ void Game::load_level(char const *name)
     // --level-info: the measurement phase 6.5 waits on. Printed here because
     // this is the one place that knows the level has finished loading, and
     // the run ends right after.
+    if(abuse::harness::want_tile_dump())
+    {
+        abuse::harness::print_tile_dump();
+        exit(0);
+    }
+
     if(abuse::harness::want_level_info())
     {
         int empty = 0;

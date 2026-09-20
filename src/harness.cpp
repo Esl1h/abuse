@@ -31,6 +31,8 @@
 #include "keys.h"
 #include "objects.h"
 #include "chars.h"
+#include "items.h"
+#include "loader2.h"
 #include "jrand.h"
 #include "video.h"
 #include "ui/options_screen.h"
@@ -56,6 +58,7 @@ struct Options {
     bool dump_window = false;
     bool mode_given = false;
     bool level_info = false;
+    bool tile_dump = false;
     bool save_test = false;
     bool particle_demo = false;
     bool save_dialog = false;
@@ -324,6 +327,8 @@ void parse_args(int argc, char **argv)
             opt.viewport_w = (int)take_number(argc, argv, i, "--viewport");
             opt.viewport_h = (int)take_number(argc, argv, i, "--viewport");
         }
+        else if (!strcmp(argv[i], "--dump-tiles"))
+            opt.tile_dump = true;
         else if (!strcmp(argv[i], "--level-info"))
             opt.level_info = true;
         else if (!strcmp(argv[i], "--input-script"))
@@ -430,6 +435,49 @@ bool viewport_size(int &w, int &h)
     w = opt.viewport_w;
     h = opt.viewport_h;
     return true;
+}
+
+bool want_tile_dump()
+{
+    return opt.tile_dump;
+}
+
+void print_tile_dump()
+{
+    if (!opt.tile_dump)
+        return;
+
+    printf("tile-dump count=%d size=%dx%d\n", nforetiles, f_wid, f_hi);
+    printf("tile-dump id points x0 y0 x1 y1 damage\n");
+
+    // foretile::ylevel is documented as the ground offset and is never
+    // written by anything, so it is not reported here. The collision that
+    // does exist is the boundary polygon, and its bounding box is what a
+    // map compiler needs: a full block covers the tile, a ledge is a few
+    // rows at the top, and a tile with no points at all is walked through.
+    for (int i = 0; i < nforetiles; i++)
+    {
+        foretile *f = the_game->get_fg(i);
+        if (!f)
+            continue;
+
+        int points = (f->points && f->points->data) ? f->points->tot : 0;
+        int x0 = 0, y0 = 0, x1 = -1, y1 = -1;
+
+        for (int p = 0; p < points; p++)
+        {
+            int px = f->points->data[p * 2];
+            int py = f->points->data[p * 2 + 1];
+            if (x1 < 0) { x0 = x1 = px; y0 = y1 = py; }
+            if (px < x0) x0 = px;
+            if (px > x1) x1 = px;
+            if (py < y0) y0 = py;
+            if (py > y1) y1 = py;
+        }
+
+        printf("tile-dump %4d %6d %3d %3d %3d %3d %6d\n",
+               i, points, x0, y0, x1, y1, (int)f->damage);
+    }
 }
 
 bool want_level_info()

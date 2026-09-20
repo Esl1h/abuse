@@ -55,9 +55,23 @@ license = "public-domain"
 modified = false
 
 [[asset]]
-# Ours, and it must come before the addon/** glob below: the checker takes
-# the first glob that matches. The pack is a skeleton today; every asset that
-# lands in it gets its own entry with tool, model and date when it is AI-made.
+# Ours, and these must come before the addon/** glob below: the checker takes
+# the first glob that matches.
+#
+# The levels are compiled by tools/asciimap from a text grid, on top of a
+# template taken from the shipped netlevel set. What comes from the template
+# is the object table and the Lisp descriptors, which are Crack dot Com's and
+# public domain; what is ours is the tile maps and where the objects sit.
+path = "addon/challenge/maps/**"
+origin = "Abuse: Vrenna, compiled from a netlevel template (Crack dot Com, public domain)"
+license = "public-domain"
+modified = true
+ai_tool = "Claude Code"
+ai_model = "claude-opus-5"
+ai_date = "2026-09-20"
+ai_note = "layout authored as an ASCII grid; tiles chosen by tools/asciimap"
+
+[[asset]]
 path = "addon/challenge/**"
 origin = "Abuse: Vrenna"
 license = "GPL-2.0-or-later"

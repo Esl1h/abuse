@@ -106,6 +106,14 @@ void before_game();
 // scripted run.
 bool start_demo();
 
+// --dump-tiles: prints one line per foreground tile, with the collision the
+// tile carries. There is no hardness table in this engine: a tile blocks
+// because its own art carries a boundary, so the only way to know what a
+// tile does is to ask the loaded tile. A map compiler that guesses instead
+// builds levels you fall through.
+bool want_tile_dump();
+void print_tile_dump();
+
 // True under --particle-demo: a burst of debris at the player every few
 // ticks, so the particle drawer gets a golden frame of its own. The two
 // spawns the game itself has need a hit and a round of ammunition, neither

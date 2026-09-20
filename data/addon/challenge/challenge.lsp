@@ -28,10 +28,9 @@
 ;;
 ;; (load_tiles "addon/challenge/challenge.spe")
 
-;; The map to start on. Until there is one, the add-on falls through to the
-;; campaign, which is the honest behaviour for an empty pack.
-;;
-;; (set_first_level "addon/challenge/maps/distress.lvl")
+;; The map to start on. One so far, compiled by tools/asciimap from the text
+;; grid in tools/asciimap/maps/distress.txt.
+(set_first_level "addon/challenge/maps/distress.lvl")
 
 ;; The rest of the game, unchanged.
 (load "abuse.lsp")
