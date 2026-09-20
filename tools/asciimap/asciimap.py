@@ -240,6 +240,27 @@ def check(grid):
         errors.append(f"{len(orphans)} open cells are unreachable, "
                       f"first at {sx},{sy}")
 
+    # A mark has to land somewhere that suits what it places. A ceiling
+    # crawler needs a ceiling, a wall turret needs a wall, and anything
+    # that stands needs a floor. The compiler cannot check this, because by
+    # then it only has coordinates; here the shape is still in front of us.
+    def has_solid(x, y, dx, dy, within=3):
+        for i in range(1, within + 1):
+            if solid(x + dx * i, y + dy * i):
+                return True
+        return False
+
+    for y in range(h):
+        for x in range(w):
+            c = grid[y][x]
+            if c in "PXaeh" and not has_solid(x, y, 0, 1):
+                errors.append(f"'{c}' at {x},{y} has no floor under it")
+            elif c == "c" and not has_solid(x, y, 0, -1):
+                errors.append(f"'c' at {x},{y} has no ceiling over it")
+            elif c == "t" and not (has_solid(x, y, -1, 0, 2)
+                                   or has_solid(x, y, 1, 0, 2)):
+                errors.append(f"'t' at {x},{y} has no wall beside it")
+
     # The same graph, walked backwards from the exit: which cells can still
     # reach it. Anything the player can get to but cannot get out of is a
     # trap, and that is the failure that actually ruins a map.
@@ -465,8 +486,45 @@ def build(args):
                 pack_map(background(bw, bh, model, theme)))
     print(f"background {bw}x{bh} tiles at {xmul}/{xdiv} by {ymul}/{ydiv}")
 
+    place_lighting(str(out), ids, grid, head)
     place_objects(str(out), ids, grid, head)
     print(f"wrote {out}")
+
+
+def place_lighting(level, ids, grid, head):
+    """One ambient level over the whole map, and no stray light sources.
+
+    A template brings both with it, in the coordinates of the level it came
+    from: eleven area controllers over rooms that are not here any more,
+    and a list of lamps lighting solid rock. The result was a map with dark
+    patches that had no cause a player could see.
+
+    So the compiler writes its own: a single area covering everything, at
+    the brightness the map asks for, and an empty light list. Lamps placed
+    on purpose are a later job; a level that is evenly lit is honest, and a
+    level lit by someone else's lamps is not.
+    """
+    ambient = int(head.get("ambient", 40))
+    if not 0 <= ambient <= 63:
+        sys.exit(f"ambient must be 0 to 63, got {ambient}")
+
+    w = len(grid[0]) * TILE_W
+    h = len(grid) * TILE_H
+
+    # x, y, w, h, active, ambient, view_xoff, view_yoff, and a speed for
+    # each of the three. The ambient speed has to be more than zero: the
+    # engine steps towards the target by it, so at zero it never arrives.
+    area = struct.pack("<11i", 0, 0, w, h, 1, ambient, 0, 0, 4, 0, 0)
+    write_entry(level, ids["area_list.v1"], 20, "area_list.v1",
+                b"\x02" + struct.pack("<I", 1) + area)
+
+    if "lights" in ids:
+        old = run(TOOL, level, "get", ids["lights"])
+        floor = struct.unpack_from("<I", old, 4)[0] if len(old) >= 8 else 0
+        write_entry(level, ids["lights"], 17, "lights",
+                    struct.pack("<II", 0, floor))
+
+    print(f"ambient {ambient} of 63 over the whole map, no light sources")
 
 
 def write_entry(level, entry_id, entry_type, name, payload):
