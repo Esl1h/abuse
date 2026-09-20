@@ -73,9 +73,10 @@
     <display_length compare="ge">640</display_length>
   </requires>
 
-  <!-- Screenshots must be reachable over HTTP before submission; these
-       point at the repository and need replacing with a stable raw URL or
-       a release asset. -->
+  <!-- Screenshots must be reachable over HTTP before submission. These
+       point at the working branch, which is not where a published release
+       will live: at the first tag, main is fast-forwarded from
+       modernisation and these URLs move to main. -->
   <screenshots>
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/Esl1h/abuse/modernisation/doc/screenshots/gameplay.png</image>
