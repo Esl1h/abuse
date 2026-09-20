@@ -51,6 +51,10 @@ Colour const kHealthLo = rgba(230, 170, 40);
 Colour const kGhost    = rgba(250, 240, 210, 170);
 Colour const kPick     = rgba(255, 220, 120);
 
+// An empty weapon slot: present enough to be counted, faint enough not to
+// be mistaken for something being carried.
+Colour const kEmpty    = rgba(120, 120, 135, 90);
+
 bool g_classic = true;      // until the HUD covers everything the strip shows
 bool g_pinned = false;
 
@@ -170,11 +174,16 @@ void draw_weapons(view *v, int right, int bottom, int k, int text)
     int n = total_weapons < TOTAL_WEAPONS ? total_weapons : TOTAL_WEAPONS;
     int gap = 2 * k;
 
+    // Every slot, not only the ones being carried. The 1995 strip shows the
+    // empty ones as part of its artwork, and a player reads the gaps as
+    // "there are three more of these somewhere"; a HUD that simply left
+    // them out told them less than the thing it replaced.
+    //
     // Right to left, so the row grows away from the edge it is pinned to.
     int x = right;
     for (int i = n - 1; i >= 0; i--)
     {
-        if (!v->has_weapon(i) || g_weapon_icon[i] < 0)
+        if (g_weapon_icon[i] < 0)
             continue;
 
         image *im = cache.img(g_weapon_icon[i]);
@@ -185,11 +194,8 @@ void draw_weapons(view *v, int right, int bottom, int k, int text)
         int ih = im->Size().y * k;
         x -= iw;
 
-        char count[16];
-        snprintf(count, sizeof(count), "%d", v->weapon_total(i));
-        int cw = Overlay::TextWidth(count, text);
-
-        bool current = v->current_weapon == i;
+        bool const owned = v->has_weapon(i) != 0;
+        bool const current = owned && v->current_weapon == i;
         int top = bottom - Overlay::TextHeight(text) - ih - k;
 
         overlay().FillRect(x - k, top - k, iw + 2 * k,
@@ -199,10 +205,24 @@ void draw_weapons(view *v, int right, int bottom, int k, int text)
             overlay().FillRect(x, top, iw, ih + Overlay::TextHeight(text) + k,
                                kWell);
 
-        blit(im, x, top, k);
-        overlay().Text(overlay_font(), x + (iw - cw) / 2,
-                       bottom - Overlay::TextHeight(text) - k, count, text,
-                       current ? kPick : kDim);
+        if (owned)
+        {
+            char count[16];
+            snprintf(count, sizeof(count), "%d", v->weapon_total(i));
+            int cw = Overlay::TextWidth(count, text);
+
+            blit(im, x, top, k);
+            overlay().Text(overlay_font(), x + (iw - cw) / 2,
+                           bottom - Overlay::TextHeight(text) - k, count, text,
+                           current ? kPick : kDim);
+        }
+        else
+        {
+            // An empty slot: the shape of the cell and nothing in it, so the
+            // row keeps its length and the gap is legible as a gap.
+            overlay().FrameRect(x, top, iw, ih + Overlay::TextHeight(text) + k,
+                                kEmpty);
+        }
 
         x -= gap;
     }
