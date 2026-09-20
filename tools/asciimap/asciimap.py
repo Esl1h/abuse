@@ -115,10 +115,37 @@ def pick(choices, x, y, salt=0):
 SOLID = "#"
 AIR = "."
 PLAYER = "P"
-MARKS = "PXaEh"  # everything that places an object rather than a tile
+# Marks place an object instead of choosing a tile. What each one becomes
+# depends on the template: the compiler never invents an object, it moves
+# one the template already carries, because an object's variables live in a
+# blob sized by its type and changing what something is would desynchronise
+# the whole table.
+#
+# So a mark is a request, filled from the pool if the template has something
+# for it. A template with no enemies produces a map with no enemies, which
+# is what the deathmatch one did.
+MARKS = "PXaehct"
 
-JUMP_UP = 3      # tiles the player clears from standing
-JUMP_ACROSS = 5
+ROLES = {
+    "P": ["START"],
+    "X": ["NEXT_LEVEL", "NEXT_LEVEL_TOP"],
+    # On a floor: things that walk.
+    "e": ["ROB1", "JUGGER", "ANT", "ANT_TOUGH", "WALK_ROB", "DARNEL"],
+    # Under a ceiling: things that come down from it.
+    "c": ["ANT_ROOF", "HIDDEN_ANT", "FLYER", "GREEN_FLYER"],
+    # Against a wall: things that are mounted on one.
+    "t": ["SPRAY_GUN", "TRACK_GUN"],
+    "a": ["MBULLET_ICON20", "MBULLET_ICON5", "GRENADE_ICON10",
+          "GRENADE_ICON2", "ROCKET_ICON2", "PLASMA_ICON20", "LSABER_ICON50"],
+    "h": ["HEALTH", "MEDKIT"],
+}
+
+# Measured with --dump-player, not assumed: a standing jump rises 48 pixels
+# from the floor, which is 3.2 tiles of 15, and carries about 4.4 tiles
+# across. The first version of this file guessed, and the map it passed had
+# ledges six and seven rows up that nobody could climb.
+JUMP_UP = 3
+JUMP_ACROSS = 4
 
 
 def run(*args):
@@ -213,7 +240,37 @@ def check(grid):
         errors.append(f"{len(orphans)} open cells are unreachable, "
                       f"first at {sx},{sy}")
 
-    return errors, seen
+    # The same graph, walked backwards from the exit: which cells can still
+    # reach it. Anything the player can get to but cannot get out of is a
+    # trap, and that is the failure that actually ruins a map.
+    #
+    # Asking only "can the player get here" is not enough, and a version of
+    # this check that asked only that passed a map with ledges six rows up:
+    # falling in from above made them reachable, and the tool was happy
+    # with a platform nobody could climb.
+    exits = [(x, y) for y in range(h) for x in range(w) if grid[y][x] == "X"]
+    escapes = set(exits)
+    queue = collections.deque(exits)
+    while queue:
+        x, y = queue.popleft()
+        # Who could have moved into this cell: someone beside it, someone
+        # above it who fell, or someone below and to the side who jumped.
+        back = [(x - 1, y), (x + 1, y), (x, y - 1)]
+        for dx in range(-JUMP_ACROSS, JUMP_ACROSS + 1):
+            for dy in range(1, JUMP_UP + 1):
+                back.append((x + dx, y + dy))
+        for nx, ny in back:
+            if (nx, ny) in open_cells and (nx, ny) not in escapes:
+                escapes.add((nx, ny))
+                queue.append((nx, ny))
+
+    trapped = (seen & open_cells) - escapes if exits else set()
+    if trapped:
+        errors.append(f"{len(trapped)} cells the player can reach but "
+                      f"cannot leave: " +
+                      ", ".join(f"{x},{y}" for x, y in clusters(trapped, most=5)))
+
+    return errors, seen, trapped
 
 
 def load_model(path="tools/asciimap/tiling.json"):
@@ -363,11 +420,12 @@ def pack_map(tiles):
 
 def build(args):
     head, grid = read_map(args.mapfile)
-    errors, _ = check(grid)
+    errors, _, _ = check(grid)
     if errors:
         for e in errors:
             print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
+
 
     template = pathlib.Path(args.template)
     out = pathlib.Path(args.out)
@@ -452,8 +510,12 @@ def place_objects(level, ids, grid, head):
     # looked right, loaded fine, and could not be walked out of.
     park = (2 * tile_w, 2 * tile_h)
 
-    want = {"START": PLAYER, "HEALTH": "h",
-            "PLASMA_ICON20": "a", "LSABER_ICON50": "a"}
+    # Which mark each object type answers to, from ROLES.
+    want = {}
+    for mark, wanted in ROLES.items():
+        for name in wanted:
+            want.setdefault(name, mark)
+
     used = collections.Counter()
 
     for i, t in enumerate(types):
@@ -470,7 +532,11 @@ def place_objects(level, ids, grid, head):
     write_entry(level, ids["x"], 20, "x", b"\x02" + struct.pack("<%di" % n, *xs))
     write_entry(level, ids["y"], 20, "y", b"\x02" + struct.pack("<%di" % n, *ys))
     print(f"placed {n} objects: " +
-          ", ".join(f"{k}x{v}" for k, v in used.items()) or "none on a mark")
+          (", ".join(f"{k}x{v}" for k, v in sorted(used.items())) or "none"))
+    for mark, spots in sorted(marks.items()):
+        if used[mark] < len(spots):
+            print(f"  '{mark}': {len(spots)} marks, {used[mark]} filled; "
+                  f"the template has no more")
 
 
 def object_names(level, ids):
@@ -488,15 +554,28 @@ def object_names(level, ids):
 
 def cmd_check(args):
     head, grid = read_map(args.mapfile)
-    errors, seen = check(grid)
+    errors, seen, _ = check(grid)
     h, w = len(grid), len(grid[0])
     solid = sum(row.count(SOLID) for row in grid)
     print(f"{args.mapfile}: {w}x{h} tiles, {w * tile_px(0)}x{h * tile_px(1)} pixels")
     print(f"  solid {solid} of {w * h} ({100 * solid // (w * h)}%), "
           f"reachable open cells {len(seen)}")
+
     for e in errors:
         print(f"error: {e}", file=sys.stderr)
     return 1 if errors else 0
+
+
+def clusters(cells, apart=6, most=8):
+    """A handful of representative spots, so the report names places and
+    not a hundred neighbouring cells."""
+    out = []
+    for x, y in sorted(cells):
+        if all(abs(x - ox) > apart or abs(y - oy) > apart for ox, oy in out):
+            out.append((x, y))
+            if len(out) >= most:
+                break
+    return out
 
 
 def tile_px(which):

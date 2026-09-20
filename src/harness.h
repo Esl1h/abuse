@@ -106,6 +106,14 @@ void before_game();
 // scripted run.
 bool start_demo();
 
+// --dump-player: prints the player's position and velocity every tick.
+// Written for one question a map compiler cannot answer by reading the
+// Lisp: how high the player actually jumps, which decides whether a ledge
+// is a route or a wall. Assuming three tiles produced a map with a
+// platform nobody could reach.
+bool want_player_dump();
+void print_player_dump(int tick, int x, int y, int xvel, int yvel);
+
 // --dump-tiles: prints one line per foreground tile, with the collision the
 // tile carries. There is no hardness table in this engine: a tile blocks
 // because its own art carries a boundary, so the only way to know what a

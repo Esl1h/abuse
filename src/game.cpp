@@ -2874,6 +2874,15 @@ int main(int argc, char *argv[])
                 abuse::render::shake_tick();
                 abuse::render::particles_tick();
 
+                if (abuse::harness::want_player_dump()
+                    && g->first_view && g->first_view->m_focus)
+                {
+                    static int player_tick = 0;
+                    game_object *o = g->first_view->m_focus;
+                    abuse::harness::print_player_dump(player_tick++, o->x, o->y,
+                                                      o->xvel(), o->yvel());
+                }
+
                 // A scripted run meets no enemy and carries no ammunition,
                 // so the two spawns the game has never fire. This one does,
                 // which is how the drawer gets a reference frame.

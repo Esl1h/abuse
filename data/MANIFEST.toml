@@ -59,9 +59,10 @@ modified = false
 # the first glob that matches.
 #
 # The levels are compiled by tools/asciimap from a text grid, on top of a
-# template taken from the shipped netlevel set. What comes from the template
-# is the object table and the Lisp descriptors, which are Crack dot Com's and
-# public domain; what is ours is the tile maps and where the objects sit.
+# template taken from the shipped levels. What comes from the template is the
+# object table and the Lisp descriptors, which are Crack dot Com's and public
+# domain; what is ours is the tile maps and where the objects sit. Which tile
+# goes where is also learned from the shipped levels, by tools/asciimap/learn.
 path = "addon/challenge/maps/**"
 origin = "Abuse: Vrenna, compiled from a netlevel template (Crack dot Com, public domain)"
 license = "public-domain"

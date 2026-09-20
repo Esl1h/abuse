@@ -59,6 +59,7 @@ struct Options {
     bool mode_given = false;
     bool level_info = false;
     bool tile_dump = false;
+    bool player_dump = false;
     bool save_test = false;
     bool particle_demo = false;
     bool save_dialog = false;
@@ -327,6 +328,8 @@ void parse_args(int argc, char **argv)
             opt.viewport_w = (int)take_number(argc, argv, i, "--viewport");
             opt.viewport_h = (int)take_number(argc, argv, i, "--viewport");
         }
+        else if (!strcmp(argv[i], "--dump-player"))
+            opt.player_dump = true;
         else if (!strcmp(argv[i], "--dump-tiles"))
             opt.tile_dump = true;
         else if (!strcmp(argv[i], "--level-info"))
@@ -440,6 +443,18 @@ bool viewport_size(int &w, int &h)
 bool want_tile_dump()
 {
     return opt.tile_dump;
+}
+
+bool want_player_dump()
+{
+    return opt.player_dump;
+}
+
+void print_player_dump(int tick, int x, int y, int xvel, int yvel)
+{
+    if (!opt.player_dump)
+        return;
+    printf("player %d x=%d y=%d xvel=%d yvel=%d\n", tick, x, y, xvel, yvel);
 }
 
 void print_tile_dump()
