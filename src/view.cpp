@@ -794,6 +794,16 @@ void recalc_local_view_space()   // calculates view areas for local players, sho
 {
   if (main_screen)
   {
+    // The strip under the view belongs to the status bar, which is only
+    // redrawn when something in it changes, so whatever was there before
+    // stays. Move the views and that leftover is a second status bar in the
+    // wrong place, which is what a wider buffer makes of it. Clear once
+    // here, where the geometry changes, and ask the bar to draw itself
+    // again.
+    main_screen->clear();
+    main_screen->AddDirty(ivec2(0), main_screen->Size());
+    sbar.need_refresh();
+
     int t=total_local_players();
     if (!t) return ;
 
