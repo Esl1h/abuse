@@ -8,6 +8,7 @@
 
 #include <doctest/doctest.h>
 
+#include "render/options.h"
 #include "render/shake.h"
 
 namespace {
@@ -17,6 +18,7 @@ struct ShakeReset
     ~ShakeReset()
     {
         abuse::render::set_shake_enabled(true);
+        abuse::render::options().reduce_motion = false;
         abuse::render::reset_shake();
     }
 };
@@ -116,4 +118,32 @@ TEST_CASE("a knock of nothing is not a knock") {
     // And ticking an idle shake is harmless.
     abuse::render::shake_tick();
     CHECK(abuse::render::shake_amount() == doctest::Approx(0.0f));
+}
+
+TEST_CASE("reduce motion vetoes the shake without clearing the setting") {
+    ShakeReset reset;
+    abuse::render::reset_shake();
+    abuse::render::set_shake_enabled(true);
+    abuse::render::options().reduce_motion = true;
+
+    CHECK_FALSE(abuse::render::motion_allowed());
+
+    abuse::render::shake(8.0f);
+    CHECK(abuse::render::shake_amount() == doctest::Approx(0.0f));
+
+    // Even a shake left over from before the veto draws centred.
+    abuse::render::options().reduce_motion = false;
+    abuse::render::shake(8.0f);
+    abuse::render::options().reduce_motion = true;
+
+    int dx = 1, dy = 1;
+    abuse::render::shake_offset(dx, dy);
+    CHECK(dx == 0);
+    CHECK(dy == 0);
+
+    // The per-effect setting is untouched, so it comes back as it was.
+    abuse::render::options().reduce_motion = false;
+    CHECK(abuse::render::shake_enabled());
+    abuse::render::shake_offset(dx, dy);
+    CHECK(abuse::render::shake_amount() > 0.0f);
 }

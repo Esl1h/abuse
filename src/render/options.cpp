@@ -210,4 +210,9 @@ Options &options()
     return g_options;
 }
 
+bool motion_allowed()
+{
+    return !g_options.reduce_motion;
+}
+
 }

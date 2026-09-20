@@ -39,6 +39,9 @@ classic preset is always there.
 - **Smooth movement** between logical ticks, which is there and is off: the
   art is animated at the tick rate, so the character skates. Kept because the
   camera half of it is worth revisiting
+- **Reduce motion** (`reducemotion=on`): one switch over every effect that
+  moves the picture by itself, which leaves the individual settings alone so
+  they come back when it is turned off
 - **English, French, German and Brazilian Portuguese**, chosen on first run
 - **Deterministic replay testing**: a state hash, frame snapshots, and a
   snapshot of what actually reached the window

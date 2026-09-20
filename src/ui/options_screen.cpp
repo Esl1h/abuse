@@ -164,6 +164,27 @@ void smooth_value(char *buf, size_t n)
     snprintf(buf, n, "%s", render::options().interpolate ? "on" : "off");
 }
 
+// ---- reduce motion --------------------------------------------------------
+
+// The veto over every effect that moves the picture by itself. It does not
+// clear the individual settings, so turning it back off restores what the
+// player had chosen. Takes effect at once, like the settings it covers.
+void reduce_motion_step(int)
+{
+    render::options().reduce_motion = !render::options().reduce_motion;
+}
+
+void reduce_motion_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", say(render::options().reduce_motion
+                                   ? i18n::kOn : i18n::kOff));
+}
+
+void reduce_motion_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::options().reduce_motion ? "on" : "off");
+}
+
 // ---- lighting -------------------------------------------------------------
 
 // Whether the frame is lit by remapping palette indices, as it has been since
@@ -349,6 +370,7 @@ Item const kItems[] = {
     { i18n::kOptAspect,      "aspect",      true,  aspect_step,   aspect_show,   aspect_value },
     { i18n::kOptHud,         "hud",         false, hud_step,      hud_show,      hud_value },
     { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
+    { i18n::kOptReduceMotion, "reducemotion", false, reduce_motion_step, reduce_motion_show, reduce_motion_value },
     { i18n::kOptLighting,    "rgblight",    false, light_step,    light_show,    light_value },
     { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },
     { i18n::kOptFont,        "font",        true,  font_step,     font_show,     NULL },

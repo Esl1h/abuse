@@ -1654,6 +1654,7 @@ void Game::update_screen()
       // tick: there the alpha is zero, and blending with it would draw the
       // previous tick instead of the current one.
       bool const smooth = abuse::render::options().interpolate
+                          && abuse::render::motion_allowed()
                           && !abuse::harness::headless()
                           && abuse::data::mode() != abuse::data::Mode::Original;
 

@@ -56,6 +56,7 @@ inline constexpr Phrase kHudClassic     = { "classic", "cl\xe1" "ssico" };
 inline constexpr Phrase kHudModern      = { "modern", "moderno" };
 inline constexpr Phrase kOptSmooth      = { "Smooth movement", "Movimento suave" };
 inline constexpr Phrase kOptLighting    = { "Lighting", "Ilumina\xe7\xe3o" };
+inline constexpr Phrase kOptReduceMotion = { "Reduce motion", "Reduzir movimento" };
 inline constexpr Phrase kLightClassic   = { "classic", "cl\xe1" "ssica" };
 inline constexpr Phrase kLightRgb       = { "smooth", "suave" };
 inline constexpr Phrase kOptLanguage    = { "Language", "Idioma" };

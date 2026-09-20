@@ -66,6 +66,12 @@ struct Options
     // where there is room for them: at least two window rows per game row.
     bool scanlines = false;
 
+    // Accessibility: one switch over every effect that moves the picture
+    // by itself, for people who get motion sick from them. It vetoes
+    // rather than replaces, so the individual settings survive being
+    // turned off collectively and come back when it is turned off.
+    bool reduce_motion = false;
+
     // Draw positions blended between the last two logical ticks. The world
     // still advances 15 times a second; this is only about what is shown in
     // between. Phase 6, block 6.1.
@@ -77,6 +83,11 @@ struct Options
     // running smoothly. See the note in docs/plan/fase-06-visual.md.
     bool interpolate = false;
 };
+
+// Whether an effect that moves the picture on its own may run at all. The
+// per-effect switch still decides on top of this; this is only the veto, so
+// that an effect added later is covered without touching the setting.
+bool motion_allowed();
 
 // Parsing, kept away from SDL so it can be unit tested. Both return false and
 // leave the output untouched when the name is unknown, so a typo in abuserc

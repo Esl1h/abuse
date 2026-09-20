@@ -197,6 +197,9 @@ void createRCFile( char *rcfile )
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
         fputs( "; without the banding. Experimental, and never in Original mode.\n", fd );
         fputs( ";rgblight=on\n\n", fd );
+        fputs( "; Turns off every effect that moves the picture by itself,\n", fd );
+        fputs( "; without clearing the settings below.\n", fd );
+        fputs( ";reducemotion=on\n\n", fd );
         fputs( "; Smooth movement: positions blended between logical ticks.\n", fd );
         fputs( "; The world still advances 15 times a second either way.\n", fd );
         fputs( ";interpolate=off\n\n", fd );
@@ -421,6 +424,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown rgblight '%s', expected on or off\n",
                             result );
+            }
+            else if( strcasecmp( result, "reducemotion" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = false;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::render::options().reduce_motion = on;
+                else
+                    printf( "Config: unknown reducemotion '%s', expected on or"
+                            " off\n", result );
             }
             else if( strcasecmp( result, "interpolate" ) == 0 )
             {

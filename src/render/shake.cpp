@@ -8,6 +8,8 @@
 
 #include "shake.h"
 
+#include "options.h"
+
 #include <stdint.h>
 
 namespace abuse::render {
@@ -51,7 +53,7 @@ int next_offset(float amount)
 
 void shake(float amount)
 {
-    if (!g_enabled || amount <= 0.0f)
+    if (!g_enabled || !motion_allowed() || amount <= 0.0f)
         return;
 
     g_amount += amount;
@@ -73,7 +75,7 @@ void shake_offset(int &dx, int &dy)
 {
     dx = 0;
     dy = 0;
-    if (!g_enabled || g_amount <= 0.0f)
+    if (!g_enabled || !motion_allowed() || g_amount <= 0.0f)
         return;
 
     dx = next_offset(g_amount);
