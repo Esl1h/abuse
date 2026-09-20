@@ -190,6 +190,10 @@ clang-tidy -p build/dev $(git diff --name-only -- '*.cpp')
 aspect ratio and reports how much light there is down each edge of the frame, which
 is how a level that was never drawn that far out gets found.
 
+`./scripts/test-aspect.sh build/dev/src/abuse` checks that the simulation reaches the
+same state whatever the window width, which is what keeps widescreen from being a
+different game. `ASPECT_ALL=1` runs it on every replay instead of the moving one.
+
 To make a replay that does something:
 
 ```sh
