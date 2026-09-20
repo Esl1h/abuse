@@ -1626,8 +1626,20 @@ void Game::update_screen()
       w = (f->m_bb.x - f->m_aa.x + 1);
       h = (f->m_bb.y - f->m_aa.y + 1);
 
-      total_active += current_level->add_drawables(f->xoff()-w / 4, f->yoff()-h / 4,
-                             f->xoff()+w + w / 4, f->yoff()+h + h / 4);
+      // What wakes up is decided by the 4:3 view the game was designed
+      // around, not by how wide the window is. A wider view that activated
+      // more would wake enemies earlier, which is a different game and a
+      // different replay hash; this way 16:9 sees more of the room and
+      // fights exactly the same fight. Phase 6, block 6.5.
+      //
+      // The width a 4:3 view of this height would have, which is the
+      // formula recalc_local_view_space uses, and the same arithmetic as
+      // before whenever the view is that wide already.
+      int const aw = Min(w, (int)view::classic_view_width());
+      int const left = f->classic_xoff();
+
+      total_active += current_level->add_drawables(left - aw / 4, f->yoff()-h / 4,
+                             left + aw + aw / 4, f->yoff()+h + h / 4);
 
     }
       }
@@ -2140,8 +2152,15 @@ void Game::step()
 
     w = (f->m_bb.x - f->m_aa.x + 1);
     h = (f->m_bb.y - f->m_aa.y + 1);
-        total_active += current_level->add_actives(f->xoff()-w / 4, f->yoff()-h / 4,
-                         f->xoff()+w + w / 4, f->yoff()+h + h / 4);
+
+    // The 4:3 region, not the real one: see the note on the other call, in
+    // update_screen. This is the twin of it, in the tick rather than in
+    // the draw, and missing it is why a wider view still woke things early.
+    int const aw = Min(w, (int)view::classic_view_width());
+    int const left = f->classic_xoff();
+
+        total_active += current_level->add_actives(left - aw / 4, f->yoff()-h / 4,
+                         left + aw + aw / 4, f->yoff()+h + h / 4);
       }
     }
   }

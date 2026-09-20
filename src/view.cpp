@@ -142,6 +142,34 @@ static int32_t blend(int32_t from, int32_t to)
     return from + (int32_t)((float)(to - from) * a);
 }
 
+int32_t view::classic_view_width()
+{
+    // recalc_local_view_space, for one player on the 320x200 buffer the game
+    // was drawn for: the width comes from the full height and is then
+    // clamped two pixels in from each side.
+    int32_t const w = 200 * 320 / 200;
+    int32_t const x1 = Max(2, 320 / 2 - w / 2);
+    int32_t const x2 = Min(320 - 2, 320 / 2 + w / 2);
+    return x2 - x1 + 1;
+}
+
+int32_t view::classic_xoff()
+{
+    if (!m_focus)
+        return pan_x;
+
+    // The same clamp and the same terms as xoff(), with the width a 4:3 view
+    // has. Reconstructing it by shifting the real xoff() is wrong at the
+    // edges of a level, where that clamp has already taken effect.
+    //
+    // Never wider than the view actually is: split screen gives each player
+    // less than the classic width, and that half of the game keeps behaving
+    // as it always did.
+    int32_t const w = Min((int32_t)(m_bb.x - m_aa.x + 1), classic_view_width());
+
+    return Max(0, m_lastpos.x - w / 2 + m_shift.x + pan_x);
+}
+
 int32_t view::interpolated_xoff()
 {
     if (!m_focus)

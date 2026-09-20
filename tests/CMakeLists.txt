@@ -94,6 +94,14 @@ add_test(NAME save
     COMMAND ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-save.sh $<TARGET_FILE:abuse>
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})
 
+# The simulation must not depend on the width of the window: what wakes up
+# in a level is the region around the player, not what happens to be on
+# screen. Without this, widescreen is a different game.
+add_test(NAME aspect
+    COMMAND ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-aspect.sh $<TARGET_FILE:abuse>
+    WORKING_DIRECTORY ${abuse_SOURCE_DIR})
+set_tests_properties(aspect PROPERTIES SKIP_RETURN_CODE 77)
+
 add_test(NAME snapshots
     COMMAND ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-snapshots.sh $<TARGET_FILE:abuse>
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})

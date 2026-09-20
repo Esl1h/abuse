@@ -81,6 +81,18 @@ public:
   int32_t y_center();
   int32_t xoff();                            // top left and right corner of the screen
   int32_t interpolated_xoff();
+
+  // The width of the view the game was designed around: what
+  // recalc_local_view_space produces for one player on a 320x200 buffer,
+  // margins included. It is 317, not 320, and deriving it is how that stays
+  // true if the layout ever changes.
+  static int32_t classic_view_width();
+
+  // Where the view would start if it were 4:3, whatever it actually is.
+  // What wakes up in a level is decided by this and not by the real width,
+  // so a wider window shows more of the room and fights the same fight.
+  // Phase 6, block 6.5.
+  int32_t classic_xoff();
   int32_t yoff();
   int32_t interpolated_yoff();
   int drawable();                        // network viewables are not drawable
