@@ -116,9 +116,12 @@ jobs:
       # that matters here: it checks that the simulation reaches the same
       # state on this platform as it does on Linux. The snapshot suites skip
       # themselves when ImageMagick's compare is absent, which it is here.
+      # --timeout kills a test that hangs and prints what it had produced,
+      # which is the difference between "Windows is stuck" and knowing why.
       - name: Tests
         shell: bash
-        run: ctest --test-dir build --build-config Release --output-on-failure
+        timeout-minutes: 15
+        run: ctest --test-dir build --build-config Release --output-on-failure --timeout 300
 
       # The install tree, not the build tree: the executable, the two SDL
       # DLLs, the game data and the fetcher for the original sound, in one
@@ -155,7 +158,8 @@ jobs:
         run: cmake --build build
 
       - name: Tests
-        run: ctest --test-dir build --output-on-failure
+        timeout-minutes: 15
+        run: ctest --test-dir build --output-on-failure --timeout 300
 
       # MACOSX_BUNDLE is set on the target, so what comes out is a bundle and
       # not a bare executable: the path this used to name has never existed,

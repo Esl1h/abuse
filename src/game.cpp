@@ -2548,16 +2548,21 @@ int main(int argc, char *argv[])
     start_argc = argc;
     start_argv = argv;
 
-#ifdef WIN32
-    // Unbuffered, so a crash does not take the log with it. The first
-    // Windows report of a crash arrived with a log that stopped three
-    // screens before the interesting part, because the buffer was never
-    // flushed. This game prints a few thousand characters in a session; the
-    // cost of writing them one at a time is nothing next to being able to
-    // read them afterwards.
-    setvbuf( stdout, NULL, _IONBF, 0 );
-    setvbuf( stderr, NULL, _IONBF, 0 );
-#endif
+    // Unbuffered output, so a crash does not take the log with it: the
+    // first Windows report of a crash arrived with a log that stopped three
+    // screens before the interesting part, because the buffer went with the
+    // process.
+    //
+    // Asked for rather than always on. It was always on for one push, and
+    // the Windows test job went from forty seconds to still running after
+    // twenty-six minutes; that may have been coincidence, but a diagnostic
+    // aid is not worth finding out the hard way on the platform nobody here
+    // can debug.
+    if( getenv( "ABUSE_UNBUFFERED" ) )
+    {
+        setvbuf( stdout, NULL, _IONBF, 0 );
+        setvbuf( stderr, NULL, _IONBF, 0 );
+    }
 
     // Before setup(), which calls SDL_Init: --headless selects the dummy
     // video and audio drivers.
