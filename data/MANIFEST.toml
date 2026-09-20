@@ -19,6 +19,10 @@ allowed_licenses = [
     "CC-BY-4.0",
     "CC-BY-SA-4.0",
     "GPL-2.0",
+    # What the binary actually is: COPYING puts src/sdlport/* under GPL 2+,
+    # and everything around it is public domain or WTFPL, which does not
+    # narrow that. Assets we write ourselves follow the binary.
+    "GPL-2.0-or-later",
     "OFL-1.1",
 ]
 
@@ -48,6 +52,15 @@ modified = false
 path = "lisp/**"
 origin = "Crack dot Com (abuse-lib)"
 license = "public-domain"
+modified = false
+
+[[asset]]
+# Ours, and it must come before the addon/** glob below: the checker takes
+# the first glob that matches. The pack is a skeleton today; every asset that
+# lands in it gets its own entry with tool, model and date when it is AI-made.
+path = "addon/challenge/**"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
 modified = false
 
 [[asset]]
