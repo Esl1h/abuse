@@ -1,0 +1,20 @@
+# LeakSanitizer suppressions.
+#
+# The point of this file is to let leak detection be on at all. With these
+# two quiet, a leak introduced by new code fails the suite instead of
+# vanishing into a pile that was already there.
+#
+# Measured on 2026-09-20, after the spec directory cache was fixed: 51,304
+# bytes survive a headless run, and 51,248 of them are the first entry
+# below. What is actually ours is 56 bytes.
+
+# ALSA, reached through SDL_native_midi's open_seq. Not ours, allocated once
+# when the sequencer opens, and held for the life of the process by design.
+# 1,566 allocations of it.
+leak:open_seq
+
+# The event handler built in Game::Game, through WindowManager, and never
+# deleted: 56 bytes, and the tree under it is still reachable so it is not
+# reported. Tearing it down means deciding a shutdown order for code that
+# has never had one, which is a task of its own and not a leak fix.
+leak:EventHandler::EventHandler

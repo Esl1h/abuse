@@ -1673,7 +1673,15 @@ bFILE *level::create_dir(char *filename, int save_all,
 
   sd.calc_offsets();
 
-  return sd.write(filename);
+  // The entries are ours: add_by_hand takes a `new spec_entry` and nothing
+  // else owns them, and ~spec_directory frees the array without touching
+  // what it points at. Every save leaked all of them, which LeakSanitizer
+  // found the moment leak detection was turned on for the suite.
+  //
+  // After the write, which is what reads them.
+  bFILE *fp = sd.write(filename);
+  sd.delete_entries();
+  return fp;
 }
 
 void scale_put(image *im, image *screen, int x, int y, short new_width, short new_height);

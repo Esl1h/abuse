@@ -227,9 +227,18 @@ int sound_init( int argc, char **argv )
         else
             printf( "Sound: none yet. The Remastered mode has no free sound\n"
                     "       set so far; --mode original uses the classic one.\n" );
+        SDL_free( sfxdir );
         return 0;
     }
-    free( sfxdir );
+#ifndef WIN32
+    // The probe is an open handle on the directory and this is the branch
+    // where it succeeded.
+    fclose( fd );
+#endif
+    // SDL_free and not free: SDL_malloc allocated it, and a program that
+    // hands SDL its own allocator with SDL_SetMemoryFunctions would be
+    // returning this block to the wrong heap.
+    SDL_free( sfxdir );
 
     audiospec.format = SDL_AUDIO_S16;
     audiospec.channels = 2;

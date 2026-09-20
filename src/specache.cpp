@@ -95,21 +95,18 @@ void spec_directory_cache::clear()
   size=0;
   clear(fn_root);
   fn_root=0;
+  fn_list=0;
 }
 
 void spec_directory_cache::clear(filename_node *f)
 {
-  if (f)
-  {
-    if (f->left)
-    {
-      clear(f->left);
-      delete f->left;
-    }
-    if (f->right)
-    {
-      clear(f->right);
-      delete f->right;
-    }
-  }
+  // Deletes the node it is given, which the version before this one did
+  // not: it walked down deleting children and left every root alive, so
+  // clearing the cache freed the branches and kept the trunk.
+  if (!f)
+    return;
+
+  clear(f->left);
+  clear(f->right);
+  delete f;
 }

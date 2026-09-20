@@ -28,9 +28,15 @@
 ;;
 ;; (load_tiles "addon/challenge/challenge.spe")
 
-;; The map to start on. One so far, compiled by tools/asciimap from the text
-;; grid in tools/asciimap/maps/distress.txt.
-(set_first_level "addon/challenge/maps/distress.lvl")
-
 ;; The rest of the game, unchanged.
 (load "abuse.lsp")
+
+;; The map to start on. One so far, compiled by tools/asciimap from the text
+;; grid in tools/asciimap/maps/distress.txt.
+;;
+;; After the load and not before it, which is where the 1995 example in
+;; addon/example puts it. lisp/startup.lsp, which abuse.lsp pulls in, calls
+;; set_first_level itself unless -f was given on the command line, so an
+;; add-on that sets it first has its choice quietly overwritten and the
+;; player lands in the campaign. Anyone copying the old example hits this.
+(set_first_level "addon/challenge/maps/distress.lvl")

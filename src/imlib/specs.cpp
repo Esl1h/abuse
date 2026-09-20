@@ -1004,12 +1004,18 @@ void spec_directory::add_by_hand(spec_entry *e)
 
 void spec_directory::delete_entries()   // if the directory was created by hand instead of by file
 {
-  int i;
-  for (i=0; i<total; i++)
+  for (int i = 0; i < total; i++)
     delete entries[i];
 
-  if (total)
-    free(entries);
+  free(entries);
+
+  // Left empty, so the destructor that runs afterwards finds nothing to do.
+  // Without this the destructor freed `entries` a second time, which meant
+  // there was no safe way to call this at all: the one caller that did got
+  // away with it only because its path needs profiling turned on and so
+  // almost never runs.
+  entries = NULL;
+  total = 0;
 }
 
 void note_open_fd(int fd, char const *str)

@@ -120,14 +120,21 @@ add_test(NAME window
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})
 set_tests_properties(window PROPERTIES SKIP_RETURN_CODE 77)
 
-# The engine leaks ~210 KB at exit (1882 allocations, spec_directory_cache
-# and friends; known and recorded). LeakSanitizer turns
-# that into exit code 1 and kills the scripts, whose set -e treats it as a
-# test failure. Leak reporting stays available when the binary is run by
-# hand; the value of the asan preset is in the memory-error checks, which
-# this does not touch.
-set_tests_properties(replays snapshots window PROPERTIES
-    ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+# Leak detection is on, with the roots that are never torn down listed in
+# tests/lsan.supp. It used to be off entirely, because the engine abandoned
+# ~200 KB at exit and LeakSanitizer turned that into exit code 1, which the
+# scripts' set -e read as a failure.
+#
+# Most of that pile was one defect and is gone; what is left is the window
+# manager, which has no shutdown, and ALSA. Suppressing those two and
+# turning detection on is worth more than the pile was costing: a leak
+# introduced by new code now fails the suite instead of disappearing into
+# it.
+# The suppression file goes to LSAN_OPTIONS and not to ASAN_OPTIONS: they
+# are separate files with separate grammars, and ASan answers a `leak:` line
+# with "failed to parse suppressions" and exits.
+set_tests_properties(replays save aspect snapshots window PROPERTIES
+    ENVIRONMENT "ASAN_OPTIONS=detect_leaks=1;LSAN_OPTIONS=suppressions=${abuse_SOURCE_DIR}/tests/lsan.supp")
 
 else()
     message(STATUS "No bash found: the replay and snapshot suites are not registered")

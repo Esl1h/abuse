@@ -14,6 +14,7 @@
 #include "specs.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 class spec_directory_cache
 {
@@ -30,13 +31,21 @@ class spec_directory_cache
       sd = dir;
       next = left = right = 0;
     }
+    // Both of these are the node's own: the name is strdup'd above and the
+    // directory is new'd by the only caller. Without this the node was
+    // freed and everything it owned stayed, which is where nearly all of
+    // the 200 KB the sanitiser reported came from.
+    ~filename_node() { free(fn); delete sd; }
     long size;
   } *fn_root,*fn_list;
   void clear(filename_node *f); // private recursive member
   long size;
   public :
   spec_directory *get_spec_directory(char const *filename, bFILE *fp=NULL);
-  spec_directory_cache() { fn_root=0; size=0; }
+  // fn_list too. It was left uninitialised and read on the first insert;
+  // it worked only because the one instance of this class is a global, and
+  // so started zeroed.
+  spec_directory_cache() { fn_root=0; fn_list=0; size=0; }
   void clear();                             // frees up all allocated memory
   void load(bFILE *fp);
   void save(bFILE *fp);
