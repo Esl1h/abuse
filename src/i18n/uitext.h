@@ -50,6 +50,7 @@ inline constexpr Phrase kOff            = { "off", "desligado" };
 inline constexpr Phrase kOptMode        = { "Mode", "Modo" };
 inline constexpr Phrase kModeOriginal   = { "Original", "Original" };
 inline constexpr Phrase kModeRemaster   = { "Remastered", "Remasterizado" };
+inline constexpr Phrase kOptAspect      = { "Picture shape", "Formato da imagem" };
 inline constexpr Phrase kOptHud         = { "HUD", "HUD" };
 inline constexpr Phrase kHudClassic     = { "classic", "cl\xe1" "ssico" };
 inline constexpr Phrase kHudModern      = { "modern", "moderno" };

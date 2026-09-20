@@ -83,6 +83,55 @@ char const *filter_name(Filter f)
     return "pixelart";
 }
 
+namespace {
+
+struct AspectEntry
+{
+    Aspect aspect;
+    char const *name;
+    int width;
+};
+
+// 240 times the ratio, rounded: the buffer is 200 tall and is presented as
+// 240, which is where the aspect correction of the original lives.
+AspectEntry const kAspects[] = {
+    { Aspect::Classic,   "4:3",   320 },
+    { Aspect::Wide16x10, "16:10", 384 },
+    { Aspect::Wide16x9,  "16:9",  427 },
+    { Aspect::Ultra21x9, "21:9",  560 },
+};
+
+}
+
+int aspect_width(Aspect a)
+{
+    for (AspectEntry const &e : kAspects)
+        if (e.aspect == a)
+            return e.width;
+    return 320;
+}
+
+char const *aspect_name(Aspect a)
+{
+    for (AspectEntry const &e : kAspects)
+        if (e.aspect == a)
+            return e.name;
+    return "4:3";
+}
+
+bool parse_aspect(char const *name, Aspect &out)
+{
+    if (!name)
+        return false;
+    for (AspectEntry const &e : kAspects)
+        if (equals(name, e.name))
+        {
+            out = e.aspect;
+            return true;
+        }
+    return false;
+}
+
 bool parse_switch(char const *text, bool &out)
 {
     if (!text)

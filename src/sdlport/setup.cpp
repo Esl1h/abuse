@@ -186,6 +186,10 @@ void createRCFile( char *rcfile )
         fputs( "; The mix, as percentages. These survive a restart; the volume\n", fd );
         fputs( "; window in the menu is the slider for the session.\n", fd );
         fputs( ";volume_master=100\n;volume_sfx=100\n;volume_music=100\n;volume_ui=100\n\n", fd );
+        fputs( "; Shape of the picture: 4:3, 16:10, 16:9 or 21:9. A wider one\n", fd );
+        fputs( "; shows more of the room; what wakes up in a level does not\n", fd );
+        fputs( "; change with it. Takes effect when the game starts.\n", fd );
+        fputs( ";aspect=16:9\n\n", fd );
         fputs( "; A knock to the camera when the player is hit.\n", fd );
         fputs( ";shake=off\n\n", fd );
         fputs( "; A dark line under each pixel row, the way a CRT left one.\n", fd );
@@ -387,6 +391,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown shake '%s', expected on or off\n",
                             result );
+            }
+            else if( strcasecmp( result, "aspect" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::Aspect a;
+                if( result && abuse::render::parse_aspect( result, a ) )
+                    abuse::render::options().aspect = a;
+                else
+                    printf( "Config: unknown aspect '%s', expected 4:3, 16:10,"
+                            " 16:9 or 21:9\n", result );
             }
             else if( strcasecmp( result, "scanlines" ) == 0 )
             {
@@ -723,7 +737,7 @@ void setup( int argc, char **argv )
     flags.xres = xres        = 320;  // Default window width
     flags.yres = yres        = 200;  // Default window height
 
-    // A wider buffer, for the phase 6.5 measurements only: see
+    // A wider buffer, for the phase 6.5 measurements: see
     // abuse::harness::viewport_size. The engine has refused -size outside
     // the editor since 1995, and that refusal stays where it is.
     {
@@ -734,6 +748,9 @@ void setup( int argc, char **argv )
             flags.yres = yres = vh;
         }
     }
+
+    // The aspect from abuserc, read further down: applied after it, in
+    // apply_aspect() below, because this runs before the file is read.
     keys.up                  = key_value( "UP" );
     keys.down                = key_value( "DOWN" );
     keys.left                = key_value( "LEFT" );
@@ -910,6 +927,21 @@ void setup( int argc, char **argv )
         // always presents the classic way regardless of what the config says.
         abuse::render::apply_preset( abuse::render::Preset::Classic,
                                      abuse::render::options() );
+    }
+
+    // The shape of the picture, from abuserc, applied here because the file
+    // is read above and everything sized from the buffer comes after.
+    //
+    // Never in the Original mode: that mode is what the snapshots compare
+    // against, and a wider buffer is a different picture. Never under the
+    // harness either, which has --viewport for this and pins it there.
+    if( abuse::data::mode() != abuse::data::Mode::Original
+        && !abuse::harness::headless() )
+    {
+        int const want = abuse::render::aspect_width(
+            abuse::render::options().aspect );
+        if( want > xres )
+            flags.xres = xres = want;
     }
 
     // Calculate the scaled window size.

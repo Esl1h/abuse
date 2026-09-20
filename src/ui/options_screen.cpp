@@ -88,6 +88,39 @@ void mode_value(char *buf, size_t n)
     snprintf(buf, n, "%s", data::mode_name(data::mode()));
 }
 
+// ---- picture shape --------------------------------------------------------
+
+// 4:3 through 21:9. Only on the next run: the buffer, the views and the
+// light table are all sized from it when the game starts.
+//
+// What wakes up in a level does not follow this, which is what makes it
+// safe to offer: see view::classic_xoff.
+void aspect_step(int dir)
+{
+    static render::Aspect const order[] = {
+        render::Aspect::Classic, render::Aspect::Wide16x10,
+        render::Aspect::Wide16x9, render::Aspect::Ultra21x9
+    };
+    int const count = (int)(sizeof(order) / sizeof(order[0]));
+
+    int at = 0;
+    for (int i = 0; i < count; i++)
+        if (order[i] == render::options().aspect)
+            at = i;
+
+    render::options().aspect = order[list_wrap(at, dir, count)];
+}
+
+void aspect_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::aspect_name(render::options().aspect));
+}
+
+void aspect_value(char *buf, size_t n)
+{
+    aspect_show(buf, n);
+}
+
 // ---- HUD ------------------------------------------------------------------
 
 // Takes effect at once: the strip asks classic_hud() before it draws, and the
@@ -313,6 +346,7 @@ void same_as_shown(char *buf, size_t n) { (void)buf; (void)n; }
 
 Item const kItems[] = {
     { i18n::kOptMode,        "mode",        true,  mode_step,     mode_show,     mode_value },
+    { i18n::kOptAspect,      "aspect",      true,  aspect_step,   aspect_show,   aspect_value },
     { i18n::kOptHud,         "hud",         false, hud_step,      hud_show,      hud_value },
     { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
     { i18n::kOptLighting,    "rgblight",    false, light_step,    light_show,    light_value },

@@ -31,6 +31,25 @@ enum class Filter
     PixelArt    // nearest with smoothed edges at non-integer factors
 };
 
+// The shape of the picture. The game draws into a buffer 200 pixels tall and
+// the presentation stretches it to 240, so the width that gives a ratio is
+// 240 times it: 320 for 4:3, 427 for 16:9.
+//
+// What wakes up in a level does not follow this; see view::classic_xoff.
+// A wider picture shows more of the room and fights the same fight, which
+// is what makes it safe to offer at all.
+enum class Aspect
+{
+    Classic,    // 4:3, the shape the levels were drawn for
+    Wide16x10,
+    Wide16x9,
+    Ultra21x9
+};
+
+int aspect_width(Aspect a);
+char const *aspect_name(Aspect a);
+bool parse_aspect(char const *name, Aspect &out);
+
 struct Options
 {
     ScaleMode scale = ScaleMode::Fit;
@@ -38,6 +57,10 @@ struct Options
     bool vsync = true;
     int fps_limit = 0;              // 0 = no limit beyond vsync
     uint8_t letterbox[3] = {0, 0, 0};
+
+    // The shape of the picture, which only takes effect when the game starts:
+    // the buffer, the views and the light table are all sized from it.
+    Aspect aspect = Aspect::Classic;
 
     // Dark lines between the game's pixel rows, the way a CRT left one. Only
     // where there is room for them: at least two window rows per game row.
