@@ -31,6 +31,9 @@ classic preset is always there.
   strip of icons is one line of config away
 - **An optional new HUD** (`hud=modern`) drawn at native resolution, with a
   health bar that shows the hit you just took
+- **Widescreen** (`aspect=16:9`, and 16:10 and 21:9): a wider picture shows
+  more of the room and changes nothing about the fight, because what wakes
+  up in a level is a 4:3 region around the player whatever the window does
 - **Optional RGB lighting**, the 1995 curve without the palette snap that
   bands every dark corner, and **CRT scanlines** to go with it
 - **Smooth movement** between logical ticks, which is there and is off: the
@@ -143,7 +146,9 @@ Open:
   are the hard part. Until then the Remastered mode is silent
 - **Human validation** of everything above: none of it has been played yet,
   and Windows has never run this code at all
-- GPU post-processing (CRT, bloom), coloured light, widescreen, an HD pack
+- GPU post-processing (CRT, bloom), coloured light, an HD pack
+- Widescreen needs a person to look at it: the scan says no level shows an
+  empty edge at 16:9 or 21:9, but that is one position per level
 - Packaging, which waits on a name for the project
 - More replays that do something. One exists now, recorded from a text
   script, and it is what a person's eyes caught before any test did
