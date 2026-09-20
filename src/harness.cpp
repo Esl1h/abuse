@@ -57,6 +57,7 @@ struct Options {
     bool mode_given = false;
     bool level_info = false;
     bool save_test = false;
+    bool particle_demo = false;
     bool save_dialog = false;
     int viewport_w = 0;
     int viewport_h = 0;
@@ -310,6 +311,8 @@ void parse_args(int argc, char **argv)
             // goes into the 320x200 buffer, and by then it is already there.
             abuse::ui::set_classic_hud(false);
         }
+        else if (!strcmp(argv[i], "--particle-demo"))
+            opt.particle_demo = true;
         else if (!strcmp(argv[i], "--scanlines"))
             abuse::render::options().scanlines = true;
         else if (!strcmp(argv[i], "--save-test"))
@@ -549,6 +552,11 @@ void before_game()
         LSymbol::FindOrCreate("darkest_gray")->SetNumber(16);
         LSpace::Current = sp;
     }
+}
+
+bool particle_demo()
+{
+    return opt.particle_demo;
 }
 
 bool start_demo()

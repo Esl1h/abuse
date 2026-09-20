@@ -2867,6 +2867,22 @@ int main(int argc, char *argv[])
                 g->step();
                 abuse::render::shake_tick();
                 abuse::render::particles_tick();
+
+                // A scripted run meets no enemy and carries no ammunition,
+                // so the two spawns the game has never fire. This one does,
+                // which is how the drawer gets a reference frame.
+                if (abuse::harness::particle_demo()
+                    && g->first_view && g->first_view->m_focus)
+                {
+                    static int demo_tick = 0;
+                    if ((demo_tick++ % 3) == 0)
+                    {
+                        game_object *o = g->first_view->m_focus;
+                        abuse::render::spawn_sparks(o->x, o->y - 10, 3, 0);
+                        abuse::render::spawn_smoke(o->x, o->y - 20, 1);
+                        abuse::render::spawn_casing(o->x, o->y - 10, o->direction);
+                    }
+                }
                 server_check();
                 g->calc_speed();
 

@@ -164,6 +164,7 @@ Test harness flags (`src/harness.cpp`):
 | `--out <dir>` | Output directory for the dumps |
 | `--dump-bindings` | Prints the resolved action map |
 | `--dump-options`, `--dump-controls`, `--dump-language`, `--dump-classic-data`, `--dump-menu-hint`, `--dump-start-menu`, `--dump-hud` | Draws one of the new screens into a scripted frame |
+| `--particle-demo` | Throws debris at the player every few ticks, which nothing in a scripted run does on its own |
 | `--frame-alpha F` | Forces the interpolated draw at a fixed point between two ticks |
 | `--input-script <file>` | Drives the player from a text file, one line of `<ticks> <actions>` per stretch. With `--record` it writes a real recording of what the script did |
 | `--level-info` | Prints the geometry of the level that loaded, and what each aspect ratio would need of it |

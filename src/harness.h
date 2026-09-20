@@ -106,6 +106,12 @@ void before_game();
 // scripted run.
 bool start_demo();
 
+// True under --particle-demo: a burst of debris at the player every few
+// ticks, so the particle drawer gets a golden frame of its own. The two
+// spawns the game itself has need a hit and a round of ammunition, neither
+// of which happens in a scripted run down an empty corridor.
+bool particle_demo();
+
 // Called once per iteration of the main loop, after the world has stepped.
 // Returns false when the run should end.
 bool tick();

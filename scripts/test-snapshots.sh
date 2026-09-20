@@ -97,7 +97,8 @@ if [ "$window" = 1 ]; then
             "hud-en 1280 720 en --dump-hud" \
             "rgblight-en 1280 720 en --rgb-light" \
             "crt-en 1280 720 en --rgb-light --scanlines" \
-            "interp-en 1280 720 en --frame-alpha 0.5 --replay level00-run"
+            "interp-en 1280 720 en --frame-alpha 0.5 --replay level00-run" \
+            "particles-en 1280 720 en --particle-demo"
         do
             # shellcheck disable=SC2086 # the fields are meant to split
             set -- $shot
