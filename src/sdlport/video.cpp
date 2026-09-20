@@ -84,9 +84,13 @@ void apply_presentation()
 
     SDL_RendererLogicalPresentation mode = presentation_for(abuse::render::options().scale);
 
-    if (xres == 320 && yres == 200)
+    // Any 200 tall buffer gets the same treatment, not just the 320 wide
+    // one: a widescreen picture is still made of the same non-square pixels,
+    // and 427x200 presented as 427x240 is what makes it 16:9 rather than
+    // 16:7.5. Phase 6, block 6.5.
+    if (yres == 200)
     {
-        SDL_SetRenderLogicalPresentation(renderer, 320, 240, mode);
+        SDL_SetRenderLogicalPresentation(renderer, xres, 240, mode);
         mouse_yscale = 200.0f / 240.0f;
     }
     else
@@ -119,10 +123,11 @@ void set_mode(int argc, char **argv)
         win_width *= 2;
     if (win_height < 400)
         win_height *= 2;
-    if (xres == 320 && yres == 200)
+    if (yres == 200)
     {
-        // Correct for the weird 320x200 aspect ratio
-        win_width = 640;
+        // Correct for the weird 200 line aspect ratio: the buffer is
+        // presented as if it were 240 tall.
+        win_width = xres * 2;
         win_height = 480;
 
         // 640x480 was the whole screen in 1996 and is a postage stamp on a
@@ -133,14 +138,14 @@ void set_mode(int argc, char **argv)
         SDL_Rect usable;
         if (display && SDL_GetDisplayUsableBounds(display, &usable))
         {
-            int by_width = usable.w * 9 / 10 / 320;
+            int by_width = usable.w * 9 / 10 / xres;
             int by_height = usable.h * 9 / 10 / 240;
             int multiple = by_width < by_height ? by_width : by_height;
             if (multiple > 6)
                 multiple = 6;
             if (multiple > 2)
             {
-                win_width = 320 * multiple;
+                win_width = xres * multiple;
                 win_height = 240 * multiple;
             }
         }
@@ -314,12 +319,18 @@ void put_part_image(image *im, int x, int y, int x1, int y1, int x2, int y2)
     dpixel += dstrect.x * SDL_BYTESPERPIXEL(surface->format) + (dstrect.y) * surface->pitch;
 
     // Update surface part
+    //
+    // By the pitch and not by the width: SDL pads each row of a surface to
+    // an alignment, and the two are only the same number when the width
+    // happens to be a multiple of four. At 320 they always were, so this
+    // held for thirty years; at 427 every row lands a byte further along
+    // than the last and the picture shears into a diagonal wrap.
     srcy = srcrect.y;
     dpixel = ((Uint8 *)surface->pixels) + y * surface->pitch + x ;
     for(ii=0 ; ii < srcrect.h; ii++)
     {
         memcpy(dpixel, im->scan_line(srcy) + srcrect.x , srcrect.w);
-        dpixel += surface->w;
+        dpixel += surface->pitch;
         srcy ++;
     }
 
