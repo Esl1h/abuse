@@ -25,6 +25,15 @@ bool headless();
 // runs one frame per tick, where there is nothing to blend.
 bool frame_alpha(float &out);
 
+// --save-dialog: opens the save-slot picker, the thing that stands between
+// pressing down at a save console and a file being written, and closes it
+// with Esc. Prints what it returned.
+//
+// The picker is where the Windows crash has to be: writing the file itself
+// is covered by --save-test and passes there. It builds thumbnails from
+// whatever saves exist, makes a window out of icon art, and runs its own
+// event loop, and none of that had ever been exercised by a test.
+
 // --save-test: saves the game at the end of the run, the way the save
 // console does, and says on stdout whether the file was written and how big
 // it is. The point is the path and the writing, not the contents.

@@ -12,11 +12,19 @@ set -uo pipefail
 bin=${1:?usage: test-save.sh <binary>}
 level=${2:-levels/level00.spe}
 
+# The picker as well as the writing: pressing down at a save console opens a
+# window full of slots before any file is touched, and that window is where
+# the Windows crash has to be, since the writing passes there.
 out=$("$bin" --headless -nodelay --level "$level" \
       --input-script tests/inputs/level00-run.txt --max-ticks 60 \
-      --save-test -datadir ./data 2>&1)
+      --save-dialog --save-test -datadir ./data 2>&1)
 
-echo "$out" | grep -E "save-test:|Failed to save|Unable to open file" || true
+echo "$out" | grep -E "save-test:|save-dialog:|Failed to save|Unable to open file" || true
+
+if ! echo "$out" | grep -q "^save-dialog: returned"; then
+    echo "FAIL: the save-slot picker did not come back"
+    exit 1
+fi
 
 if ! echo "$out" | grep -q "^save-test: wrote"; then
     echo "FAIL: no savegame was written"

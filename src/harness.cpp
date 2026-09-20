@@ -23,6 +23,12 @@
 #include "demo.h"
 #include "game.h"
 #include "level.h"
+#include "loadgame.h"
+#include "clisp.h"
+#include "lisp.h"
+#include "dev.h"
+#include "jwindow.h"
+#include "keys.h"
 #include "objects.h"
 #include "chars.h"
 #include "jrand.h"
@@ -36,6 +42,7 @@
 #include "ui/hud.h"
 #include "configuration.h"
 #include "lisp.h"
+#include "dev.h"
 #include "lisp_gc.h"
 
 namespace abuse::harness {
@@ -50,6 +57,7 @@ struct Options {
     bool mode_given = false;
     bool level_info = false;
     bool save_test = false;
+    bool save_dialog = false;
     int viewport_w = 0;
     int viewport_h = 0;
     // Interpolation is off under the harness, because one frame is one tick
@@ -306,6 +314,8 @@ void parse_args(int argc, char **argv)
             abuse::render::options().scanlines = true;
         else if (!strcmp(argv[i], "--save-test"))
             opt.save_test = true;
+        else if (!strcmp(argv[i], "--save-dialog"))
+            opt.save_dialog = true;
         else if (!strcmp(argv[i], "--viewport"))
         {
             opt.viewport_w = (int)take_number(argc, argv, i, "--viewport");
@@ -728,7 +738,29 @@ void after_frame()
 
 void finish()
 {
-    if (opt.save_test)
+    // Called twice: once when the main loop ends and once when main does.
+    // Harmless for a hash, not for anything that acts on the world. The
+    // save dialog opened a second time with nothing queued to close it and
+    // sat in its event loop for as long as it was given.
+    static bool already_finished = false;
+    bool const first_time = !already_finished;
+    already_finished = true;
+
+    if (first_time && opt.save_dialog)
+    {
+        // Esc first: the picker reads events until it has a slot or a
+        // cancel, and there is nobody here to press anything.
+        Event *escape = new Event();
+        escape->type = EV_KEY;
+        escape->key = JK_ESC;
+        wm->Push(escape);
+
+        printf("save-dialog: opening\n");
+        int slot = load_game(1, symbol_str("SAVE"));
+        printf("save-dialog: returned %d\n", slot);
+    }
+
+    if (first_time && opt.save_test)
     {
         if (!current_level)
             printf("save-test: no level loaded\n");
