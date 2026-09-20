@@ -53,7 +53,6 @@ Colour const kPick     = rgba(255, 220, 120);
 
 // An empty weapon slot: present enough to be counted, faint enough not to
 // be mistaken for something being carried.
-Colour const kEmpty    = rgba(120, 120, 135, 90);
 
 bool g_classic = true;      // until the HUD covers everything the strip shows
 bool g_pinned = false;
@@ -174,16 +173,25 @@ void draw_weapons(view *v, int right, int bottom, int k, int text)
     int n = total_weapons < TOTAL_WEAPONS ? total_weapons : TOTAL_WEAPONS;
     int gap = 2 * k;
 
-    // Every slot, not only the ones being carried. The 1995 strip shows the
-    // empty ones as part of its artwork, and a player reads the gaps as
-    // "there are three more of these somewhere"; a HUD that simply left
-    // them out told them less than the thing it replaced.
+    // Only what is being carried, packed against the right edge, so the row
+    // grows as weapons are found.
+    //
+    // It used to draw every slot, empty ones included, the way the 1995
+    // strip does: the gaps told a player there were more of these
+    // somewhere. That needed a box per slot to be legible at all, and the
+    // boxes were the first thing a player asked to have removed. Without
+    // them an empty slot is an invisible hole, and one icon floating in the
+    // middle of the screen says less than no gaps at all.
     //
     // Right to left, so the row grows away from the edge it is pinned to.
     int x = right;
     for (int i = n - 1; i >= 0; i--)
     {
         if (g_weapon_icon[i] < 0)
+            continue;
+
+        bool const owned = v->has_weapon(i) != 0;
+        if (!owned)
             continue;
 
         image *im = cache.img(g_weapon_icon[i]);
@@ -194,18 +202,17 @@ void draw_weapons(view *v, int right, int bottom, int k, int text)
         int ih = im->Size().y * k;
         x -= iw;
 
-        bool const owned = v->has_weapon(i) != 0;
-        bool const current = owned && v->current_weapon == i;
+        bool const current = v->current_weapon == i;
         int top = bottom - Overlay::TextHeight(text) - ih - k;
 
-        overlay().FillRect(x - k, top - k, iw + 2 * k,
-                           ih + Overlay::TextHeight(text) + 3 * k,
-                           current ? kEdge : kWell);
+        // No box around the slot. It was there to group the icon with its
+        // count and it only added furniture: the icons are already spaced
+        // apart, and a grid of rectangles over the game reads as a menu
+        // rather than as a read-out. Which weapon is in hand is said by the
+        // bar under it and by the colour of the count.
         if (current)
-            overlay().FillRect(x, top, iw, ih + Overlay::TextHeight(text) + k,
-                               kWell);
+            overlay().FillRect(x, bottom + k, iw, k, kPick);
 
-        if (owned)
         {
             char count[16];
             snprintf(count, sizeof(count), "%d", v->weapon_total(i));
@@ -216,14 +223,6 @@ void draw_weapons(view *v, int right, int bottom, int k, int text)
                            bottom - Overlay::TextHeight(text) - k, count, text,
                            current ? kPick : kDim);
         }
-        else
-        {
-            // An empty slot: the shape of the cell and nothing in it, so the
-            // row keeps its length and the gap is legible as a gap.
-            overlay().FrameRect(x, top, iw, ih + Overlay::TextHeight(text) + k,
-                                kEmpty);
-        }
-
         x -= gap;
     }
 }
@@ -313,22 +312,27 @@ void draw_hud()
     if (hp > full)
         full = hp;
 
-    int bar_w = 40 * k;
-    int bar_h = 6 * k;
+    // At the same size as the rest of the overlay. It was drawn at twice
+    // that, which made the health the loudest thing on screen when it is
+    // the one number a player checks in passing.
+    int const health_text = text;
+
+    int bar_w = 28 * k;
+    int bar_h = 4 * k;
     int bar_x = gx + margin;
     // Centred on the number beside it rather than on the bottom margin.
-    int bar_y = h - margin - Overlay::TextHeight(text * 2)
-                + (Overlay::TextHeight(text * 2) - bar_h) / 2;
+    int bar_y = h - margin - Overlay::TextHeight(health_text)
+                + (Overlay::TextHeight(health_text) - bar_h) / 2;
 
     char number[16];
     snprintf(number, sizeof(number), "%d", hp);
-    int num_w = Overlay::TextWidth("100", text * 2);
+    int num_w = Overlay::TextWidth("100", health_text);
 
     // The number first and the bar beside it, both on the same baseline: the
     // eye goes to the number, and the bar says how far from empty it is
     // without having to be read.
-    ov.Text(overlay_font(), bar_x, h - margin - Overlay::TextHeight(text * 2),
-            number, text * 2, hp * 4 < full ? kHealthLo : kInk);
+    ov.Text(overlay_font(), bar_x, h - margin - Overlay::TextHeight(health_text),
+            number, health_text, hp * 4 < full ? kHealthLo : kInk);
 
     draw_bar(bar_x + num_w + 2 * k, bar_y, bar_w, bar_h, hp,
              g_health.tail(hp), full, hp * 4 < full ? kHealthLo : kHealth);
