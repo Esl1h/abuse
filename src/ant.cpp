@@ -475,6 +475,20 @@ void show_stats()
     int w = wm->font()->Size().x * strlen(msg),
         h = wm->font()->Size().y;
     int x=(x1+x2)/2-w/2,y=(y1+y2)/2-h/2;
+
+    // Centred in the strip beside the cover art, which is where it belongs
+    // and also where a long message runs off the right edge of the buffer:
+    // the border is drawn past 320 and the frame never closes. Reported in
+    // Brazilian Portuguese, and the same arithmetic does it in any language
+    // whose string is long enough for the font in use.
+    //
+    // Pushed back inside rather than re-centred, so it still sits beside the
+    // art when it fits.
+    if (x + w + 10 > xres - 1)
+      x = xres - 1 - w - 10;
+    if (x - 10 < 0)
+      x = 10;
+
     main_screen->Bar(ivec2(x - 10, y - 10), ivec2(x + w + 10, y + h + 10),
                      wm->bright_color());
     main_screen->Bar(ivec2(x - 9, y - 9), ivec2(x + w + 9, y + h + 9),
