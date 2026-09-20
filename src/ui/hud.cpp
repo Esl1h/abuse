@@ -253,19 +253,38 @@ void draw_hud()
     if (!v || !v->m_focus)
         return;
 
-    int w = 0, h = 0;
-    if (!window_pixel_size(w, h))
+    int win_w = 0, win_h = 0;
+    if (!window_pixel_size(win_w, win_h))
         return;
 
     Overlay &ov = overlay();
-    if (!ov.Begin(w, h))
+    if (!ov.Begin(win_w, win_h))
         return;
     if (overlay_font().Empty())
         return;
 
-    int const text = list_scale_for(h);
+    // Inside the picture, not inside the window. The overlay covers the whole
+    // window, letterbox bars included, and a HUD pinned to the window corners
+    // ends up outside the game in fullscreen, which is where it was.
+    //
+    // The view rather than the whole 320x200 buffer: the status bar area at
+    // the bottom is not part of what the player is looking at.
+    int gx = 0, gy = 0, gw = win_w, gh = win_h;
+    if (!game_rect_to_window(v->m_aa.x, v->m_aa.y,
+                             v->m_bb.x - v->m_aa.x + 1,
+                             v->m_bb.y - v->m_aa.y + 1, gx, gy, gw, gh))
+    {
+        gx = 0; gy = 0; gw = win_w; gh = win_h;
+    }
+
+    // Sized against the picture too, so the HUD keeps its proportion to the
+    // game whatever shape the window is.
+    int const text = list_scale_for(gh * 2);
     int const k = text;                 // one game pixel per text notch
     int const margin = 6 * k;
+
+    int const w = gx + gw;              // right edge of the picture
+    int const h = gy + gh;              // and its bottom
 
     // Health, bottom left. The number is the same one the strip shows, so a
     // player who knows the game reads it without learning anything.
@@ -276,7 +295,7 @@ void draw_hud()
 
     int bar_w = 40 * k;
     int bar_h = 6 * k;
-    int bar_x = margin;
+    int bar_x = gx + margin;
     // Centred on the number beside it rather than on the bottom margin.
     int bar_y = h - margin - Overlay::TextHeight(text * 2)
                 + (Overlay::TextHeight(text * 2) - bar_h) / 2;
@@ -303,7 +322,7 @@ void draw_hud()
         float ms = frame_ms();
         snprintf(fps, sizeof(fps), "%.1f fps", ms > 0.f ? 1000.f / ms : 0.f);
         ov.Text(overlay_font(), w - margin - Overlay::TextWidth(fps, text),
-                margin, fps, text, kDim);
+                gy + margin, fps, text, kDim);
     }
 }
 
