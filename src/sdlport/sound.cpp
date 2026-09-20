@@ -36,7 +36,10 @@
 
 #include "sound.h"
 
+#include <string>
+
 #include "audio/buses.h"
+#include "audio/formats.h"
 #include "audio/limiter.h"
 #include "audio/voices.h"
 #include "data/paths.h"
@@ -296,12 +299,47 @@ sound_effect::sound_effect(char const *filename)
     // in the data directory alone, found nothing, and left every sound without
     // a chunk, which is why the Original mode was silent and then crashed on
     // the first shot.
-    bFILE *file = open_file(filename, "rb");
-    if (file->open_failure())
+    //
+    // The name the Lisp asks for always ends in .wav. In the Remastered mode
+    // a Vorbis or FLAC file of the same name counts, because a free pack has
+    // to fit in plain git; see audio/formats.h. The Original mode gets no
+    // substitution at all.
+    bool const substitutes =
+        abuse::data::mode() != abuse::data::Mode::Original;
+
+    bFILE *file = NULL;
+    for (std::string const &name :
+         abuse::audio::sound_candidates(filename, substitutes))
     {
-        delete file;
+        bFILE *candidate = open_file(name.c_str(), "rb");
+        if (!candidate->open_failure())
+        {
+            // Said out loud, because a sound arriving from a file nobody
+            // asked for is exactly the kind of thing that is impossible to
+            // work out later from a silent game.
+            if (name != filename)
+                printf("Sound: %s served by %s\n", filename, name.c_str());
+            file = candidate;
+            break;
+        }
+        delete candidate;
+    }
+
+    if (!file)
+    {
+        // Once, for the same reason the registration says it once: with no
+        // sound pack installed this is every sound in the game, and the
+        // registration has already said so.
+        static bool said = false;
+        if (!said)
+        {
+            said = true;
+            printf("Sound: no file for %s, and nothing else will be "
+                   "reported\n", filename);
+        }
         return;
     }
+
     bFILE &fp = *file;
 
     void *temp_data = SDL_malloc(fp.file_size());

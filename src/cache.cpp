@@ -35,6 +35,8 @@
 #include "dev.h"
 #include "specache.h"
 #include "netface.h"
+#include "audio/formats.h"
+#include "data/paths.h"
 
 #define touch(x) { (x)->last_access=last_access++; \
            if ((x)->last_access<0) { normalize(); (x)->last_access=1; } }
@@ -815,25 +817,66 @@ int CacheList::reg(char const *filename, char const *name, int type, int rm_dups
 
     if (type == SPEC_EXTERN_SFX)
     {
-        // If an extern sound effect then just make sure it's there. If sound
-        // is disabled, ignore the load error, just pretend it's all OK.
-        bFILE *check = open_file(filename, "rb");
-        if (!check->open_failure())
+        // An external sound effect: check it is there and that it is
+        // something the mixer can decode.
+        //
+        // The Lisp names every sound .wav. In the Remastered mode a Vorbis
+        // or FLAC file of the same name counts, because a free pack has to
+        // fit in plain git; see audio/formats.h.
+        bool const substitutes =
+            abuse::data::mode() != abuse::data::Mode::Original;
+
+        bFILE *check = NULL;
+        std::string found;
+        for (std::string const &name :
+             abuse::audio::sound_candidates(filename, substitutes))
         {
-            char buf[4];
-            check->read(buf, 4);
-            if (memcmp(buf, "RIFF", 4))
+            bFILE *candidate = open_file(name.c_str(), "rb");
+            if (!candidate->open_failure())
             {
-                printf("File %s is not a WAV file\n", filename);
-                exit(0);
+                check = candidate;
+                found = name;
+                break;
             }
+            delete candidate;
+        }
+
+        if (check)
+        {
+            char buf[4] = { 0, 0, 0, 0 };
+            check->read(buf, 4);
+
+            // WAV, Ogg and FLAC. Checked rather than trusted, because a
+            // truncated download is the usual way this goes wrong and the
+            // message here is far easier to act on than a silent game.
+            if (memcmp(buf, "RIFF", 4) && memcmp(buf, "OggS", 4)
+                && memcmp(buf, "fLaC", 4))
+                printf("Sound: %s is not a sound file the mixer reads\n",
+                       found.c_str());
+            delete check;
         }
         else if (sound_avail)
         {
-            printf("Unable to open file '%s' for reading\n", filename);
-            exit(0);
+            // A warning and not the end of the process.
+            //
+            // This used to exit(0) here, which meant that a machine with
+            // working audio and without the original sound data could not
+            // start the game at all: the Remastered mode ships no sound of
+            // its own yet, so the very first registration failed and took
+            // the whole startup with it. It went unnoticed because it needs
+            // both halves, and every machine this was run on had one or the
+            // other.
+            // Said once. A game with no sound pack installed misses every
+            // one of its eighty-odd sounds, and eighty identical lines
+            // bury whatever else startup had to say.
+            static bool said = false;
+            if (!said)
+            {
+                said = true;
+                printf("Sound: no sound files installed, the game will be "
+                       "silent (first missing: %s)\n", filename);
+            }
         }
-        delete check;
     }
     else
     {
