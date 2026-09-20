@@ -774,6 +774,22 @@ void Game::draw_map(view *v, int interpolate)
   current_vxadd = xoff - v->m_aa.x;
   current_vyadd = yoff - v->m_aa.y;
 
+  // The view does not reach the edges of the buffer: five rows at the top
+  // and two columns at each side sit outside it (see
+  // recalc_local_view_space), and nothing ever writes to them, so they hold
+  // whatever was on screen before the level loaded. On a 320x200 buffer
+  // magnified to a fullscreen window, that stale strip is visible.
+  //
+  // Before the clip is narrowed to the view, or the clearing would be
+  // clipped away with everything else.
+  if(v->m_aa.y > 0)
+    main_screen->Bar(ivec2(0, 0), ivec2(xres - 1, v->m_aa.y - 1), 0);
+  if(v->m_aa.x > 0)
+    main_screen->Bar(ivec2(0, v->m_aa.y), ivec2(v->m_aa.x - 1, v->m_bb.y), 0);
+  if(v->m_bb.x < xres - 1)
+    main_screen->Bar(ivec2(v->m_bb.x + 1, v->m_aa.y),
+                     ivec2(xres - 1, v->m_bb.y), 0);
+
   main_screen->SetClip(v->m_aa, v->m_bb + ivec2(1));
 
   nxoff = xoff * bg_xmul / bg_xdiv;
