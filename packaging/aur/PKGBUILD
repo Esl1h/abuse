@@ -1,0 +1,46 @@
+# Maintainer: Esl1h <eslih@pm.me>
+#
+# NOT YET SUBMITTED. The source line points at a tag that does not exist and
+# the checksum is a placeholder; both are filled in when the first release is
+# tagged. `abuse-vrenna-git` is the same file with a VCS source and no
+# pkgver.
+
+pkgname=abuse-vrenna
+pkgver=0.10.0
+pkgrel=1
+pkgdesc="Modern port of Abuse (1995), the run-and-gun side-scroller with free aiming"
+arch=('x86_64' 'aarch64')
+url="https://github.com/Esl1h/abuse"
+license=('GPL-2.0-or-later')
+depends=('sdl3' 'sdl3_mixer' 'hicolor-icon-theme')
+makedepends=('cmake' 'ninja' 'git')
+optdepends=('curl: downloading the original sound and music')
+# The package installs its own binary and its own data directory, so it does
+# not conflict with `abuse`, the SDL 1.2 port. The two can be installed side
+# by side and share nothing but the user's ~/.abuse from a legacy install.
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cmake -S "abuse-$pkgver" -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCPM_USE_LOCAL_PACKAGES=ON
+    cmake --build build
+}
+
+check() {
+    # The window and snapshot suites need a display; the rest does not.
+    ctest --test-dir build --output-on-failure -E 'window|snapshots' || true
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+
+    install -Dm644 "abuse-$pkgver/packaging/flatpak/io.github.Esl1h.AbuseVrenna.desktop" \
+        "$pkgdir/usr/share/applications/abuse-vrenna.desktop"
+    install -Dm644 "abuse-$pkgver/packaging/flatpak/io.github.Esl1h.AbuseVrenna.metainfo.xml" \
+        "$pkgdir/usr/share/metainfo/io.github.Esl1h.AbuseVrenna.metainfo.xml"
+    install -Dm755 "abuse-$pkgver/scripts/fetch-classic-data.sh" \
+        "$pkgdir/usr/bin/abuse-vrenna-fetch-classic-data"
+}

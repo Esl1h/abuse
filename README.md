@@ -1,14 +1,44 @@
-# Abuse
+# Abuse: Vrenna
 
-A 2D action platformer with free aiming, made by Crack dot Com in 1995 and
-released into the public domain. You are Nick Vrenna, locked in an underground
-prison where a gene that causes violence has escaped the lab. The mouse aims
-independently of where you run, which in 1995 was new and still feels good.
-
-This fork brings it to current systems: SDL3, a fixed timestep, full gamepad
-support, a UI that stays sharp at any window size, and translations.
+A modern port of Abuse (1995), named for Nick Vrenna, the man you play.
 
 ![Fighting a mutant in the prison corridors](doc/screenshots/gameplay.png)
+
+## The game
+
+Abuse is a run-and-gun side-scroller, released as shareware by Crack dot Com
+in 1995 and published a year later by Electronic Arts. It is remembered for
+one idea: **your hands do different jobs.** The keyboard runs and jumps, the
+mouse aims, and the two are completely independent. You can sprint left while
+firing up and to the right, which every twin-stick shooter since has taken for
+granted and almost nothing in 1995 could do.
+
+The rest is a dark, deliberate game. Enemies come in swarms and kill quickly,
+ammunition runs out, and the levels are built around switches, keys and
+hazards as much as around shooting. It ships with the editor the developers
+used, and the whole game is scripted in a Lisp dialect that loads at startup.
+
+Two years after release Crack dot Com published the source code, and the
+shareware data, sound effects aside, entered the public domain. That is why
+the game is still alive, and why this port can exist at all.
+
+## The story
+
+Nick Vrenna is in a prison he does not deserve, where the staff run medical
+experiments on the inmates. One of those experiments is a substance the
+project calls **Abuse**.
+
+A riot breaks out. In the confusion the experiment escapes containment, and
+Abuse takes the prison: inmates and guards alike turn into something else.
+Nick, alone, is immune. He learns the contagion is about to reach the water
+supply and the world outside, arms himself with whatever the facility left
+lying around, and goes down into the complex to stop it before he gets out.
+
+## This port
+
+SDL3, a fixed timestep, full gamepad support, a UI that stays sharp at any
+window size, and translations. Everything new is optional, and the 1995 game
+is still in there untouched.
 
 ## Two modes
 

@@ -166,7 +166,7 @@ void set_mode(int argc, char **argv)
     if (flags.fullscreen && !pinned)
         window_flags |= SDL_WINDOW_FULLSCREEN;
 
-    window = SDL_CreateWindow("Abuse", win_width, win_height, window_flags);
+    window = SDL_CreateWindow("Abuse: Vrenna", win_width, win_height, window_flags);
     if(window == NULL)
     {
         show_startup_error("Video : Unable to create window : %s", SDL_GetError());

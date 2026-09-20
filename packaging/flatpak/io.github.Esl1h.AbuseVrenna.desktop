@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Abuse: Vrenna
+Comment=Modern port of Abuse (1995)
+Exec=abuse-vrenna
+Icon=io.github.Esl1h.AbuseVrenna
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=abuse;platformer;shooter;retro;

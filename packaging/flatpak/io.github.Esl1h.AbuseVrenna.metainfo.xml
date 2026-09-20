@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Esl1h.AbuseVrenna</id>
+
+  <name>Abuse: Vrenna</name>
+  <summary>Modern port of Abuse (1995)</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+
+  <developer id="io.github.esl1h">
+    <name>Esl1h</name>
+  </developer>
+
+  <description>
+    <p>
+      Abuse is a run-and-gun side-scroller released as shareware by Crack dot
+      Com in 1995. It is remembered for one idea: the keyboard runs and jumps
+      while the mouse aims, completely independently, so you can sprint one
+      way and fire another. Almost nothing in 1995 could do that.
+    </p>
+    <p>
+      You are Nick Vrenna, imprisoned in a facility where the staff run
+      medical experiments on the inmates. One of those experiments, a
+      substance the project calls Abuse, escapes during a riot and takes the
+      prison. Nick is immune, and the contagion is about to reach the water
+      supply.
+    </p>
+    <p>This port runs the game on current hardware and systems:</p>
+    <ul>
+      <li>SDL3, with scale modes, filtering, vsync and an FPS limit</li>
+      <li>A fixed 15 Hz simulation, so every machine plays the same game</li>
+      <li>Gamepad support, with aiming on the right stick and rumble</li>
+      <li>A user interface drawn at the display's own resolution</li>
+      <li>English, French, German and Brazilian Portuguese</li>
+      <li>Optional lighting, widescreen, scanlines and particles</li>
+    </ul>
+    <p>
+      Two modes are offered at startup. Original plays the 1995 game with its
+      own data and rules, untouched. Remastered is where everything new goes,
+      and none of it is compulsory.
+    </p>
+    <p>
+      The original sound effects and music are not free to redistribute and
+      are not included. The game downloads them on request, with the
+      checksums pinned, for anyone who wants the Original mode with audio.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.Esl1h.AbuseVrenna.desktop</launchable>
+
+  <url type="homepage">https://github.com/Esl1h/abuse</url>
+  <url type="bugtracker">https://github.com/Esl1h/abuse/issues</url>
+  <url type="vcs-browser">https://github.com/Esl1h/abuse</url>
+
+  <categories>
+    <category>Game</category>
+    <category>ActionGame</category>
+  </categories>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-fantasy">moderate</content_attribute>
+    <content_attribute id="violence-bloodshed">mild</content_attribute>
+  </content_rating>
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>gamepad</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">640</display_length>
+  </requires>
+
+  <!-- Screenshots must be reachable over HTTP before submission; these
+       point at the repository and need replacing with a stable raw URL or
+       a release asset. -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/Esl1h/abuse/modernisation/doc/screenshots/gameplay.png</image>
+      <caption>Fighting a mutant in the prison corridors</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/Esl1h/abuse/modernisation/doc/screenshots/startmenu.png</image>
+      <caption>The start menu, in the player's language</caption>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.10.0" date="2026-09-20">
+      <description>
+        <p>Development release. Not yet published.</p>
+      </description>
+    </release>
+  </releases>
+</component>

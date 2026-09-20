@@ -9,8 +9,15 @@ the content itself, which is the translation files.
 
 ## 1. Project
 
-Modernising **Abuse** (Crack dot Com, 1995/1996), a 2D action game with free aiming,
-starting from Xenoveritas's SDL2 + CMake fork.
+**Abuse: Vrenna**, a modern port of **Abuse** (Crack dot Com, 1995/1996), a 2D action
+game with free aiming, starting from Xenoveritas's SDL2 + CMake fork.
+
+The name was decided on 2026-09-20. "Abuse" stays in the title because it is what the
+game's own art says; "Vrenna", the protagonist's surname, is what distinguishes it from
+the `abuse` that already exists on Flathub (`com.github.Xenoveritas.abuse`, the upstream
+of this fork) and in the AUR (`abuse`, the SDL 1.2 port). App ID
+`io.github.Esl1h.AbuseVrenna`, package and binary `abuse-vrenna`. **The user directory
+is not renamed**: config and saves stay under `abuse/`, where they have always been.
 
 Goals:
 
@@ -91,6 +98,7 @@ without it, the README and this file are the whole contract.
 │   └── MANIFEST.toml    # licence per file; checked by scripts/check-licenses.sh
 ├── doc/                 # upstream documentation and icons
 ├── docs/                # planning (local, not in the repository)
+├── packaging/           # Flatpak, AUR and AppImage skeletons; none built yet
 └── tests/
     ├── unit/
     ├── replays/         # *.rec

@@ -1,0 +1,68 @@
+# Flatpak manifest for Abuse: Vrenna.
+#
+# NOT YET BUILT. The module list below is the shape the build needs, not a
+# recipe that has been run: SDL3_mixer and SDL3_native_midi have no
+# distribution package and no Flathub base yet, so they are built here from
+# the same sources CPM fetches. Pin every commit before submitting.
+#
+#   flatpak-builder --user --install --force-clean build-flatpak \
+#       packaging/flatpak/io.github.Esl1h.AbuseVrenna.yml
+#   flatpak run io.github.Esl1h.AbuseVrenna
+
+app-id: io.github.Esl1h.AbuseVrenna
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: abuse-vrenna
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  - --socket=pulseaudio
+  # Gamepads. The game opens them through SDL, which needs the raw devices.
+  - --device=input
+  # The only network the game ever wants is the explicit, confirmed download
+  # of the original sound and music. Everything else works offline.
+  - --share=network
+
+modules:
+  - name: sdl3
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DSDL_STATIC=OFF
+    sources:
+      - type: git
+        url: https://github.com/libsdl-org/SDL.git
+        tag: release-3.2.0
+        # commit: PIN BEFORE SUBMITTING
+
+  - name: sdl3-mixer
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DSDLMIXER_SAMPLES=OFF
+    sources:
+      - type: git
+        url: https://github.com/libsdl-org/SDL_mixer.git
+        branch: main
+        # commit: PIN BEFORE SUBMITTING
+
+  - name: abuse-vrenna
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCPM_USE_LOCAL_PACKAGES=ON
+    sources:
+      - type: dir
+        path: ../..
+    post-install:
+      - install -Dm644 packaging/flatpak/io.github.Esl1h.AbuseVrenna.metainfo.xml
+          /app/share/metainfo/io.github.Esl1h.AbuseVrenna.metainfo.xml
+      - install -Dm644 packaging/flatpak/io.github.Esl1h.AbuseVrenna.desktop
+          /app/share/applications/io.github.Esl1h.AbuseVrenna.desktop
+      # The original data fetcher, which the player runs once from inside the
+      # sandbox. It writes to the app's own data directory.
+      - install -Dm755 scripts/fetch-classic-data.sh /app/bin/fetch-classic-data
