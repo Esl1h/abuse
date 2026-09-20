@@ -24,6 +24,7 @@ hardness table.
 
 import argparse
 import collections
+import json
 import pathlib
 import struct
 import subprocess
@@ -65,8 +66,40 @@ BACK_DENSITY = 12  # per cent
 BTILE_W, BTILE_H = 60, 30
 TILE_W, TILE_H = 30, 15
 
-# One machinery tile in this many fill cells.
+# Which tile sets belong together, by the ranges lisp/startup.lsp gives
+# them. The artists worked a region in one set, which is why the shipped
+# levels read as places: a corridor is built of corridor pieces all the way
+# along. Learning from every level at once and stamping whatever fits put a
+# city skyline and a cave wall inside a spaceship.
+#
+# A map picks a theme and the compiler will not leave it.
+THEMES = {
+    # foregrnd, techno, techno2, techno3, techno4
+    "techno": {"fg": [(0, 0), (1, 99), (100, 167), (200, 236), (300, 460)],
+               "bg": [(110, 139)]},
+    "cave":   {"fg": [(0, 0), (500, 634)], "bg": [(84, 103)]},
+    "alien":  {"fg": [(0, 0), (700, 774)], "bg": [(150, 179)]},
+    "trees":  {"fg": [(0, 0), (800, 931), (1100, 1134)],
+               "bg": [(200, 268)]},
+}
+
+
+def in_theme(tile, ranges):
+    return any(lo <= tile <= hi for lo, hi in ranges)
+
+# One machinery tile in this many fill cells. Only used where the
+# learned model has nothing to say.
 DETAIL_IN = 23
+
+# How far below the best score a tile may be and still be considered.
+#
+# Zero, after trying 5. Loosening it does not produce the variety the
+# original levels have: it produces a different tile per cell, the motifs
+# do not line up, and a wall of panels turns into horizontal banding. The
+# variety in the originals comes from the shape of the rock, which changes
+# the context and therefore the answer, and from the artists changing tile
+# set by region, which is a decision and not a jitter.
+TIE_MARGIN = 0
 
 
 def pick(choices, x, y, salt=0):
@@ -183,13 +216,38 @@ def check(grid):
     return errors, seen
 
 
-def autotile(grid):
+def load_model(path="tools/asciimap/tiling.json"):
+    """What the 1995 artists did, as data. See tools/asciimap/learn.py."""
+    p = pathlib.Path(path)
+    if not p.exists():
+        return None
+    m = json.loads(p.read_text())
+    return {
+        "bg_patch": m.get("bg_patch", []),
+        "context": {int(k): v for k, v in m["context"].items()},
+        "right_of": {int(k): v for k, v in m["right_of"].items()},
+        "below": {int(k): v for k, v in m["below"].items()},
+    }
+
+
+def autotile(grid, model, theme):
     """Shape in, appearance out.
 
-    A cell is only ever solid or not in the grid. Which tile it becomes
-    depends on its neighbours, so that a mass of rock gets a surface where it
-    meets air and plain fill everywhere else. This is the part a person would
-    otherwise do 4000 times by hand.
+    A cell is only ever solid or not in the grid. What tile it becomes is
+    answered from the shipped levels: for the 3x3 pattern of solid and open
+    around this cell, which tiles did the artists use in a cell that looked
+    the same?
+
+    Picking at random from a set of "wall tiles" was the first version, and
+    it was wrong in a way no measurement here caught. The tiles are not
+    interchangeable textures; they are pieces of larger compositions, with
+    edges and corners and machines that span several cells. A person who
+    played the result said so, and this is the answer to it.
+
+    Between the tiles a context allows, the one that actually followed the
+    neighbour to the left, or sat under the one above, wins. That is what
+    keeps a run of panels reading as one thing instead of a row of
+    fragments.
     """
     h, w = len(grid), len(grid[0])
     out = [[EMPTY] * w for _ in range(h)]
@@ -197,31 +255,103 @@ def autotile(grid):
     def solid(x, y):
         return not (0 <= x < w and 0 <= y < h) or grid[y][x] == SOLID
 
+    def context(x, y):
+        bits = 0
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                bits = (bits << 1) | (1 if solid(x + dx, y + dy) else 0)
+        return bits
+
+    misses = 0
     for y in range(h):
         for x in range(w):
-            if not solid(x, y):
+            candidates = model["context"].get(context(x, y)) if model else None
+            if candidates and theme:
+                inside = [c for c in candidates if in_theme(c, theme["fg"])]
+                candidates = inside or None
+
+            if not candidates:
+                # An arrangement the originals never built. Falls back to
+                # the old fixed sets, which at least respect solidity.
+                misses += 1
+                if not solid(x, y):
+                    out[y][x] = EMPTY
+                elif not solid(x, y - 1):
+                    out[y][x] = pick(FLOOR, x, y)
+                elif not solid(x, y + 1):
+                    out[y][x] = pick(CEILING, x, y)
+                else:
+                    out[y][x] = pick(FILL, x, y)
                 continue
-            if not solid(x, y - 1):
-                out[y][x] = pick(FLOOR, x, y)
-            elif not solid(x, y + 1):
-                out[y][x] = pick(CEILING, x, y)
-            elif pick(range(DETAIL_IN), x, y, 1) == 0:
-                out[y][x] = pick(FILL_DETAIL, x, y, 2)
-            else:
-                out[y][x] = pick(FILL, x, y)
+
+            left = out[y][x - 1] if x > 0 else None
+            above = out[y - 1][x] if y > 0 else None
+
+            scored = []
+            for rank, cand in enumerate(candidates):
+                # How usual the tile is here, then how well it follows what
+                # is already beside and above it.
+                score = (len(candidates) - rank) * 2
+                if left is not None:
+                    after = model["right_of"].get(left, [])
+                    if cand in after:
+                        score += 12 - after.index(cand)
+                if above is not None:
+                    under = model["below"].get(above, [])
+                    if cand in under:
+                        score += 12 - under.index(cand)
+                scored.append((score, cand))
+
+            # Among the tiles that fit equally well, the position decides.
+            # Taking the single best every time gave a wall of one brick
+            # repeated, which is coherent and lifeless; the originals vary
+            # because the artists varied. The margin is smaller than an
+            # adjacency bonus, so fitting the neighbours still wins.
+            best = max(score for score, _ in scored)
+            good = [c for score, c in scored if score >= best - TIE_MARGIN]
+            out[y][x] = pick(good, x, y, 5)
+
+    if misses:
+        print(f"{misses} cells had a shape the originals never built")
     return out
 
 
-def background(bw, bh):
-    out = []
-    for y in range(bh):
-        row = []
-        for x in range(bw):
-            if pick(range(100), x, y, 4) < BACK_DENSITY:
-                row.append(pick(BACK, x, y, 3))
-            else:
-                row.append(EMPTY)
-        out.append(row)
+def background(bw, bh, model, theme):
+    """Sparse machinery over black, stamped in whole blocks.
+
+    Single tiles scattered about was the first version, and it put
+    fragments of machines in the dark with nothing to explain them. The
+    blocks come from the shipped levels and go down intact.
+    """
+    out = [[EMPTY] * bw for _ in range(bh)]
+    patches = (model or {}).get("bg_patch") or []
+    if theme:
+        patches = [p for p in patches
+                   if all(t == EMPTY or in_theme(t, theme["bg"]) for t in p)]
+    if not patches:
+        for y in range(bh):
+            for x in range(bw):
+                if pick(range(100), x, y, 4) < BACK_DENSITY:
+                    out[y][x] = pick(BACK, x, y, 3)
+        return out
+
+    # A block every so often, on a loose grid so they do not line up. The
+    # density is what the shipped levels have: level02's background is 91%
+    # empty, and filling it makes the background compete with the
+    # foreground until a player cannot tell what is solid.
+    step = 5
+    for gy in range(0, bh, step):
+        for gx in range(0, bw, step):
+            if pick(range(100), gx, gy, 4) >= BACK_DENSITY * step * step // 3:
+                continue
+            patch = pick(patches, gx, gy, 3)
+            ox = gx + pick(range(step - 2), gx, gy, 6)
+            oy = gy + pick(range(step - 2), gx, gy, 7)
+            for dy in range(3):
+                for dx in range(3):
+                    x, y = ox + dx, oy + dy
+                    if 0 <= x < bw and 0 <= y < bh:
+                        out[y][x] = patch[dy * 3 + dx]
     return out
 
 
@@ -253,7 +383,15 @@ def build(args):
                  f"the scroll rate are tuned to it, and this tool does not "
                  f"retune them.")
 
-    tiles = autotile(grid)
+    model = load_model()
+    theme_name = head.get("theme", "techno")
+    theme = THEMES.get(theme_name)
+    if theme_name and not theme:
+        sys.exit(f"unknown theme '{theme_name}'; known: "
+                 + ", ".join(sorted(THEMES)))
+    print(f"theme {theme_name}")
+
+    tiles = autotile(grid, model, theme)
     write_entry(str(out), ids["fgmap"], 18, "fgmap", pack_map(tiles))
 
     # The background is resized to cover the level. It is not a copy of the
@@ -265,7 +403,8 @@ def build(args):
     xmul, xdiv, ymul, ydiv = struct.unpack_from("<4I", rate, 1)
     bw = (len(grid[0]) * TILE_W * xmul // xdiv + 640) // BTILE_W + 2
     bh = (len(grid) * TILE_H * ymul // ydiv + 480) // BTILE_H + 2
-    write_entry(str(out), ids["bgmap"], 19, "bgmap", pack_map(background(bw, bh)))
+    write_entry(str(out), ids["bgmap"], 19, "bgmap",
+                pack_map(background(bw, bh, model, theme)))
     print(f"background {bw}x{bh} tiles at {xmul}/{xdiv} by {ymul}/{ydiv}")
 
     place_objects(str(out), ids, grid, head)
