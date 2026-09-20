@@ -60,11 +60,30 @@
 #include "configuration.h"
 #include "specs.h"
 #include "keys.h"
+#include <filesystem>
+
 #include "setup.h"
 #include "errorui.h"
 #include "util.h"
 
 flags_struct flags;
+
+namespace {
+
+// Whether the original sound is actually on this disk.
+//
+// Not abuse::data::has_classic_data(), which only says whether a path was
+// named on the command line. The question here is whether there is
+// anything to play, and only the filesystem answers that.
+bool classic_sound_installed()
+{
+    std::error_code ec;
+    std::filesystem::path const sfx =
+        std::filesystem::path(abuse::data::classic_data_dir()) / "sfx";
+    return std::filesystem::is_directory(sfx, ec);
+}
+
+}
 
 // Only when the player has not chosen one does the system locale get a say.
 static bool g_language_from_config = false;
@@ -198,6 +217,10 @@ void createRCFile( char *rcfile )
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
         fputs( "; without the banding. Experimental, and never in Original mode.\n", fd );
         fputs( ";rgblight=on\n\n", fd );
+        fputs( "; The Remastered mode has no sound of its own yet. When the\n", fd );
+        fputs( "; original data is installed it borrows the sound and music\n", fd );
+        fputs( "; from it, played exactly as they are. Off leaves it silent.\n", fd );
+        fputs( ";classicsfx=off\n\n", fd );
         fputs( "; Sparks off a hit and an ejected casing off a shot.\n", fd );
         fputs( ";particles=off\n\n", fd );
         fputs( "; Turns off every effect that moves the picture by itself,\n", fd );
@@ -427,6 +450,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown rgblight '%s', expected on or off\n",
                             result );
+            }
+            else if( strcasecmp( result, "classicsfx" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = true;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    flags.classic_sfx = on;
+                else
+                    printf( "Config: unknown classicsfx '%s', expected on or"
+                            " off\n", result );
             }
             else if( strcasecmp( result, "particles" ) == 0 )
             {
@@ -953,6 +986,28 @@ void setup( int argc, char **argv )
         // always presents the classic way regardless of what the config says.
         abuse::render::apply_preset( abuse::render::Preset::Classic,
                                      abuse::render::options() );
+    }
+    else if( flags.classic_sfx && !abuse::harness::headless()
+             && classic_sound_installed() )
+    {
+        // The Remastered mode ships no sound of its own yet, and a mute
+        // game is the loudest thing missing from it. If the player has
+        // installed the original data, it is theirs and it is right here,
+        // so the same overlay goes on: the sound and music come from it and
+        // nothing else does.
+        //
+        // Nothing is converted, resampled or written; the files are played
+        // exactly as they are, which is the rule that protects them.
+        //
+        // Never under the harness. A test that reads the user's data
+        // directory is a test whose result depends on the machine it ran
+        // on, which is the one property the harness exists to keep.
+        char *classic = SDL_strdup(abuse::data::classic_data_dir().c_str());
+        set_fallback_filename_prefix( classic );
+        SDL_free( classic );
+        printf( "Sound: borrowing the original set from %s\n"
+                "       (classicsfx=off in abuserc leaves the mode silent)\n",
+                abuse::data::classic_data_dir().c_str() );
     }
 
     // The shape of the picture, from abuserc, applied here because the file

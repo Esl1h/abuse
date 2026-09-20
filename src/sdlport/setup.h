@@ -18,6 +18,13 @@ struct flags_struct
     short grabmouse;
     short xres;
     short yres;
+
+    // Whether the Remastered mode may borrow the original sound when the
+    // player has installed it. On, because the mode ships none of its own
+    // and a mute game is worse than a borrowed one; classicsfx=off in
+    // abuserc turns it back off. Never applies to what is distributed:
+    // this is the player's own copy of data they downloaded themselves.
+    bool classic_sfx = true;
 };
 
 struct keys_struct
