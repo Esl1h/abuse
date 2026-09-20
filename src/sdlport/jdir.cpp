@@ -44,13 +44,30 @@ void get_directory(char *path, char **&files, int &tfiles, char **&dirs, int &td
     tfiles = 0;
     tdirs = 0;
 #ifdef WIN32
+	// FindFirstFile takes a pattern, not a directory: given "C:\\levels" it
+	// matches that one entry, the directory itself, and reports no contents
+	// at all. Every caller here passes a directory, so the pattern has to be
+	// built. Without it the file selector in the editor lists nothing on
+	// Windows, which is how this was found: by reading, since nobody had
+	// opened that selector there.
+	char pattern[MAX_PATH];
+	{
+		size_t len = strlen(path);
+		bool has_separator = len > 0 && (path[len - 1] == '\\' || path[len - 1] == '/');
+		snprintf(pattern, sizeof(pattern), "%s%s*", path,
+		         has_separator ? "" : "\\");
+	}
+
 	WIN32_FIND_DATA findData;
-	HANDLE d = FindFirstFile(path, &findData);
+	HANDLE d = FindFirstFile(pattern, &findData);
 	if (d == INVALID_HANDLE_VALUE)
 		return;
 
 	do
 	{
+		// "." and ".." are kept, because readdir hands them to the other
+		// side of this function and nothing there drops them either. The
+		// file selector shows them, and that is how it goes up a level.
 		if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		{
 			tdirs++;
