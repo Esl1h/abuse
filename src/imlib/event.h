@@ -70,6 +70,14 @@ public:
     void Push(Event *ev)
     {
         m_events.add_end(ev);
+
+        // An event in the queue is an event pending. Without this, Get()
+        // sleeps in its "while (!m_pending)" loop until SDL happens to have
+        // something of its own, and an event the game pushed at a modal
+        // window waits for the player to move the mouse before it arrives.
+        // In a session with a person in front of it that is invisible;
+        // with nobody there it never ends.
+        m_pending = 1;
     }
 
     void SysInit();
