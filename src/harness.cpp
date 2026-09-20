@@ -49,6 +49,7 @@ struct Options {
     bool dump_window = false;
     bool mode_given = false;
     bool level_info = false;
+    bool save_test = false;
     int viewport_w = 0;
     int viewport_h = 0;
     // Interpolation is off under the harness, because one frame is one tick
@@ -303,6 +304,8 @@ void parse_args(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "--scanlines"))
             abuse::render::options().scanlines = true;
+        else if (!strcmp(argv[i], "--save-test"))
+            opt.save_test = true;
         else if (!strcmp(argv[i], "--viewport"))
         {
             opt.viewport_w = (int)take_number(argc, argv, i, "--viewport");
@@ -725,6 +728,46 @@ void after_frame()
 
 void finish()
 {
+    if (opt.save_test)
+    {
+        if (!current_level)
+            printf("save-test: no level loaded\n");
+        else
+        {
+            char const *prefix = get_save_filename_prefix();
+            printf("save-test: prefix '%s'\n", prefix ? prefix : "(none)");
+
+            // The same call the save console makes, through the Lisp
+            // binding: save_all, which is what writes a savegame rather
+            // than a level.
+            //
+            // Not save0001.spe: the save directory belongs to whoever is
+            // running this, and the game only ever lists save%04d.spe, so
+            // this name is invisible to it and cannot overwrite a slot.
+            current_level->save("savetest.spe", 1);
+
+            char path[512];
+            snprintf(path, sizeof(path), "%ssavetest.spe",
+                     prefix ? prefix : "");
+
+            FILE *f = fopen(path, "rb");
+            if (!f)
+                printf("save-test: FAILED, no file at %s\n", path);
+            else
+            {
+                fseek(f, 0, SEEK_END);
+                long size = ftell(f);
+                fclose(f);
+                printf("save-test: wrote %ld bytes to %s\n", size, path);
+                if (size < 1024)
+                    printf("save-test: FAILED, that file is too small\n");
+
+                // Nobody's save directory needs this lying around.
+                remove(path);
+            }
+        }
+    }
+
     if (opt.want_hash)
     {
         if (have_last)

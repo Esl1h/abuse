@@ -87,6 +87,13 @@ add_test(NAME replays
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})
 set_tests_properties(replays PROPERTIES SKIP_RETURN_CODE 77)
 
+# Writing a savegame, which is the one thing the suites never did until it
+# crashed on Windows in front of a person. The path it writes to is chosen by
+# the platform, so this only means anything when it runs on the platform.
+add_test(NAME save
+    COMMAND ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-save.sh $<TARGET_FILE:abuse>
+    WORKING_DIRECTORY ${abuse_SOURCE_DIR})
+
 add_test(NAME snapshots
     COMMAND ${ABUSE_BASH} ${abuse_SOURCE_DIR}/scripts/test-snapshots.sh $<TARGET_FILE:abuse>
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})

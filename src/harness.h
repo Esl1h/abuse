@@ -25,6 +25,14 @@ bool headless();
 // runs one frame per tick, where there is nothing to blend.
 bool frame_alpha(float &out);
 
+// --save-test: saves the game at the end of the run, the way the save
+// console does, and says on stdout whether the file was written and how big
+// it is. The point is the path and the writing, not the contents.
+//
+// Saving crashed on Windows the first time a person tried it, on a machine
+// none of us can debug, and nothing in the suite had ever written a save
+// file. This is how that gets exercised on every platform CI builds for.
+
 // --viewport W H: the size of the buffer the game draws into, which is
 // 320x200 everywhere else. Phase 6.5 needs to see what a wider one looks
 // like before deciding anything, and the engine has refused -size outside
