@@ -76,6 +76,7 @@
 #include "harness.h"
 #include "render/options.h"
 #include "render/shake.h"
+#include "render/particles.h"
 #include "data/paths.h"
 #include "timing/pacer.h"
 
@@ -527,8 +528,9 @@ void Game::set_level(level *nl)
 
 void Game::load_level(char const *name)
 {
-    // A new level does not inherit the last one's knock.
+    // A new level does not inherit the last one's knock, nor its debris.
     abuse::render::reset_shake();
+    abuse::render::reset_particles();
 
     if(current_level)
       delete current_level;
@@ -681,6 +683,90 @@ static void post_render()
     LSpace::Tmp.Clear();
     main_screen->dirt_on();
   }
+}
+
+// The palette entry each kind of particle wears as it ages. Worked out once
+// against the loaded palette, because find_closest walks all 256 entries and
+// there can be a couple of hundred particles in the air.
+//
+// Sparks cool from white through yellow to red, smoke thins from pale grey
+// to the background, and a casing stays brass because it is metal and not
+// fire.
+static uint8_t const *particle_ramp(abuse::render::ParticleKind kind, int &steps)
+{
+    static bool built = false;
+    static uint8_t spark[6], smoke[5], casing[3];
+
+    if (!built && pal)
+    {
+        uint8_t const spark_rgb[6][3] = {
+            {255, 255, 230}, {255, 230, 120}, {255, 170, 40},
+            {220, 100, 20},  {150, 50, 10},   {80, 25, 5}
+        };
+        uint8_t const smoke_rgb[5][3] = {
+            {160, 160, 165}, {120, 120, 126}, {90, 90, 96},
+            {60, 60, 66},    {40, 40, 44}
+        };
+        uint8_t const casing_rgb[3][3] = {
+            {220, 190, 90}, {170, 140, 60}, {120, 100, 40}
+        };
+
+        for (int i = 0; i < 6; i++)
+            spark[i] = (uint8_t)pal->find_closest(spark_rgb[i][0], spark_rgb[i][1], spark_rgb[i][2]);
+        for (int i = 0; i < 5; i++)
+            smoke[i] = (uint8_t)pal->find_closest(smoke_rgb[i][0], smoke_rgb[i][1], smoke_rgb[i][2]);
+        for (int i = 0; i < 3; i++)
+            casing[i] = (uint8_t)pal->find_closest(casing_rgb[i][0], casing_rgb[i][1], casing_rgb[i][2]);
+
+        built = true;
+    }
+
+    switch (kind)
+    {
+    case abuse::render::ParticleKind::Smoke:  steps = 5; return smoke;
+    case abuse::render::ParticleKind::Casing: steps = 3; return casing;
+    default:                                  steps = 6; return spark;
+    }
+}
+
+// Debris, drawn after the lighting so that a spark reads as a spark in a
+// dark room instead of being dimmed along with the wall behind it. Never in
+// the Original mode, and one pixel at a time: they are small, there are at
+// most a couple of hundred, and going through the blitter for each would
+// cost more than the pixels are worth.
+void Game::draw_particles(view *v, int xoff, int yoff)
+{
+    int const n = abuse::render::particle_count();
+    if (n <= 0 || abuse::data::mode() == abuse::data::Mode::Original)
+        return;
+
+    int const x1 = v->m_aa.x, y1 = v->m_aa.y;
+    int const x2 = v->m_bb.x, y2 = v->m_bb.y;
+
+    main_screen->Lock();
+    for (int i = 0; i < n; i++)
+    {
+        abuse::render::ParticleView p = abuse::render::particle_at(i);
+
+        int const sx = p.x - xoff + x1;
+        int const sy = p.y - yoff + y1;
+        if (sx < x1 || sx > x2 || sy < y1 || sy > y2)
+            continue;
+
+        int steps = 0;
+        uint8_t const *ramp = particle_ramp(p.kind, steps);
+        if (steps <= 0)
+            continue;
+
+        int at = (int)(p.age * (float)steps);
+        if (at < 0) at = 0;
+        if (at >= steps) at = steps - 1;
+
+        main_screen->scan_line(sy)[sx] = ramp[at];
+    }
+    main_screen->Unlock();
+
+    main_screen->AddDirty(ivec2(x1, y1), ivec2(x2 + 1, y2 + 1));
 }
 
 void Game::draw_map(view *v, int interpolate)
@@ -1152,6 +1238,8 @@ void Game::draw_map(view *v, int interpolate)
 
   rand_on = ro;                // restore random start in case in draw funs moved it
                                // ... not every machine will draw the same thing
+
+  draw_particles(v, xoff, yoff);
 
   post_render();
 
@@ -2778,6 +2866,7 @@ int main(int argc, char *argv[])
                 // process all the objects in the world
                 g->step();
                 abuse::render::shake_tick();
+                abuse::render::particles_tick();
                 server_check();
                 g->calc_speed();
 

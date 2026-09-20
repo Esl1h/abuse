@@ -46,6 +46,7 @@
 #include "render/options.h"
 #include "render/lightmap.h"
 #include "render/shake.h"
+#include "render/particles.h"
 #include "input/gamepad.h"
 #include "input/rumble.h"
 #include "input/aim.h"
@@ -197,6 +198,8 @@ void createRCFile( char *rcfile )
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
         fputs( "; without the banding. Experimental, and never in Original mode.\n", fd );
         fputs( ";rgblight=on\n\n", fd );
+        fputs( "; Sparks off a hit and an ejected casing off a shot.\n", fd );
+        fputs( ";particles=off\n\n", fd );
         fputs( "; Turns off every effect that moves the picture by itself,\n", fd );
         fputs( "; without clearing the settings below.\n", fd );
         fputs( ";reducemotion=on\n\n", fd );
@@ -424,6 +427,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown rgblight '%s', expected on or off\n",
                             result );
+            }
+            else if( strcasecmp( result, "particles" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = true;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::render::set_particles_enabled( on );
+                else
+                    printf( "Config: unknown particles '%s', expected on or"
+                            " off\n", result );
             }
             else if( strcasecmp( result, "reducemotion" ) == 0 )
             {

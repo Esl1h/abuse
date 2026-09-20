@@ -37,6 +37,7 @@
 #include "overlay.h"
 #include "render/lightmap.h"
 #include "render/options.h"
+#include "render/particles.h"
 #include "video.h"
 
 extern WindowManager *wm;
@@ -162,6 +163,27 @@ void smooth_show(char *buf, size_t n)
 void smooth_value(char *buf, size_t n)
 {
     snprintf(buf, n, "%s", render::options().interpolate ? "on" : "off");
+}
+
+// ---- particles ------------------------------------------------------------
+
+// Sparks off a hit and a casing off a shot. Takes effect at once: turning it
+// off clears what is in the air as well, so the picture settles rather than
+// finishing the burst that was already flying.
+void particles_step(int)
+{
+    render::set_particles_enabled(!render::particles_enabled());
+}
+
+void particles_show(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", say(render::particles_enabled()
+                                   ? i18n::kOn : i18n::kOff));
+}
+
+void particles_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::particles_enabled() ? "on" : "off");
 }
 
 // ---- reduce motion --------------------------------------------------------
@@ -370,6 +392,7 @@ Item const kItems[] = {
     { i18n::kOptAspect,      "aspect",      true,  aspect_step,   aspect_show,   aspect_value },
     { i18n::kOptHud,         "hud",         false, hud_step,      hud_show,      hud_value },
     { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
+    { i18n::kOptParticles,   "particles",   false, particles_step, particles_show, particles_value },
     { i18n::kOptReduceMotion, "reducemotion", false, reduce_motion_step, reduce_motion_show, reduce_motion_value },
     { i18n::kOptLighting,    "rgblight",    false, light_step,    light_show,    light_value },
     { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },

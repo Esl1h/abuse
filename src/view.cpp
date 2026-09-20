@@ -27,6 +27,7 @@
 
 #include "view.h"
 #include "render/shake.h"
+#include "render/particles.h"
 #include "harness.h"
 #include "timing/pacer.h"
 #include "input/aim.h"
@@ -327,15 +328,32 @@ void view::draw_character_damage()
     // Only downwards, and not in the Original mode, like every other visual
     // addition. It moves where the frame is drawn from and nothing else, so
     // replays are unaffected.
-    if (last_hp>=0 && m_focus->hp()<last_hp
-        && abuse::data::mode()!=abuse::data::Mode::Original)
-      abuse::render::shake((float)(last_hp-m_focus->hp())/4.0f);
+    bool const remaster = abuse::data::mode()!=abuse::data::Mode::Original;
+
+    if (last_hp>=0 && m_focus->hp()<last_hp && remaster)
+    {
+      int const hit = last_hp-m_focus->hp();
+      abuse::render::shake((float)hit/4.0f);
+
+      // Phase 6, block 6.4: sparks off the player, thrown away from the
+      // direction being faced, which is roughly where the shot came from.
+      abuse::render::spawn_sparks(m_focus->x, m_focus->y-m_focus->picture()->Size().y/2,
+                                  Min(hit/2+2, 8), -m_focus->direction);
+    }
 
     if (last_hp!=m_focus->hp()) draw_hp();
     int i;
     for (i=0; i<total_weapons; i++)
       if (weapons[i]!=last_weapons[i])
       {
+        // A round leaving the current weapon is the only shot the C++ side
+        // gets told about: the firing itself is Lisp. Enough for a casing,
+        // which is all this needs to know.
+        if (remaster && i==current_weapon && last_weapons[i]>=0
+            && weapons[i]<last_weapons[i])
+          abuse::render::spawn_casing(m_focus->x, m_focus->y-m_focus->picture()->Size().y/2,
+                                      m_focus->direction);
+
     last_weapons[i]=weapons[i];
         sbar.draw_ammo(main_screen,i,weapons[i],current_weapon==i);
       }

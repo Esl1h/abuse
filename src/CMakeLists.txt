@@ -25,6 +25,7 @@ add_executable(abuse
     render/options.cpp render/options.h
     render/lightmap.cpp render/lightmap.h
     render/shake.cpp render/shake.h
+    render/particles.cpp render/particles.h
     audio/buses.cpp audio/buses.h
     audio/voices.cpp audio/voices.h
     audio/limiter.cpp audio/limiter.h
