@@ -197,6 +197,10 @@ clang-tidy -p build/dev $(git diff --name-only -- '*.cpp')
 
 `./scripts/check-licenses.sh` checks the data manifest and runs in CI.
 
+`./tools/spe-export/spe-export.py` exports the art as PNG with an index and a
+licence check, for the HD pack. `./tools/asciimap/` compiles a text grid into a
+playable level, tiling it the way the shipped levels are tiled.
+
 `./scripts/scan-levels.sh build/dev/src/abuse` walks every level at each wider
 aspect ratio and reports how much light there is down each edge of the frame, which
 is how a level that was never drawn that far out gets found.
