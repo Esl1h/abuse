@@ -212,6 +212,10 @@ void createRCFile( char *rcfile )
         fputs( ";aspect=16:9\n\n", fd );
         fputs( "; A knock to the camera when the player is hit.\n", fd );
         fputs( ";shake=off\n\n", fd );
+        fputs( "; A glow around what is already bright, on the gpu renderer.\n", fd );
+        fputs( "; 0 is off, 0.6 is what the enhanced preset uses. The\n", fd );
+        fputs( "; threshold is where it starts, in brightness from 0 to 1.\n", fd );
+        fputs( ";bloom=0.6\n;bloomthreshold=0.25\n\n", fd );
         fputs( "; A dark line under each pixel row, the way a CRT left one.\n", fd );
         fputs( ";scanlines=on\n\n", fd );
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
@@ -445,6 +449,28 @@ void readRCFile()
                 else
                     printf( "Config: unknown aspect '%s', expected 4:3, 16:10,"
                             " 16:9 or 21:9\n", result );
+            }
+            else if( strcasecmp( result, "bloom" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                if( result )
+                {
+                    double v = atof( result );
+                    if( v < 0 ) v = 0;
+                    if( v > 2 ) v = 2;
+                    abuse::render::options().bloom = (float)v;
+                }
+            }
+            else if( strcasecmp( result, "bloomthreshold" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                if( result )
+                {
+                    double v = atof( result );
+                    if( v < 0 ) v = 0;
+                    if( v > 1 ) v = 1;
+                    abuse::render::options().bloom_threshold = (float)v;
+                }
             }
             else if( strcasecmp( result, "scanlines" ) == 0 )
             {

@@ -23,7 +23,8 @@ endif()
 # someone reruns tools/shaders/build-shaders.sh.
 include(${abuse_SOURCE_DIR}/cmake/EmbedShaders.cmake)
 abuse_embed_shaders("${CMAKE_CURRENT_BINARY_DIR}/gpu_shaders.h"
-                    palette.vert palette.frag overlay.frag present.frag)
+                    palette.vert palette.frag overlay.frag present.frag
+                    bright.frag blur.frag)
 
 add_executable(abuse
     common.h

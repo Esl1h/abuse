@@ -217,6 +217,7 @@ void apply_preset(Preset p, Options &opt)
     opt.filter = Filter::PixelArt;
     opt.backend = Backend::Classic;
     opt.scanlines = false;
+    opt.bloom = 0.0f;
 
     switch (p)
     {
@@ -228,10 +229,12 @@ void apply_preset(Preset p, Options &opt)
     case Preset::Crt:
         opt.scanlines = true;
         opt.backend = Backend::Gpu;
+        opt.bloom = 0.6f;
         break;
 
     case Preset::Enhanced:
         opt.backend = Backend::Gpu;
+        opt.bloom = 0.6f;
         break;
 
     case Preset::Classic:

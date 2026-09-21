@@ -12,6 +12,7 @@
 // fragment uniform buffers in set 3.
 
 layout(set = 2, binding = 0) uniform sampler2D u_scene;
+layout(set = 2, binding = 1) uniform sampler2D u_bloom;
 
 layout(set = 3, binding = 0) uniform Present
 {
@@ -23,6 +24,9 @@ layout(set = 3, binding = 0) uniform Present
 
     // 1 to sharpen the interpolation, 0 to take the sampler as it is.
     float u_pixel_art;
+
+    // How much of the blurred bright pass to add back, 0 for none.
+    float u_glow;
 };
 
 layout(location = 0) in vec2 v_uv;
@@ -64,6 +68,18 @@ void main()
 {
     vec2 uv = u_pixel_art > 0.5 ? sharpen(v_uv) : v_uv;
     vec3 colour = texture(u_scene, uv).rgb;
+
+    if (u_glow > 0.0)
+    {
+        // Added rather than blended: a glow is light arriving on top of
+        // what is already there, and the bright pass already carries how
+        // much there is.
+        //
+        // Sampled at the unsharpened coordinate on purpose. The bloom is
+        // a blur; putting it through the pixel-art correction would be
+        // asking for hard edges on the one thing that has none.
+        colour += texture(u_bloom, v_uv).rgb * u_glow;
+    }
 
     if (u_scanline > 0.0)
     {

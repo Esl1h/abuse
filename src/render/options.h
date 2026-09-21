@@ -79,6 +79,19 @@ struct Options
     // the buffer, the views and the light table are all sized from it.
     Aspect aspect = Aspect::Classic;
 
+    // A glow around what is already bright: the picture above a threshold,
+    // blurred and added back. 0 turns it off; 0.6 is a visible but not
+    // silly amount. Only on the GPU path, which is where the blur is
+    // affordable.
+    float bloom = 0.0f;
+
+    // Where the glow starts, in luminance. Below this nothing glows.
+    //
+    // A quarter, not the usual two thirds. Abuse is a dark game: at 0.6
+    // almost nothing in a corridor is bright enough to reach the target
+    // at all, and the glow came out as literally zero changed pixels.
+    float bloom_threshold = 0.25f;
+
     // Dark lines between the game's pixel rows, the way a CRT left one. Only
     // where there is room for them: at least two window rows per game row.
     bool scanlines = false;

@@ -127,6 +127,7 @@ TEST_CASE("presets set scale and filter together") {
     CHECK(opt.filter == Filter::Nearest);
 
     apply_preset(Preset::Classic, opt);
+    CHECK(opt.bloom == 0.0f);
     CHECK(opt.scale == ScaleMode::Fit);
     CHECK(opt.filter == Filter::PixelArt);
 }
@@ -182,6 +183,7 @@ TEST_CASE("a preset says what the picture is, not what to add to it") {
     opt.filter = Filter::Linear;
     opt.backend = Backend::Gpu;
     opt.scanlines = true;
+    opt.bloom = 1.0f;
 
     apply_preset(Preset::Classic, opt);
     CHECK(opt.scale == ScaleMode::Fit);
@@ -193,6 +195,7 @@ TEST_CASE("a preset says what the picture is, not what to add to it") {
     apply_preset(Preset::Crt, opt);
     CHECK(opt.backend == Backend::Gpu);
     CHECK(opt.scanlines);
+    CHECK(opt.bloom > 0.0f);
     CHECK(preset_wants_rgb_light(Preset::Crt));
 
     apply_preset(Preset::Enhanced, opt);

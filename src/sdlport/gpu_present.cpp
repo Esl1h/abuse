@@ -27,6 +27,8 @@ SDL_GPUDevice *g_device = NULL;
 SDL_GPUGraphicsPipeline *g_game_pipe = NULL;     // indices into colour
 SDL_GPUGraphicsPipeline *g_present_pipe = NULL;  // colour onto the window
 SDL_GPUGraphicsPipeline *g_overlay_pipe = NULL;
+SDL_GPUGraphicsPipeline *g_bright_pipe = NULL;   // what glows
+SDL_GPUGraphicsPipeline *g_blur_pipe = NULL;     // half a Gaussian
 
 SDL_GPUTexture *g_indexed = NULL;   // the game buffer, one byte a pixel
 SDL_GPUTexture *g_palette = NULL;   // 256x1 RGBA
@@ -34,6 +36,11 @@ SDL_GPUTexture *g_overlay = NULL;   // window sized ARGB
 SDL_GPUTexture *g_light = NULL;     // one light level per game pixel
 SDL_GPUTexture *g_scene = NULL;     // the game picture in colour, game sized
 int g_scene_w = 0, g_scene_h = 0;
+
+// The glow, at half the scene's size: two of them, because a separable
+// blur has to land somewhere between its passes.
+SDL_GPUTexture *g_bloom[2] = { NULL, NULL };
+int g_bloom_w = 0, g_bloom_h = 0;
 
 // What the first pass draws into. Fixed rather than the window's format,
 // so the pipeline does not have to be rebuilt when the window moves to a
@@ -148,6 +155,21 @@ struct PresentUniform
     float source_h;
     float scanline;
     float pixel_art;
+    float glow;
+    float pad[3];
+};
+
+struct BrightUniform
+{
+    float threshold;
+    float pad[3];
+};
+
+struct BlurUniform
+{
+    float step_x;
+    float step_y;
+    float pad[2];
 };
 
 // Grows the staging buffer when a frame needs more than the last one did.
@@ -322,8 +344,14 @@ bool start(SDL_Window *window)
                                          SDL_GPU_SHADERSTAGE_FRAGMENT, 1);
     SDL_GPUShader *fs_present = make_shader(render::gpu::k_present_frag,
                                             sizeof render::gpu::k_present_frag,
-                                            SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
-    if (!vs || !fs_game || !fs_over || !fs_present)
+                                            SDL_GPU_SHADERSTAGE_FRAGMENT, 2, 1);
+    SDL_GPUShader *fs_bright = make_shader(render::gpu::k_bright_frag,
+                                           sizeof render::gpu::k_bright_frag,
+                                           SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
+    SDL_GPUShader *fs_blur = make_shader(render::gpu::k_blur_frag,
+                                         sizeof render::gpu::k_blur_frag,
+                                         SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
+    if (!vs || !fs_game || !fs_over || !fs_present || !fs_bright || !fs_blur)
     {
         printf("GPU: shader rejected (%s)\n", SDL_GetError());
         stop();
@@ -343,14 +371,19 @@ bool start(SDL_Window *window)
     SDL_ReleaseGPUShader(g_device, vs);
     SDL_ReleaseGPUShader(g_device, fs_game);
     SDL_ReleaseGPUShader(g_device, fs_over);
+    g_bright_pipe = make_pipeline(vs, fs_bright, false, kSceneFormat);
+    g_blur_pipe = make_pipeline(vs, fs_blur, false, kSceneFormat);
+
     SDL_ReleaseGPUShader(g_device, fs_present);
+    SDL_ReleaseGPUShader(g_device, fs_bright);
+    SDL_ReleaseGPUShader(g_device, fs_blur);
 
     g_nearest = make_sampler(SDL_GPU_FILTER_NEAREST);
     g_linear = make_sampler(SDL_GPU_FILTER_LINEAR);
     g_palette = make_texture(256, 1, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
 
-    if (!g_game_pipe || !g_present_pipe || !g_overlay_pipe || !g_nearest
-        || !g_linear || !g_palette)
+    if (!g_game_pipe || !g_present_pipe || !g_overlay_pipe || !g_bright_pipe
+        || !g_blur_pipe || !g_nearest || !g_linear || !g_palette)
     {
         printf("GPU: pipeline setup failed (%s)\n", SDL_GetError());
         stop();
@@ -382,6 +415,10 @@ void stop()
     if (g_scene) SDL_ReleaseGPUTexture(g_device, g_scene);
     if (g_game_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_game_pipe);
     if (g_present_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_present_pipe);
+    if (g_bright_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_bright_pipe);
+    if (g_blur_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_blur_pipe);
+    for (int i = 0; i < 2; i++)
+        if (g_bloom[i]) SDL_ReleaseGPUTexture(g_device, g_bloom[i]);
     if (g_overlay_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_overlay_pipe);
     if (g_window) SDL_ReleaseWindowFromGPUDevice(g_device, g_window);
 
@@ -394,7 +431,9 @@ void stop()
     g_nearest = g_linear = NULL;
     g_light = NULL;
     g_scene = NULL; g_scene_w = g_scene_h = 0;
+    g_bloom[0] = g_bloom[1] = NULL; g_bloom_w = g_bloom_h = 0;
     g_game_pipe = g_present_pipe = g_overlay_pipe = NULL;
+    g_bright_pipe = g_blur_pipe = NULL;
     g_device = NULL;
     g_window = NULL;
     g_game_w = g_game_h = g_overlay_w = g_overlay_h = 0;
@@ -630,6 +669,86 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     SDL_DrawGPUPrimitives(scene_pass, 3, 1, 0, 0);
     SDL_EndGPURenderPass(scene_pass);
 
+    // The glow, when it is wanted: what is bright, blurred, at half size.
+    //
+    // Half size is both cheaper and the first half of the blur, since the
+    // hardware averages four texels on the way down. Two targets because
+    // a separable blur has to land somewhere between across and down.
+    render::Options const &pre = render::options();
+    bool const glowing = pre.bloom > 0.0f;
+
+    if (glowing)
+    {
+        int const bw = w / 2 > 0 ? w / 2 : 1;
+        int const bh = h / 2 > 0 ? h / 2 : 1;
+
+        if (bw != g_bloom_w || bh != g_bloom_h)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                if (g_bloom[i])
+                    SDL_ReleaseGPUTexture(g_device, g_bloom[i]);
+
+                SDL_GPUTextureCreateInfo ci = {};
+                ci.type = SDL_GPU_TEXTURETYPE_2D;
+                ci.format = kSceneFormat;
+                ci.width = (uint32_t)bw;
+                ci.height = (uint32_t)bh;
+                ci.layer_count_or_depth = 1;
+                ci.num_levels = 1;
+                ci.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET
+                           | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+                g_bloom[i] = SDL_CreateGPUTexture(g_device, &ci);
+            }
+            g_bloom_w = bw;
+            g_bloom_h = bh;
+        }
+    }
+
+    if (glowing && g_bloom[0] && g_bloom[1])
+    {
+        BrightUniform bu = {};
+        bu.threshold = pre.bloom_threshold;
+        SDL_PushGPUFragmentUniformData(cmd, 0, &bu, sizeof bu);
+
+        SDL_GPUColorTargetInfo bt = {};
+        bt.texture = g_bloom[0];
+        bt.load_op = SDL_GPU_LOADOP_DONT_CARE;
+        bt.store_op = SDL_GPU_STOREOP_STORE;
+
+        SDL_GPURenderPass *bp = SDL_BeginGPURenderPass(cmd, &bt, 1, NULL);
+        SDL_BindGPUGraphicsPipeline(bp, g_bright_pipe);
+        SDL_GPUTextureSamplerBinding b = {};
+        b.texture = g_scene;
+        b.sampler = g_linear;
+        SDL_BindGPUFragmentSamplers(bp, 0, &b, 1);
+        SDL_DrawGPUPrimitives(bp, 3, 1, 0, 0);
+        SDL_EndGPURenderPass(bp);
+
+        // Across into [1], then down back into [0].
+        for (int dir = 0; dir < 2; dir++)
+        {
+            BlurUniform blu = {};
+            blu.step_x = dir == 0 ? 1.0f / (float)g_bloom_w : 0.0f;
+            blu.step_y = dir == 0 ? 0.0f : 1.0f / (float)g_bloom_h;
+            SDL_PushGPUFragmentUniformData(cmd, 0, &blu, sizeof blu);
+
+            SDL_GPUColorTargetInfo t = {};
+            t.texture = g_bloom[dir == 0 ? 1 : 0];
+            t.load_op = SDL_GPU_LOADOP_DONT_CARE;
+            t.store_op = SDL_GPU_STOREOP_STORE;
+
+            SDL_GPURenderPass *pass2 = SDL_BeginGPURenderPass(cmd, &t, 1, NULL);
+            SDL_BindGPUGraphicsPipeline(pass2, g_blur_pipe);
+            SDL_GPUTextureSamplerBinding src = {};
+            src.texture = g_bloom[dir == 0 ? 0 : 1];
+            src.sampler = g_linear;
+            SDL_BindGPUFragmentSamplers(pass2, 0, &src, 1);
+            SDL_DrawGPUPrimitives(pass2, 3, 1, 0, 0);
+            SDL_EndGPURenderPass(pass2);
+        }
+    }
+
     // Pass two: that picture, scaled into the window.
     uint8_t const *bar = render::options().letterbox;
     SDL_GPUColorTargetInfo target = {};
@@ -663,6 +782,7 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     // two window rows per game row and a scanline is most of the picture.
     u.scanline = (opt.scanlines && gh >= h * 2) ? 0.35f : 0.0f;
     u.pixel_art = opt.filter == render::Filter::PixelArt ? 1.0f : 0.0f;
+    u.glow = (glowing && g_bloom[0]) ? opt.bloom : 0.0f;
     SDL_PushGPUFragmentUniformData(cmd, 0, &u, sizeof u);
 
     SDL_BindGPUGraphicsPipeline(pass, g_present_pipe);
@@ -673,7 +793,13 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     // blend between two texels at all.
     scene_bind.sampler =
         opt.filter == render::Filter::Nearest ? g_nearest : g_linear;
-    SDL_BindGPUFragmentSamplers(pass, 0, &scene_bind, 1);
+    SDL_GPUTextureSamplerBinding present_bind[2] = {};
+    present_bind[0] = scene_bind;
+    // Always bound, even with no glow: a pipeline asks for its samplers
+    // whether the shader reads them or not.
+    present_bind[1].texture = g_bloom[0] ? g_bloom[0] : g_scene;
+    present_bind[1].sampler = g_linear;
+    SDL_BindGPUFragmentSamplers(pass, 0, present_bind, 2);
     SDL_DrawGPUPrimitives(pass, 3, 1, 0, 0);
 
     if (over_bytes)

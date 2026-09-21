@@ -62,6 +62,9 @@ struct Options {
     bool player_dump = false;
     bool rgb_light = false;
     bool scanlines = false;
+    float bloom = 0.0f;
+    float bloom_threshold = 0.0f;
+    bool bloom_threshold_given = false;
     bool save_test = false;
     bool particle_demo = false;
     bool save_dialog = false;
@@ -330,6 +333,14 @@ void parse_args(int argc, char **argv)
                 exit(2);
             }
             abuse::render::options().backend = b;
+        }
+        else if (!strcmp(argv[i], "--bloom"))
+            opt.bloom = (float)take_fraction(argc, argv, i, "--bloom");
+        else if (!strcmp(argv[i], "--bloom-threshold"))
+        {
+            opt.bloom_threshold =
+                (float)take_fraction(argc, argv, i, "--bloom-threshold");
+            opt.bloom_threshold_given = true;
         }
         else if (!strcmp(argv[i], "--scanlines"))
             opt.scanlines = true;
@@ -624,6 +635,10 @@ void before_game()
         abuse::render::set_rgb_lighting(true);
     if (opt.scanlines)
         abuse::render::options().scanlines = true;
+    if (opt.bloom > 0.0f)
+        abuse::render::options().bloom = opt.bloom;
+    if (opt.bloom_threshold_given)
+        abuse::render::options().bloom_threshold = opt.bloom_threshold;
 
     if (!opt.headless)
         return;
