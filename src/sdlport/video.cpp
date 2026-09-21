@@ -42,6 +42,9 @@
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
+
+// The native resolution layer, owned by the renderer above.
+static SDL_Texture *overlay_texture = NULL;
 SDL_Surface *surface = NULL;
 SDL_Texture *texture = NULL;
 image *main_screen = NULL;
@@ -272,7 +275,34 @@ void close_graphics()
         SDL_DestroySurface(surface);
     if (texture)
         SDL_DestroyTexture(texture);
+
+    // The renderer and the window too, here rather than in SDL_Quit's
+    // atexit handler.
+    //
+    // Mesa 26.1 segfaults about half the time tearing an OpenGL renderer
+    // down from inside exit(): pthread_setaffinity_np, called by glthread
+    // while flushing its batch. Nothing of ours is on that stack and there
+    // is nothing to fix on our side, but a renderer destroyed while the
+    // process is still properly alive does not go through the path that
+    // crashes. Owning what we created is the right shape anyway.
+    //
+    // The suite never saw it because --headless uses the dummy driver and
+    // never opens OpenGL at all.
+    if (renderer)
+        SDL_DestroyRenderer(renderer);
+    if (window)
+        SDL_DestroyWindow(window);
+
     delete main_screen;
+
+    // Called from several error paths as well as from the ordinary exit,
+    // so it has to survive being called twice.
+    surface = NULL;
+    texture = NULL;
+    overlay_texture = NULL;
+    renderer = NULL;
+    window = NULL;
+    main_screen = NULL;
 }
 
 // put_part_image()
@@ -442,7 +472,6 @@ bool game_rect_to_window(int gx, int gy, int gw, int gh,
     return true;
 }
 
-static SDL_Texture *overlay_texture = NULL;
 static int overlay_tex_w = 0;
 static int overlay_tex_h = 0;
 

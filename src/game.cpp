@@ -2971,5 +2971,11 @@ int main(int argc, char *argv[])
 
     sound_uninit();
 
+    // The window and the renderer, before SDL_Quit runs from atexit. See
+    // close_graphics: Mesa segfaults tearing an OpenGL renderer down from
+    // inside exit(), and the ordinary exit was the one path that never
+    // called this.
+    close_graphics();
+
     return 0;
 }
