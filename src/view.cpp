@@ -330,6 +330,13 @@ void view::draw_character_damage()
     // replays are unaffected.
     bool const remaster = abuse::data::mode()!=abuse::data::Mode::Original;
 
+    // Half the player's height, for putting the sparks at the chest
+    // rather than at the feet. Guarded: picture() walks a sequence and a
+    // frame index without checking either, and this runs on the tick the
+    // player is hit, which includes the one that kills them and changes
+    // the state under it. Decoration is not worth a crash.
+    int const chest = m_focus->picture() ? m_focus->picture()->Size().y / 2 : 0;
+
     if (last_hp>=0 && m_focus->hp()<last_hp && remaster)
     {
       int const hit = last_hp-m_focus->hp();
@@ -337,7 +344,7 @@ void view::draw_character_damage()
 
       // Phase 6, block 6.4: sparks off the player, thrown away from the
       // direction being faced, which is roughly where the shot came from.
-      abuse::render::spawn_sparks(m_focus->x, m_focus->y-m_focus->picture()->Size().y/2,
+      abuse::render::spawn_sparks(m_focus->x, m_focus->y-chest,
                                   Min(hit/2+2, 8), -m_focus->direction);
     }
 
@@ -351,7 +358,7 @@ void view::draw_character_damage()
         // which is all this needs to know.
         if (remaster && i==current_weapon && last_weapons[i]>=0
             && weapons[i]<last_weapons[i])
-          abuse::render::spawn_casing(m_focus->x, m_focus->y-m_focus->picture()->Size().y/2,
+          abuse::render::spawn_casing(m_focus->x, m_focus->y-chest,
                                       m_focus->direction);
 
     last_weapons[i]=weapons[i];

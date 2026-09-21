@@ -121,7 +121,16 @@ int get_save_spot()
   int quit=0;
   do
   {
-    wm->flush_screen();
+    // Only when there is nothing waiting.
+    //
+    // flush_screen presents a frame, and with vsync on that costs a
+    // display refresh. Dragging a window produces a stream of motion
+    // events, and presenting once per event made the window crawl behind
+    // the pointer. Draining the queue first collapses a burst of motion
+    // into one repaint, which is what the eye wanted anyway.
+    if (!wm->IsPending())
+      wm->flush_screen();
+
     wm->get_event(ev);
     if (ev.type==EV_MESSAGE && ev.message.id>=ID_LOAD_GAME_NUMBER && ev.message.id<ID_LOAD_GAME_PREVIEW)
       got_level=ev.message.id-ID_LOAD_GAME_NUMBER+1;
@@ -241,7 +250,11 @@ int load_game(int show_all, char const *title)   // return 0 if the player escap
     int quit=0;
     do
     {
-        wm->flush_screen();
+        // See the picker above: one present per motion event makes a
+        // dragged window crawl.
+        if (!wm->IsPending())
+            wm->flush_screen();
+
         wm->get_event(ev);
         if (ev.type==EV_MESSAGE && ev.message.id>=ID_LOAD_GAME_NUMBER && ev.message.id<ID_LOAD_GAME_PREVIEW)
             got_level=ev.message.id-ID_LOAD_GAME_NUMBER+1;

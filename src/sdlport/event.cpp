@@ -111,6 +111,22 @@ void EventHandler::SysPumpCursor()
         x = abuse::input::pad_state().axis_scaled(0, ldz);
         y = abuse::input::pad_state().axis_scaled(1, ldz);
     }
+
+    // The d-pad as well, which is buttons and not an axis.
+    //
+    // Without this the sticks were the only way to move the pointer, and
+    // every dialogue the 1995 code draws is picked with the pointer: a
+    // player reported that the save-slot picker could not be driven with
+    // the d-pad at all, which is exactly what this was.
+    if (x == 0.0f && y == 0.0f)
+    {
+        abuse::input::PadState const &pad = abuse::input::pad_state();
+        if (pad.button(SDL_GAMEPAD_BUTTON_DPAD_LEFT))  x -= 1.0f;
+        if (pad.button(SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) x += 1.0f;
+        if (pad.button(SDL_GAMEPAD_BUTTON_DPAD_UP))    y -= 1.0f;
+        if (pad.button(SDL_GAMEPAD_BUTTON_DPAD_DOWN))  y += 1.0f;
+    }
+
     if (x == 0.0f && y == 0.0f)
         return;
 
