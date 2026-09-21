@@ -63,6 +63,8 @@ struct Options {
     bool rgb_light = false;
     bool scanlines = false;
     float bloom = 0.0f;
+    abuse::render::Backend backend = abuse::render::Backend::Classic;
+    bool backend_given = false;
     float bloom_threshold = 0.0f;
     bool bloom_threshold_given = false;
     bool save_test = false;
@@ -332,7 +334,8 @@ void parse_args(int argc, char **argv)
                                 "gpu\n", name);
                 exit(2);
             }
-            abuse::render::options().backend = b;
+            opt.backend = b;
+            opt.backend_given = true;
         }
         else if (!strcmp(argv[i], "--bloom"))
             opt.bloom = (float)take_fraction(argc, argv, i, "--bloom");
@@ -639,6 +642,8 @@ void before_game()
         abuse::render::options().bloom = opt.bloom;
     if (opt.bloom_threshold_given)
         abuse::render::options().bloom_threshold = opt.bloom_threshold;
+    if (opt.backend_given)
+        abuse::render::options().backend = opt.backend;
 
     if (!opt.headless)
         return;
