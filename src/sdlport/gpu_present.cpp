@@ -23,12 +23,20 @@ namespace {
 SDL_Window *g_window = NULL;
 SDL_GPUDevice *g_device = NULL;
 
-SDL_GPUGraphicsPipeline *g_game_pipe = NULL;
+SDL_GPUGraphicsPipeline *g_game_pipe = NULL;     // indices into colour
+SDL_GPUGraphicsPipeline *g_present_pipe = NULL;  // colour onto the window
 SDL_GPUGraphicsPipeline *g_overlay_pipe = NULL;
 
 SDL_GPUTexture *g_indexed = NULL;   // the game buffer, one byte a pixel
 SDL_GPUTexture *g_palette = NULL;   // 256x1 RGBA
 SDL_GPUTexture *g_overlay = NULL;   // window sized ARGB
+SDL_GPUTexture *g_scene = NULL;     // the game picture in colour, game sized
+int g_scene_w = 0, g_scene_h = 0;
+
+// What the first pass draws into. Fixed rather than the window's format,
+// so the pipeline does not have to be rebuilt when the window moves to a
+// display with a different one.
+SDL_GPUTextureFormat const kSceneFormat = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 
 SDL_GPUSampler *g_nearest = NULL;
 SDL_GPUSampler *g_linear = NULL;
@@ -49,7 +57,8 @@ SDL_GPUTransferBuffer *g_download = NULL;
 uint32_t g_download_size = 0;
 
 SDL_GPUShader *make_shader(uint8_t const *code, size_t size,
-                           SDL_GPUShaderStage stage, uint32_t samplers)
+                           SDL_GPUShaderStage stage, uint32_t samplers,
+                           uint32_t uniforms = 0)
 {
     SDL_GPUShaderCreateInfo ci = {};
     ci.code = code;
@@ -58,14 +67,16 @@ SDL_GPUShader *make_shader(uint8_t const *code, size_t size,
     ci.format = SDL_GPU_SHADERFORMAT_SPIRV;
     ci.stage = stage;
     ci.num_samplers = samplers;
+    ci.num_uniform_buffers = uniforms;
     return SDL_CreateGPUShader(g_device, &ci);
 }
 
 SDL_GPUGraphicsPipeline *make_pipeline(SDL_GPUShader *vs, SDL_GPUShader *fs,
-                                       bool blend)
+                                       bool blend,
+                                       SDL_GPUTextureFormat format)
 {
     SDL_GPUColorTargetDescription target = {};
-    target.format = SDL_GetGPUSwapchainTextureFormat(g_device, g_window);
+    target.format = format;
 
     if (blend)
     {
@@ -113,6 +124,15 @@ SDL_GPUTexture *make_texture(int w, int h, SDL_GPUTextureFormat format)
     ci.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
     return SDL_CreateGPUTexture(g_device, &ci);
 }
+
+// What the present shader reads, laid out as its uniform block is.
+struct PresentUniform
+{
+    float source_w;
+    float source_h;
+    float scanline;
+    float pixel_art;
+};
 
 // Grows the staging buffer when a frame needs more than the last one did.
 bool want_upload(uint32_t bytes)
@@ -284,25 +304,37 @@ bool start(SDL_Window *window)
     SDL_GPUShader *fs_over = make_shader(render::gpu::k_overlay_frag,
                                          sizeof render::gpu::k_overlay_frag,
                                          SDL_GPU_SHADERSTAGE_FRAGMENT, 1);
-    if (!vs || !fs_game || !fs_over)
+    SDL_GPUShader *fs_present = make_shader(render::gpu::k_present_frag,
+                                            sizeof render::gpu::k_present_frag,
+                                            SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
+    if (!vs || !fs_game || !fs_over || !fs_present)
     {
         printf("GPU: shader rejected (%s)\n", SDL_GetError());
         stop();
         return false;
     }
 
-    g_game_pipe = make_pipeline(vs, fs_game, false);
-    g_overlay_pipe = make_pipeline(vs, fs_over, true);
+    // The first pass draws into a target of the game's own size, so its
+    // format is fixed here rather than taken from the window.
+    g_game_pipe = make_pipeline(vs, fs_game, false, kSceneFormat);
+    g_present_pipe = make_pipeline(vs, fs_present, false,
+                                   SDL_GetGPUSwapchainTextureFormat(g_device,
+                                                                    window));
+    g_overlay_pipe = make_pipeline(vs, fs_over, true,
+                                   SDL_GetGPUSwapchainTextureFormat(g_device,
+                                                                    window));
 
     SDL_ReleaseGPUShader(g_device, vs);
     SDL_ReleaseGPUShader(g_device, fs_game);
     SDL_ReleaseGPUShader(g_device, fs_over);
+    SDL_ReleaseGPUShader(g_device, fs_present);
 
     g_nearest = make_sampler(SDL_GPU_FILTER_NEAREST);
     g_linear = make_sampler(SDL_GPU_FILTER_LINEAR);
     g_palette = make_texture(256, 1, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
 
-    if (!g_game_pipe || !g_overlay_pipe || !g_nearest || !g_linear || !g_palette)
+    if (!g_game_pipe || !g_present_pipe || !g_overlay_pipe || !g_nearest
+        || !g_linear || !g_palette)
     {
         printf("GPU: pipeline setup failed (%s)\n", SDL_GetError());
         stop();
@@ -330,7 +362,9 @@ void stop()
     if (g_overlay) SDL_ReleaseGPUTexture(g_device, g_overlay);
     if (g_nearest) SDL_ReleaseGPUSampler(g_device, g_nearest);
     if (g_linear) SDL_ReleaseGPUSampler(g_device, g_linear);
+    if (g_scene) SDL_ReleaseGPUTexture(g_device, g_scene);
     if (g_game_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_game_pipe);
+    if (g_present_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_present_pipe);
     if (g_overlay_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_overlay_pipe);
     if (g_window) SDL_ReleaseWindowFromGPUDevice(g_device, g_window);
 
@@ -341,7 +375,8 @@ void stop()
     g_offscreen = NULL; g_offscreen_w = g_offscreen_h = 0;
     g_indexed = g_palette = g_overlay = NULL;
     g_nearest = g_linear = NULL;
-    g_game_pipe = g_overlay_pipe = NULL;
+    g_scene = NULL; g_scene_w = g_scene_h = 0;
+    g_game_pipe = g_present_pipe = g_overlay_pipe = NULL;
     g_device = NULL;
     g_window = NULL;
     g_game_w = g_game_h = g_overlay_w = g_overlay_h = 0;
@@ -370,6 +405,27 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
         g_game_h = h;
     }
 
+    // The colour picture at the game's own size: what the first pass
+    // writes and the second one scales.
+    if (w != g_scene_w || h != g_scene_h)
+    {
+        if (g_scene)
+            SDL_ReleaseGPUTexture(g_device, g_scene);
+
+        SDL_GPUTextureCreateInfo ci = {};
+        ci.type = SDL_GPU_TEXTURETYPE_2D;
+        ci.format = kSceneFormat;
+        ci.width = (uint32_t)w;
+        ci.height = (uint32_t)h;
+        ci.layer_count_or_depth = 1;
+        ci.num_levels = 1;
+        ci.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET
+                   | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        g_scene = SDL_CreateGPUTexture(g_device, &ci);
+        g_scene_w = w;
+        g_scene_h = h;
+    }
+
     bool const want_overlay = overlay && ow > 0 && oh > 0;
     if (want_overlay && (ow != g_overlay_w || oh != g_overlay_h))
     {
@@ -380,7 +436,7 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
         g_overlay_h = oh;
     }
 
-    if (!g_indexed || (want_overlay && !g_overlay))
+    if (!g_indexed || !g_scene || (want_overlay && !g_overlay))
         return;
 
     // One staging buffer for everything this frame: the game rows, the
@@ -496,6 +552,32 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
         g_offscreen_h = (int)sh;
     }
 
+    // Pass one: indices into colour, at the game's own size.
+    //
+    // Both samplers are nearest and neither is ever anything else.
+    // Interpolating an index averages the numbers, not the colours:
+    // halfway between entry 3 and entry 200 is entry 101, which resembles
+    // neither. The first frame this path produced was black with bright
+    // orange edges for exactly that reason. Smoothing belongs to the
+    // second pass, where the values are colours.
+    SDL_GPUColorTargetInfo scene_target = {};
+    scene_target.texture = g_scene;
+    scene_target.load_op = SDL_GPU_LOADOP_DONT_CARE;
+    scene_target.store_op = SDL_GPU_STOREOP_STORE;
+
+    SDL_GPURenderPass *scene_pass =
+        SDL_BeginGPURenderPass(cmd, &scene_target, 1, NULL);
+    SDL_BindGPUGraphicsPipeline(scene_pass, g_game_pipe);
+    SDL_GPUTextureSamplerBinding game_bind[2] = {};
+    game_bind[0].texture = g_indexed;
+    game_bind[0].sampler = g_nearest;
+    game_bind[1].texture = g_palette;
+    game_bind[1].sampler = g_nearest;
+    SDL_BindGPUFragmentSamplers(scene_pass, 0, game_bind, 2);
+    SDL_DrawGPUPrimitives(scene_pass, 3, 1, 0, 0);
+    SDL_EndGPURenderPass(scene_pass);
+
+    // Pass two: that picture, scaled into the window.
     uint8_t const *bar = render::options().letterbox;
     SDL_GPUColorTargetInfo target = {};
     target.texture = (capturing && g_offscreen) ? g_offscreen : swap;
@@ -519,25 +601,26 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     view.max_depth = 1.0f;
     SDL_SetGPUViewport(pass, &view);
 
-    SDL_BindGPUGraphicsPipeline(pass, g_game_pipe);
-    SDL_GPUTextureSamplerBinding game_bind[2] = {};
-    game_bind[0].texture = g_indexed;
+    render::Options const &opt = render::options();
 
-    // Nearest, always, whatever the filter setting says.
-    //
-    // Interpolating an index texture averages the numbers, not the
-    // colours: halfway between entry 3 and entry 200 is entry 101, which
-    // is a colour that belongs to neither. The first frame this path ever
-    // produced was black with bright orange edges for exactly that reason.
-    //
-    // A smooth upscale has to happen after the lookup, which means drawing
-    // the game to a target of its own and scaling that. Not yet.
-    game_bind[0].sampler = g_nearest;
-    game_bind[1].texture = g_palette;
-    // The palette is a lookup table and never interpolated: a blend of two
-    // entries is a colour that is in neither of them.
-    game_bind[1].sampler = g_nearest;
-    SDL_BindGPUFragmentSamplers(pass, 0, game_bind, 2);
+    PresentUniform u = {};
+    u.source_w = (float)w;
+    u.source_h = (float)h;
+    // Only where there is room for them, as on the old path: fewer than
+    // two window rows per game row and a scanline is most of the picture.
+    u.scanline = (opt.scanlines && gh >= h * 2) ? 0.35f : 0.0f;
+    u.pixel_art = opt.filter == render::Filter::PixelArt ? 1.0f : 0.0f;
+    SDL_PushGPUFragmentUniformData(cmd, 0, &u, sizeof u);
+
+    SDL_BindGPUGraphicsPipeline(pass, g_present_pipe);
+    SDL_GPUTextureSamplerBinding scene_bind = {};
+    scene_bind.texture = g_scene;
+    // Nearest keeps hard edges but makes them uneven at a fractional
+    // scale; the sharpening in the shader needs a linear sampler to
+    // blend between two texels at all.
+    scene_bind.sampler =
+        opt.filter == render::Filter::Nearest ? g_nearest : g_linear;
+    SDL_BindGPUFragmentSamplers(pass, 0, &scene_bind, 1);
     SDL_DrawGPUPrimitives(pass, 3, 1, 0, 0);
 
     if (over_bytes)
