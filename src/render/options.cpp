@@ -174,12 +174,31 @@ bool parse_letterbox(char const *text, uint8_t out[3])
     return true;
 }
 
+namespace {
+
+char const *preset_label(Preset p)
+{
+    switch (p)
+    {
+    case Preset::Sharp: return "sharp";
+    case Preset::Enhanced: return "enhanced";
+    case Preset::Crt: return "crt";
+    default: return "classic";
+    }
+}
+
+}
+
 bool parse_preset(char const *name, Preset &out)
 {
     if (equals(name, "classic"))
         out = Preset::Classic;
     else if (equals(name, "sharp"))
         out = Preset::Sharp;
+    else if (equals(name, "enhanced"))
+        out = Preset::Enhanced;
+    else if (equals(name, "crt"))
+        out = Preset::Crt;
     else
         return false;
     return true;
@@ -187,22 +206,45 @@ bool parse_preset(char const *name, Preset &out)
 
 char const *preset_name(Preset p)
 {
-    return p == Preset::Sharp ? "sharp" : "classic";
+    return preset_label(p);
 }
 
 void apply_preset(Preset p, Options &opt)
 {
+    // Everything off first, so a preset is a statement of what the picture
+    // is and not an accumulation of whatever was on before it.
+    opt.scale = ScaleMode::Fit;
+    opt.filter = Filter::PixelArt;
+    opt.backend = Backend::Classic;
+    opt.scanlines = false;
+
     switch (p)
     {
     case Preset::Sharp:
         opt.scale = ScaleMode::Integer;
         opt.filter = Filter::Nearest;
         break;
+
+    case Preset::Crt:
+        opt.scanlines = true;
+        opt.backend = Backend::Gpu;
+        break;
+
+    case Preset::Enhanced:
+        opt.backend = Backend::Gpu;
+        break;
+
     case Preset::Classic:
-        opt.scale = ScaleMode::Fit;
-        opt.filter = Filter::PixelArt;
         break;
     }
+}
+
+// The lighting lives in its own module, so a preset that wants it has to
+// say so separately. True for the presets that mean "use what the machine
+// can do", false for the ones that mean "as it was".
+bool preset_wants_rgb_light(Preset p)
+{
+    return p == Preset::Enhanced || p == Preset::Crt;
 }
 
 bool parse_backend(char const *name, Backend &out)

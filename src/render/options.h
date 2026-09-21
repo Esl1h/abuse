@@ -127,16 +127,27 @@ bool parse_letterbox(char const *text, uint8_t out[3]);
 // "classic" is what the Original mode always uses.
 enum class Preset
 {
-    Classic,    // fit + pixelart, the upstream look
-    Sharp       // integer + nearest, hard pixels and no partial scaling
+    Classic,    // fit + pixelart, the upstream look, nothing added
+    Sharp,      // integer + nearest, hard pixels and no partial scaling
+    Enhanced,   // the GPU path with the lighting and the effects on
+    Crt         // Enhanced plus scanlines
 };
 
 bool parse_preset(char const *name, Preset &out);
 char const *preset_name(Preset p);
 
-// Overwrites scale and filter; leaves vsync, fps limit and letterbox alone,
-// since those are about the display and not about the look.
+// Overwrites the look: scale, filter, backend, scanlines and the lighting.
+// Leaves vsync, the fps limit, the letterbox and the aspect alone, because
+// those describe the display and the window rather than the picture, and a
+// player who has set them did not ask for a preset to undo it.
+//
+// Classic turns the additions off rather than leaving them, which is what
+// makes it usable as the Original mode's reset.
 void apply_preset(Preset p, Options &opt);
+
+// Whether the preset wants lighting in RGB. Separate because the lighting
+// lives in its own module and apply_preset only touches this one.
+bool preset_wants_rgb_light(Preset p);
 
 Options &options();
 

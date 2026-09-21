@@ -157,9 +157,64 @@ TEST_CASE("presets leave the display settings alone") {
 
 TEST_CASE("unknown preset name is rejected") {
     Preset p = Preset::Classic;
-    CHECK_FALSE(parse_preset("crt", p));
+    // "crt" used to be the example of an unknown name here. It is a preset
+    // now, which is why this asks about one that is not.
+    CHECK_FALSE(parse_preset("cinematic", p));
     CHECK_FALSE(parse_preset(nullptr, p));
     CHECK(p == Preset::Classic);
+}
+
+TEST_CASE("every preset name round trips") {
+    for (Preset want : { Preset::Classic, Preset::Sharp,
+                         Preset::Enhanced, Preset::Crt })
+    {
+        Preset got = Preset::Sharp;
+        REQUIRE(parse_preset(preset_name(want), got));
+        CHECK(got == want);
+    }
+}
+
+TEST_CASE("a preset says what the picture is, not what to add to it") {
+    Options opt;
+
+    // Everything on, from whatever the player had before.
+    opt.scale = ScaleMode::Stretch;
+    opt.filter = Filter::Linear;
+    opt.backend = Backend::Gpu;
+    opt.scanlines = true;
+
+    apply_preset(Preset::Classic, opt);
+    CHECK(opt.scale == ScaleMode::Fit);
+    CHECK(opt.filter == Filter::PixelArt);
+    CHECK(opt.backend == Backend::Classic);
+    CHECK_FALSE(opt.scanlines);
+    CHECK_FALSE(preset_wants_rgb_light(Preset::Classic));
+
+    apply_preset(Preset::Crt, opt);
+    CHECK(opt.backend == Backend::Gpu);
+    CHECK(opt.scanlines);
+    CHECK(preset_wants_rgb_light(Preset::Crt));
+
+    apply_preset(Preset::Enhanced, opt);
+    CHECK(opt.backend == Backend::Gpu);
+    CHECK_FALSE(opt.scanlines);
+    CHECK(preset_wants_rgb_light(Preset::Enhanced));
+}
+
+TEST_CASE("a preset leaves the display settings alone") {
+    Options opt;
+    opt.vsync = false;
+    opt.fps_limit = 144;
+    opt.aspect = Aspect::Wide16x9;
+    opt.letterbox[0] = 12;
+
+    // Those describe the display and the window, not the picture, and a
+    // player who set them did not ask a preset to undo it.
+    apply_preset(Preset::Crt, opt);
+    CHECK(opt.vsync == false);
+    CHECK(opt.fps_limit == 144);
+    CHECK(opt.aspect == Aspect::Wide16x9);
+    CHECK((int)opt.letterbox[0] == 12);
 }
 
 // Phase 6, block 6.1. Three keys in abuserc are now on/off, and a typo in any

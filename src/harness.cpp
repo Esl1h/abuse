@@ -60,6 +60,8 @@ struct Options {
     bool level_info = false;
     bool tile_dump = false;
     bool player_dump = false;
+    bool rgb_light = false;
+    bool scanlines = false;
     bool save_test = false;
     bool particle_demo = false;
     bool save_dialog = false;
@@ -330,7 +332,7 @@ void parse_args(int argc, char **argv)
             abuse::render::options().backend = b;
         }
         else if (!strcmp(argv[i], "--scanlines"))
-            abuse::render::options().scanlines = true;
+            opt.scanlines = true;
         else if (!strcmp(argv[i], "--save-test"))
             opt.save_test = true;
         else if (!strcmp(argv[i], "--save-dialog"))
@@ -349,7 +351,7 @@ void parse_args(int argc, char **argv)
         else if (!strcmp(argv[i], "--input-script"))
             load_input_script(take_value(argc, argv, i, "--input-script"));
         else if (!strcmp(argv[i], "--rgb-light"))
-            abuse::render::set_rgb_lighting(true);
+            opt.rgb_light = true;
         else if (!strcmp(argv[i], "--frame-alpha"))
         {
             opt.frame_alpha = (float)take_fraction(argc, argv, i, "--frame-alpha");
@@ -611,6 +613,18 @@ void apply_seed()
 
 void before_game()
 {
+    // These two are applied here and not where they are parsed.
+    //
+    // parse_args runs before setup(), because --headless has to pick the
+    // dummy drivers before SDL_Init. setup() then reads the command line
+    // and abuserc, and a preset there resets the look: with the old order
+    // a -preset on the same line quietly undid --rgb-light, which is how
+    // two snapshots lost their lighting the day presets grew teeth.
+    if (opt.rgb_light)
+        abuse::render::set_rgb_lighting(true);
+    if (opt.scanlines)
+        abuse::render::options().scanlines = true;
+
     if (!opt.headless)
         return;
 

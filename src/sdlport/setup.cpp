@@ -217,6 +217,11 @@ void createRCFile( char *rcfile )
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
         fputs( "; without the banding. Experimental, and never in Original mode.\n", fd );
         fputs( ";rgblight=on\n\n", fd );
+        fputs( "; Named combinations, so the common cases are one line.\n", fd );
+        fputs( "; classic is the 1995 look, sharp is hard pixels at whole\n", fd );
+        fputs( "; multiples, enhanced adds the card and the RGB lighting,\n", fd );
+        fputs( "; and crt is enhanced with scanlines.\n", fd );
+        fputs( ";preset=enhanced\n\n", fd );
         fputs( "; How the frame reaches the window. classic is SDL_Renderer,\n", fd );
         fputs( "; which is what the tests compare against; gpu is SDL_GPU,\n", fd );
         fputs( "; which does the palette conversion on the card. Vulkan only\n", fd );
@@ -325,7 +330,12 @@ void readRCFile()
                 result = strtok( NULL, "\n" );
                 abuse::render::Preset preset;
                 if( abuse::render::parse_preset( result, preset ) )
-                    abuse::render::apply_preset( preset, abuse::render::options() );
+                {
+                    abuse::render::apply_preset( preset,
+                                                 abuse::render::options() );
+                    abuse::render::set_rgb_lighting(
+                        abuse::render::preset_wants_rgb_light( preset ) );
+                }
             }
             else if( strcasecmp( result, "scalemode" ) == 0 )
             {
@@ -719,9 +729,15 @@ void parseCommandLine( int argc, char **argv )
         {
             abuse::render::Preset preset;
             if( ii + 1 < argc && abuse::render::parse_preset( argv[++ii], preset ) )
-                abuse::render::apply_preset( preset, abuse::render::options() );
+            {
+                abuse::render::apply_preset( preset,
+                                             abuse::render::options() );
+                abuse::render::set_rgb_lighting(
+                    abuse::render::preset_wants_rgb_light( preset ) );
+            }
             else
-                printf( "Unknown preset '%s', expected classic or sharp\n", argv[ii] );
+                printf( "Unknown preset '%s', expected classic, sharp,"
+                        " enhanced or crt\n", argv[ii] );
         }
         else if( !strcasecmp( argv[ii], "-scalemode" ) )
         {
