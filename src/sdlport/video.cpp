@@ -28,6 +28,7 @@
 
 #include "filter.h"
 #include "video.h"
+#include "gpu_present.h"
 #include <vector>
 
 #include "render/options.h"
@@ -37,6 +38,7 @@
 #include "image.h"
 #include "setup.h"
 #include "errorui.h"
+#include "loader2.h"
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
@@ -172,13 +174,23 @@ void set_mode(int argc, char **argv)
         show_startup_error("Video : Unable to create window : %s", SDL_GetError());
         exit(1);
     }
-    renderer = SDL_CreateRenderer(window, NULL);
-    if (renderer == NULL)
+    // SDL_GPU first when it was asked for. It claims the window, so the
+    // two cannot both have it; when it declines, the old path takes over
+    // and nothing else here changes.
+    if (abuse::render::options().backend == abuse::render::Backend::Gpu)
+        abuse::sdlport::gpu::start(window);
+
+    if (!abuse::sdlport::gpu::running())
     {
-        show_startup_error("Video : Unable to create renderer : %s", SDL_GetError());
-        exit(1);
+        renderer = SDL_CreateRenderer(window, NULL);
+        if (renderer == NULL)
+        {
+            show_startup_error("Video : Unable to create renderer : %s",
+                               SDL_GetError());
+            exit(1);
+        }
+        apply_presentation();
     }
-    apply_presentation();
 
     // Create the screen image
     main_screen = new image(ivec2(xres, yres), NULL, 2);
@@ -198,17 +210,23 @@ void set_mode(int argc, char **argv)
         show_startup_error("Video : Unable to create 8-bit surface: %s", SDL_GetError());
         exit(1);
     }
-    // And this texture is the actual texture rendered to the screen
-    texture = SDL_CreateTexture(renderer,
-        SDL_PIXELFORMAT_ARGB8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        xres, yres);
-    if (texture == NULL)
+    // And this texture is the actual texture rendered to the screen. Only
+    // on the old path: SDL_GPU has textures of its own and no renderer to
+    // make one from.
+    if (renderer)
     {
-        show_startup_error("Video : Unable to create texture: %s", SDL_GetError());
-        exit(1);
+        texture = SDL_CreateTexture(renderer,
+            SDL_PIXELFORMAT_ARGB8888,
+            SDL_TEXTUREACCESS_STREAMING,
+            xres, yres);
+        if (texture == NULL)
+        {
+            show_startup_error("Video : Unable to create texture: %s",
+                               SDL_GetError());
+            exit(1);
+        }
+        apply_filter();
     }
-    apply_filter();
 
     const SDL_DisplayMode* mode;
     mode = SDL_GetWindowFullscreenMode(window);
@@ -216,12 +234,13 @@ void set_mode(int argc, char **argv)
     {
         // Mode can be NULL meaning "not full screen"
         printf("Video : %dx%d windowed (renderer: %s)\n", win_width, win_height,
-               SDL_GetRendererName(renderer));
+               renderer ? SDL_GetRendererName(renderer) : "SDL_GPU");
     }
     else
     {
         printf("Video : %dx%d %dbpp (renderer: %s)\n", mode->w, mode->h,
-            SDL_BITSPERPIXEL(mode->format), SDL_GetRendererName(renderer));
+            SDL_BITSPERPIXEL(mode->format),
+            renderer ? SDL_GetRendererName(renderer) : "SDL_GPU");
     }
 
     // Grab and hide the mouse cursor
@@ -243,6 +262,8 @@ void video_change_settings(void)
 //
 void close_graphics()
 {
+    abuse::sdlport::gpu::stop();
+
     if(lastl)
         delete lastl;
     lastl = NULL;
@@ -527,6 +548,12 @@ static char g_window_capture[512] = "";
 
 void request_window_capture(char const *path)
 {
+    if (abuse::sdlport::gpu::running())
+    {
+        abuse::sdlport::gpu::capture_next_frame(path);
+        return;
+    }
+
     if (!path)
         g_window_capture[0] = 0;
     else
@@ -566,6 +593,44 @@ static void convert_lit(SDL_Surface *screen)
 
 void update_window_done()
 {
+    if (abuse::sdlport::gpu::running())
+    {
+        // From the surface and not from the global palette object.
+        //
+        // They are not the same colours: the gamma calibration builds a
+        // corrected copy and pushes it here, and the classic path has
+        // always drawn with whatever is on the surface. Reading the other
+        // one produced a picture that was correct in every respect except
+        // brightness, about a power of three too dark.
+        //
+        // Read every frame and compared inside; it changes rarely and the
+        // compare is 768 bytes.
+        SDL_Palette const *sp = SDL_GetSurfacePalette(surface);
+        if (sp && sp->ncolors >= 256)
+        {
+            uint8_t rgb[768];
+            for (int i = 0; i < 256; i++)
+            {
+                rgb[i * 3 + 0] = sp->colors[i].r;
+                rgb[i * 3 + 1] = sp->colors[i].g;
+                rgb[i * 3 + 2] = sp->colors[i].b;
+            }
+            abuse::sdlport::gpu::set_palette(rgb);
+        }
+
+        abuse::ui::Overlay &ov = abuse::ui::overlay();
+        bool const has_overlay = ov.Width() > 0 && ov.Height() > 0;
+
+        abuse::sdlport::gpu::present(
+            (uint8_t const *)surface->pixels, surface->w, surface->h,
+            surface->pitch,
+            has_overlay ? ov.Pixels() : NULL,
+            has_overlay ? ov.Width() : 0,
+            has_overlay ? ov.Height() : 0,
+            has_overlay ? ov.Pitch() : 0);
+        return;
+    }
+
     // Convert to match the display texture
     SDL_Surface* screen;
     if (SDL_LockTextureToSurface(texture, NULL, &screen))

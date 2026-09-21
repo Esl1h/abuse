@@ -11,6 +11,12 @@ layout(location = 0) out vec2 v_uv;
 
 void main()
 {
-    v_uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
-    gl_Position = vec4(v_uv * 2.0 - 1.0, 0.0, 1.0);
+    vec2 corner = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
+
+    // Flipped in y. Vulkan's clip space has y growing downwards while a
+    // texture's rows are stored top first, so using the corner directly
+    // presents the frame upside down, which is what the first capture off
+    // this path showed.
+    v_uv = vec2(corner.x, 1.0 - corner.y);
 }

@@ -175,6 +175,7 @@ Test harness flags (`src/harness.cpp`):
 | `--particle-demo` | Throws debris at the player every few ticks, which nothing in a scripted run does on its own |
 | `--dump-tiles` | Prints the collision each foreground tile carries. There is no hardness table in this engine: a tile blocks because its own art says so |
 | `--dump-player` | Prints the player's position and velocity every tick. How the jump height was measured rather than assumed |
+| `--renderer <classic\|gpu>` | Picks the presentation path without touching abuserc. The tests always use classic, which is what the golden frames were taken through |
 | `--frame-alpha F` | Forces the interpolated draw at a fixed point between two ticks |
 | `--input-script <file>` | Drives the player from a text file, one line of `<ticks> <actions>` per stretch. With `--record` it writes a real recording of what the script did |
 | `--level-info` | Prints the geometry of the level that loaded, and what each aspect ratio would need of it |

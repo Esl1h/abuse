@@ -317,6 +317,18 @@ void parse_args(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "--particle-demo"))
             opt.particle_demo = true;
+        else if (!strcmp(argv[i], "--renderer"))
+        {
+            char const *name = take_value(argc, argv, i, "--renderer");
+            abuse::render::Backend b;
+            if (!abuse::render::parse_backend(name, b))
+            {
+                fprintf(stderr, "unknown renderer '%s', expected classic or "
+                                "gpu\n", name);
+                exit(2);
+            }
+            abuse::render::options().backend = b;
+        }
         else if (!strcmp(argv[i], "--scanlines"))
             abuse::render::options().scanlines = true;
         else if (!strcmp(argv[i], "--save-test"))

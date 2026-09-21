@@ -205,6 +205,28 @@ void apply_preset(Preset p, Options &opt)
     }
 }
 
+bool parse_backend(char const *name, Backend &out)
+{
+    if (!name)
+        return false;
+    if (strcasecmp(name, "classic") == 0 || strcasecmp(name, "sdl") == 0)
+    {
+        out = Backend::Classic;
+        return true;
+    }
+    if (strcasecmp(name, "gpu") == 0 || strcasecmp(name, "sdlgpu") == 0)
+    {
+        out = Backend::Gpu;
+        return true;
+    }
+    return false;
+}
+
+char const *backend_name(Backend b)
+{
+    return b == Backend::Gpu ? "gpu" : "classic";
+}
+
 Options &options()
 {
     return g_options;

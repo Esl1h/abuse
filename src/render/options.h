@@ -24,6 +24,22 @@ enum class ScaleMode
     Stretch     // fill the window, aspect ratio ignored
 };
 
+// How the finished frame reaches the window.
+//
+// Classic is SDL_Renderer, which is what every snapshot in the suite was
+// taken through and what the tests still use. Gpu is SDL_GPU, decided on
+// 2026-09-20: the palette conversion moves off the CPU, which is the
+// ceiling the visual phase keeps running into. Opt-in, and it falls back
+// to Classic when the device cannot be had.
+enum class Backend
+{
+    Classic,
+    Gpu
+};
+
+bool parse_backend(char const *name, Backend &out);
+char const *backend_name(Backend b);
+
 enum class Filter
 {
     Nearest,    // hard pixel edges
@@ -52,6 +68,7 @@ bool parse_aspect(char const *name, Aspect &out);
 
 struct Options
 {
+    Backend backend = Backend::Classic;
     ScaleMode scale = ScaleMode::Fit;
     Filter filter = Filter::PixelArt;
     bool vsync = true;

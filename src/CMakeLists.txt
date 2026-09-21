@@ -18,6 +18,13 @@ else()
     set(abuse_RESOURCE_FILES "")
 endif()
 
+# The SDL_GPU shaders, built into the binary rather than installed beside
+# it. Configure time, because the blobs are committed and only change when
+# someone reruns tools/shaders/build-shaders.sh.
+include(${abuse_SOURCE_DIR}/cmake/EmbedShaders.cmake)
+abuse_embed_shaders("${CMAKE_CURRENT_BINARY_DIR}/gpu_shaders.h"
+                    palette.vert palette.frag overlay.frag)
+
 add_executable(abuse
     common.h
     compat.cpp compat.h
@@ -26,6 +33,7 @@ add_executable(abuse
     render/lightmap.cpp render/lightmap.h
     render/shake.cpp render/shake.h
     render/particles.cpp render/particles.h
+    sdlport/gpu_present.cpp sdlport/gpu_present.h
     audio/buses.cpp audio/buses.h
     audio/voices.cpp audio/voices.h
     audio/limiter.cpp audio/limiter.h
@@ -146,6 +154,7 @@ include_directories(
     ${abuse_SOURCE_DIR}/src/lisp
     ${abuse_SOURCE_DIR}/src/imlib
     ${abuse_SOURCE_DIR}/src/net
+    ${CMAKE_CURRENT_BINARY_DIR}   # gpu_shaders.h, written at configure time
 )
 if(WIN32)
     # Under Windows, throw them into the root

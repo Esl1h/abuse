@@ -41,6 +41,7 @@ compile() {
 
 compile vert "$src/palette.vert.glsl" "$src/palette.vert.spv"
 compile frag "$src/palette.frag.glsl" "$src/palette.frag.spv"
+compile frag "$src/overlay.frag.glsl" "$src/overlay.frag.spv"
 
 echo
 echo "Committed as they are. Rerun this after changing a .glsl."

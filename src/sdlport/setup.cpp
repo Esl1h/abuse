@@ -217,6 +217,11 @@ void createRCFile( char *rcfile )
         fputs( "; Lighting in RGB instead of by palette lookup: the same curve\n", fd );
         fputs( "; without the banding. Experimental, and never in Original mode.\n", fd );
         fputs( ";rgblight=on\n\n", fd );
+        fputs( "; How the frame reaches the window. classic is SDL_Renderer,\n", fd );
+        fputs( "; which is what the tests compare against; gpu is SDL_GPU,\n", fd );
+        fputs( "; which does the palette conversion on the card. Vulkan only\n", fd );
+        fputs( "; so far, and it falls back to classic when it cannot start.\n", fd );
+        fputs( ";renderer=gpu\n\n", fd );
         fputs( "; The Remastered mode has no sound of its own yet. When the\n", fd );
         fputs( "; original data is installed it borrows the sound and music\n", fd );
         fputs( "; from it, played exactly as they are. Off leaves it silent.\n", fd );
@@ -450,6 +455,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown rgblight '%s', expected on or off\n",
                             result );
+            }
+            else if( strcasecmp( result, "renderer" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                abuse::render::Backend b;
+                if( result && abuse::render::parse_backend( result, b ) )
+                    abuse::render::options().backend = b;
+                else
+                    printf( "Config: unknown renderer '%s', expected classic"
+                            " or gpu\n", result );
             }
             else if( strcasecmp( result, "classicsfx" ) == 0 )
             {
