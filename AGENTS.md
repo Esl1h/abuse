@@ -199,6 +199,10 @@ clang-tidy -p build/dev $(git diff --name-only -- '*.cpp')
 
 `./scripts/check-licenses.sh` checks the data manifest and runs in CI.
 
+`./scripts/play-diagnostics.sh [asan|release]` plays with the sanitisers on and
+everything written to a log, for a crash that only happens with a person at the
+controls.
+
 `./tools/spe-export/spe-export.py` exports the art as PNG with an index and a
 licence check, for the HD pack. `./tools/asciimap/` compiles a text grid into a
 playable level, tiling it the way the shipped levels are tiled.
