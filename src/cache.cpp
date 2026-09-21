@@ -1021,7 +1021,7 @@ figure *CacheList::fig(int id)
   {
     touch(me);
     locate(me);
-    me->data=(void *)new figure(fp,me->type);
+    me->data=(void *)new figure(fp,me->type,&me->hd_path);
      last_offset=fp->tell();
     return (figure *)me->data;
   }

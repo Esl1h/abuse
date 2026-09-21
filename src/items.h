@@ -70,7 +70,9 @@ public :
   boundary *f_damage,*b_damage;
   size_t MemUsage();
 
-  figure(bFILE *fp, int type);
+  // `hd` is the override path for this figure, or null. See foretile
+  // above: taken by pointer because a refusal clears it.
+  figure(bFILE *fp, int type, char **hd = nullptr);
   int width() { return forward->Size().x; }
   int height() { return forward->Size().y; }
 

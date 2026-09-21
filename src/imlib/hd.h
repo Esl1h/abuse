@@ -19,6 +19,11 @@
  *  What this is good for today is retouching: fixing a sprite, recolouring
  *  it, cleaning up a scan, and seeing it in the game without an editor.
  *
+ *  Covers images, foreground and background tiles, and characters, which
+ *  is every picture the cache hands out. Characters come through last
+ *  because they are cut into a forward and a backward copy and the swap
+ *  has to happen before either.
+ *
  *  This software was released into the Public Domain.
  */
 

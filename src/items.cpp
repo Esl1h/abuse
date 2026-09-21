@@ -289,9 +289,15 @@ size_t figure::MemUsage()
 }
 
 
-figure::figure(bFILE *fp, int type)
+figure::figure(bFILE *fp, int type, char **hd)
 {
   image *im=load_image(fp);
+
+  // Before the two transparent copies are cut from it, and before the
+  // flip: both are derived from these pixels.
+  if (hd)
+    im = abuse::hd::swap(*hd, im);
+
   forward=new TransImage(im,"figure data");
   im->FlipX();
   backward=new TransImage(im,"figure backward data");
