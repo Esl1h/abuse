@@ -35,7 +35,7 @@ public :
   uint16_t next;
   image *im;
   backtile(spec_entry *e, bFILE *fp);
-  backtile(bFILE *fp);
+  backtile(bFILE *fp, char **hd = nullptr);
   int32_t size() { ivec2 s = im->Size(); return 2 + 4 + s.x * s.y; }
   ~backtile() { delete im; }
 } ;
@@ -52,7 +52,10 @@ public :
 
   image *micro_image;
 
-  foretile(bFILE *fp);
+  // `hd` is the override path for this tile, or null. Taken by pointer
+  // because a refusal clears it: the complaint is then made once and not
+  // every time the tile is reloaded from the cache.
+  foretile(bFILE *fp, char **hd = nullptr);
   int32_t size() { return im->Size().x*im->Size().y+4+2+1+points->size(); }
   ~foretile() { delete im; delete points; delete micro_image; }
 } ;

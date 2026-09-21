@@ -12,6 +12,8 @@ ignore = [
     "READMD.md",        # a note inherited from upstream, no role in the game
     "MANIFEST.toml",    # this file
     "classic.sha256",   # checksums of the original data, not an asset
+    "hd",               # the HD override pack, distributed separately
+    "hd/**",            # and never in this repository; see src/imlib/hd.h
 ]
 allowed_licenses = [
     "public-domain",

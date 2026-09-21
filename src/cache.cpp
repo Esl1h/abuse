@@ -36,6 +36,7 @@
 #include "specache.h"
 #include "netface.h"
 #include "audio/formats.h"
+#include "imlib/hd.h"
 #include "data/paths.h"
 
 #define touch(x) { (x)->last_access=last_access++; \
@@ -662,6 +663,8 @@ void CacheList::unreg(int id)
     if (list[id].file_number >= 0)
     {
         unmalloc(&list[id]);
+        free(list[id].hd_path);
+        list[id].hd_path = NULL;
         list[id].file_number = -1;
     }
     else
@@ -693,6 +696,8 @@ void CacheList::empty()
   {
     if (list[i].file_number>=0 && list[i].last_access!=-1)
       unmalloc(&list[i]);
+    free(list[i].hd_path);
+    list[i].hd_path = NULL;
   }
   free(list);
   if (fp) delete fp;
@@ -779,6 +784,7 @@ int CacheList::AllocId()
                 list[total + i].file_number = -1; // mark new entries as new
                 list[total + i].last_access = -1;
                 list[total + i].data = NULL;
+                list[total + i].hd_path = NULL;
             }
             ret = total;
             // If new id's have been added, old prof_data size won't work
@@ -932,6 +938,16 @@ int CacheList::reg(char const *filename, char const *name, int type, int rm_dups
     list[id].offset = offset;
     list[id].type = type;
 
+    // Only pictures, and only when a pack is installed: without one this
+    // is a single check that answers no, and with one it is a stat per
+    // image at startup.
+    list[id].hd_path = NULL;
+    if (abuse::hd::available()
+        && (type == SPEC_IMAGE || type == SPEC_FORETILE
+            || type == SPEC_BACKTILE || type == SPEC_CHARACTER
+            || type == SPEC_CHARACTER2))
+        list[id].hd_path = abuse::hd::find(filename, name);
+
     return id;
 }
 
@@ -965,7 +981,7 @@ backtile *CacheList::backt(int id)
   {
     touch(me);
     locate(me);
-    me->data=(void *)new backtile(fp);
+    me->data=(void *)new backtile(fp, &me->hd_path);
     last_offset=fp->tell();
     return (backtile *)me->data;
   }
@@ -986,7 +1002,7 @@ foretile *CacheList::foret(int id)
   {
     touch(me);
     locate(me);
-    me->data=(void *)new foretile(fp);
+    me->data=(void *)new foretile(fp, &me->hd_path);
     last_offset=fp->tell();
     return (foretile *)me->data;
   }
@@ -1023,11 +1039,17 @@ image *CacheList::img(int id)
   else
   {
     touch(me);                                           // hold me, feel me, be me!
-    locate(me);
-    image *im=new image(fp);
-    me->data=(void *)im;
-    last_offset=fp->tell();
 
+    locate(me);
+
+    // The original is read either way: the file position has to end up
+    // past it, or the next entry would be read from the wrong place.
+    image *im = new image(fp);
+    last_offset = fp->tell();
+
+    im = abuse::hd::swap(me->hd_path, im);
+
+    me->data=(void *)im;
     return (image *)me->data;
   }
 }

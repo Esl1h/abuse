@@ -34,6 +34,7 @@ add_executable(abuse
     render/lightmap.cpp render/lightmap.h
     render/shake.cpp render/shake.h
     render/particles.cpp render/particles.h
+    imlib/hd.cpp imlib/hd.h
     sdlport/gpu_present.cpp sdlport/gpu_present.h
     audio/buses.cpp audio/buses.h
     audio/voices.cpp audio/voices.h

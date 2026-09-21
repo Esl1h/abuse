@@ -14,6 +14,7 @@
 
 #include "common.h"
 
+#include "hd.h"
 #include "items.h"
 #include "lisp.h"
 #include "dev.h"
@@ -198,9 +199,11 @@ boundary::boundary(boundary *p) : point_list(p->tot,p->data)
   }
 }
 
-backtile::backtile(bFILE *fp)
+backtile::backtile(bFILE *fp, char **hd)
 {
   im=load_image(fp);
+  if (hd)
+    im = abuse::hd::swap(*hd, im);
   next=fp->read_uint16();
 }
 
@@ -210,10 +213,15 @@ backtile::backtile(spec_entry *e, bFILE *fp)
   next=fp->read_uint16();
 }
 
-foretile::foretile(bFILE *fp)
+foretile::foretile(bFILE *fp, char **hd)
 {
     uint8_t *sl;
     image *img = load_image(fp);
+
+    // Before anything is derived from it: the transparent image and the
+    // little map icon are both built from these pixels below.
+    if (hd)
+        img = abuse::hd::swap(*hd, img);
 
     // create the micro image of the fore tile by averaging the color values
     // in 2×2 space and storing the closest match

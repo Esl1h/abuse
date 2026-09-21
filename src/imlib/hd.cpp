@@ -1,0 +1,226 @@
+/*
+ *  Abuse - dark 2D side-scrolling platform game
+ *
+ *  See hd.h.
+ *
+ *  This software was released into the Public Domain.
+ */
+
+#include "common.h"
+
+#include "hd.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <filesystem>
+#include <string>
+
+// Only the PNG decoder: it is the one format the pack uses, and the rest
+// of stb_image is a lot of code to carry for nothing. See
+// src/thirdparty/README.md for where this came from.
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#define STBI_NO_STDIO
+#include "thirdparty/stb_image.h"
+
+#include "image.h"
+#include "palette.h"
+#include "specs.h"
+
+extern palette *pal;
+
+namespace abuse::hd {
+
+namespace {
+
+bool g_enabled = true;
+
+// Where the pack lives, worked out once, as a path open_file understands.
+//
+// Two notions of path meet here and the first version got them crossed.
+// open_file takes a name relative to the data directory and prefixes it
+// itself; the filesystem check has to be done on the full path. Looking
+// for "data/hd" and then handing that to open_file made it ask for
+// "./data/data/hd/...", which simply was not there, and the override was
+// refused with no message at all.
+std::string const &root()
+{
+    static bool looked = false;
+    static std::string path;
+
+    if (!looked)
+    {
+        looked = true;
+        char const *prefix = get_filename_prefix();
+        std::string const full = std::string(prefix ? prefix : "") + "hd";
+
+        std::error_code ec;
+        if (std::filesystem::is_directory(full, ec))
+        {
+            path = "hd";
+            printf("HD: override pack at %s\n", full.c_str());
+        }
+    }
+    return path;
+}
+
+// "art/fore/techno.spe" -> "techno", which is how spe-export names the
+// directory it writes the entries of that file into.
+std::string stem_of(char const *spe_path)
+{
+    std::string s(spe_path ? spe_path : "");
+    size_t const slash = s.find_last_of("/\\");
+    if (slash != std::string::npos)
+        s = s.substr(slash + 1);
+    size_t const dot = s.find_last_of('.');
+    if (dot != std::string::npos)
+        s = s.substr(0, dot);
+    return s;
+}
+
+// The same scrubbing spe-export does, so the two agree on the filename.
+std::string safe_name(char const *name)
+{
+    std::string s(name ? name : "");
+    if (s.size() > 4)
+    {
+        std::string const tail = s.substr(s.size() - 4);
+        if (tail == ".pcx" || tail == ".PCX")
+            s = s.substr(0, s.size() - 4);
+    }
+    for (char &c : s)
+    {
+        bool const ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+                        || (c >= '0' && c <= '9') || c == '_' || c == '-'
+                        || c == '.';
+        if (!ok)
+            c = '_';
+    }
+    return s;
+}
+
+}
+
+image *load(char const *path, int want_w, int want_h);
+
+bool enabled()
+{
+    return g_enabled;
+}
+
+void set_enabled(bool on)
+{
+    g_enabled = on;
+}
+
+bool available()
+{
+    return g_enabled && !root().empty();
+}
+
+char *find(char const *spe_path, char const *name)
+{
+    if (!available() || !name || !name[0])
+        return NULL;
+
+    // Relative for open_file, absolute for the check. See root().
+    std::string const path =
+        root() + "/" + stem_of(spe_path) + "/" + safe_name(name) + ".png";
+
+    char const *prefix = get_filename_prefix();
+    std::string const full = std::string(prefix ? prefix : "") + path;
+
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(full, ec))
+        return NULL;
+
+    return strdup(path.c_str());
+}
+
+image *swap(char *&path, image *original)
+{
+    if (!path || !original)
+        return original;
+
+    image *replacement = load(path, original->Size().x, original->Size().y);
+    if (replacement)
+    {
+        delete original;
+        return replacement;
+    }
+
+    // Refused, and load() has said why. Stop asking about this one.
+    free(path);
+    path = NULL;
+    return original;
+}
+
+image *load(char const *path, int want_w, int want_h)
+{
+    if (!path || !pal)
+        return NULL;
+
+    // Read it whole rather than let stb open it: the engine's files can
+    // come from an overlay directory, and keeping one way in means one
+    // place to change when they can come from an archive too.
+    bFILE *file = open_file(path, "rb");
+    if (file->open_failure())
+    {
+        delete file;
+        return NULL;
+    }
+
+    size_t const size = (size_t)file->file_size();
+    uint8_t *raw = (uint8_t *)malloc(size);
+    if (!raw)
+    {
+        delete file;
+        return NULL;
+    }
+    file->read(raw, (int32_t)size);
+    delete file;
+
+    int w = 0, h = 0, channels = 0;
+    stbi_uc *pixels = stbi_load_from_memory(raw, (int)size, &w, &h,
+                                            &channels, 4);
+    free(raw);
+
+    if (!pixels)
+    {
+        printf("HD: %s will not decode (%s)\n", path, stbi_failure_reason());
+        return NULL;
+    }
+
+    if (w != want_w || h != want_h)
+    {
+        // Said out loud, because the file is obviously meant to be used
+        // and silently ignoring it would look like the pack not working.
+        printf("HD: %s is %dx%d and the game wants %dx%d; ignored\n",
+               path, w, h, want_w, want_h);
+        stbi_image_free(pixels);
+        return NULL;
+    }
+
+    image *out = new image(ivec2(w, h));
+
+    // Back to palette indices. Colour 0 is the transparent one throughout
+    // the engine, so anything mostly see-through becomes that rather than
+    // the nearest colour to whatever was underneath it.
+    for (int y = 0; y < h; y++)
+    {
+        uint8_t *dst = out->scan_line((int16_t)y);
+        stbi_uc const *src = pixels + (size_t)y * w * 4;
+
+        for (int x = 0; x < w; x++, src += 4)
+            dst[x] = src[3] < 128
+                         ? 0
+                         : (uint8_t)pal->find_closest(src[0], src[1], src[2]);
+    }
+
+    stbi_image_free(pixels);
+    return out;
+}
+
+}

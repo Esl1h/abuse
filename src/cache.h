@@ -74,6 +74,12 @@ protected:
     uint8_t type;
     int16_t file_number;
     int32_t offset;
+
+    // The file in data/hd/ that stands in for this one, or null, which is
+    // what it is for almost every entry and for all of them when there is
+    // no pack installed. Worked out when the entry is registered, because
+    // that is the only moment the engine knows what the entry is called.
+    char *hd_path;
 };
 
 class CacheList

@@ -47,6 +47,7 @@
 #include "render/lightmap.h"
 #include "render/shake.h"
 #include "render/particles.h"
+#include "imlib/hd.h"
 #include "input/gamepad.h"
 #include "input/rumble.h"
 #include "input/aim.h"
@@ -231,6 +232,10 @@ void createRCFile( char *rcfile )
         fputs( "; which does the palette conversion on the card. Vulkan only\n", fd );
         fputs( "; so far, and it falls back to classic when it cannot start.\n", fd );
         fputs( ";renderer=gpu\n\n", fd );
+        fputs( "; Art from data/hd/ replaces the art in the .spe files when\n", fd );
+        fputs( "; it is there. Same size as the original; see the README in\n", fd );
+        fputs( "; the pack. Off ignores the pack entirely.\n", fd );
+        fputs( ";hd=off\n\n", fd );
         fputs( "; The Remastered mode has no sound of its own yet. When the\n", fd );
         fputs( "; original data is installed it borrows the sound and music\n", fd );
         fputs( "; from it, played exactly as they are. Off leaves it silent.\n", fd );
@@ -501,6 +506,16 @@ void readRCFile()
                 else
                     printf( "Config: unknown renderer '%s', expected classic"
                             " or gpu\n", result );
+            }
+            else if( strcasecmp( result, "hd" ) == 0 )
+            {
+                result = strtok( NULL, "\n" );
+                bool on = true;
+                if( result && abuse::render::parse_switch( result, on ) )
+                    abuse::hd::set_enabled( on );
+                else
+                    printf( "Config: unknown hd '%s', expected on or off\n",
+                            result );
             }
             else if( strcasecmp( result, "classicsfx" ) == 0 )
             {
