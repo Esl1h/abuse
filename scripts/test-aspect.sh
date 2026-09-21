@@ -38,9 +38,21 @@ for rec in "${recs[@]}"; do
     name=$(basename "$rec" .rec)
     seen=""
     for w in "${widths[@]}"; do
+        # Timed and announced, one width at a time.
+        #
+        # This test has twice been killed by the CI timeout with nothing
+        # to show for it: a single line saying the whole thing took too
+        # long says neither which width was running nor whether the others
+        # were already slow. On Windows it passes in 47 seconds and then
+        # occasionally does not finish in 300.
+        started=$(date +%s)
+        echo "  ${w}x200..."
+
         hash=$("$bin" --headless -nodelay --playback "$rec" --state-hash \
                --viewport "$w" 200 -datadir ./data 2>/dev/null \
                | grep '^final' | grep -o 'hash=[0-9a-f]*')
+
+        echo "  ${w}x200 took $(( $(date +%s) - started ))s"
         if [ -z "$hash" ]; then
             echo "FAIL: $name at ${w}x200 produced no hash"
             rc=1
