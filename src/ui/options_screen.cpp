@@ -165,6 +165,66 @@ void smooth_value(char *buf, size_t n)
     snprintf(buf, n, "%s", render::options().interpolate ? "on" : "off");
 }
 
+// ---- preset ---------------------------------------------------------------
+
+// The named looks, in the order they add to each other: the 1995 picture,
+// hard pixels, the card doing the work, and the card with scanlines.
+render::Preset const kPresets[] = {
+    render::Preset::Classic, render::Preset::Sharp,
+    render::Preset::Enhanced, render::Preset::Crt
+};
+
+int const kPresetCount = (int)(sizeof(kPresets) / sizeof(kPresets[0]));
+
+// Which one the current settings amount to, or -1 when the player has
+// since changed something by hand. There is no stored "current preset":
+// a preset is something applied, not something held, and pretending
+// otherwise would have the screen lie after one change to a single row.
+int preset_now()
+{
+    for (int i = 0; i < kPresetCount; i++)
+    {
+        render::Options probe = render::options();
+        render::apply_preset(kPresets[i], probe);
+
+        if (probe.scale == render::options().scale
+            && probe.filter == render::options().filter
+            && probe.backend == render::options().backend
+            && probe.scanlines == render::options().scanlines
+            && render::preset_wants_rgb_light(kPresets[i])
+                   == render::rgb_lighting())
+            return i;
+    }
+    return -1;
+}
+
+void preset_step(int dir)
+{
+    int at = preset_now();
+    // From "none of them", stepping forwards lands on the first.
+    int next = at < 0 ? (dir > 0 ? 0 : kPresetCount - 1)
+                      : (at + dir + kPresetCount) % kPresetCount;
+
+    render::apply_preset(kPresets[next], render::options());
+    render::set_rgb_lighting(render::preset_wants_rgb_light(kPresets[next]));
+    sbar.need_refresh();
+}
+
+void preset_show(char *buf, size_t n)
+{
+    int at = preset_now();
+    snprintf(buf, n, "%s", at < 0 ? "-" : render::preset_name(kPresets[at]));
+}
+
+void preset_value(char *buf, size_t n)
+{
+    int at = preset_now();
+    if (at < 0)
+        buf[0] = 0;     // nothing to write: the rows below say it all
+    else
+        snprintf(buf, n, "%s", render::preset_name(kPresets[at]));
+}
+
 // ---- particles ------------------------------------------------------------
 
 // Sparks off a hit and a casing off a shot. Takes effect at once: turning it
@@ -392,6 +452,7 @@ Item const kItems[] = {
     { i18n::kOptAspect,      "aspect",      true,  aspect_step,   aspect_show,   aspect_value },
     { i18n::kOptHud,         "hud",         false, hud_step,      hud_show,      hud_value },
     { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
+    { i18n::kOptPreset,      "preset",      true,  preset_step,    preset_show,    preset_value },
     { i18n::kOptParticles,   "particles",   false, particles_step, particles_show, particles_value },
     { i18n::kOptReduceMotion, "reducemotion", false, reduce_motion_step, reduce_motion_show, reduce_motion_value },
     { i18n::kOptLighting,    "rgblight",    false, light_step,    light_show,    light_value },
