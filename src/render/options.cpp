@@ -56,6 +56,8 @@ bool parse_filter(char const *name, Filter &out)
         out = Filter::Linear;
     else if (equals(name, "pixelart"))
         out = Filter::PixelArt;
+    else if (equals(name, "scale2x"))
+        out = Filter::Scale2x;
     else
         return false;
     return true;
@@ -76,11 +78,11 @@ char const *filter_name(Filter f)
 {
     switch (f)
     {
-    case Filter::Nearest:  return "nearest";
-    case Filter::Linear:   return "linear";
-    case Filter::PixelArt: break;
+    case Filter::Nearest: return "nearest";
+    case Filter::Linear: return "linear";
+    case Filter::Scale2x: return "scale2x";
+    default: return "pixelart";
     }
-    return "pixelart";
 }
 
 namespace {

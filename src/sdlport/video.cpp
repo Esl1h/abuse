@@ -73,6 +73,12 @@ SDL_ScaleMode scale_mode_for(abuse::render::Filter f)
     {
     case abuse::render::Filter::Nearest: return SDL_SCALEMODE_NEAREST;
     case abuse::render::Filter::Linear:  return SDL_SCALEMODE_LINEAR;
+
+    // Scale2x is a shader and this is the path without one. Nearest is
+    // the honest fallback: it is what Scale2x is trying to improve on,
+    // and blurring instead would be the opposite of what was asked for.
+    case abuse::render::Filter::Scale2x: return SDL_SCALEMODE_NEAREST;
+
     case abuse::render::Filter::PixelArt: break;
     }
     return SDL_SCALEMODE_PIXELART;

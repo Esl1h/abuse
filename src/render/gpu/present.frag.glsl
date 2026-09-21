@@ -22,8 +22,9 @@ layout(set = 3, binding = 0) uniform Present
     // How much of each source row the scanline eats, 0 for none.
     float u_scanline;
 
-    // 1 to sharpen the interpolation, 0 to take the sampler as it is.
-    float u_pixel_art;
+    // 0 takes the sampler as it is, 1 sharpens the interpolation,
+    // 2 runs Scale2x.
+    float u_mode;
 
     // How much of the blurred bright pass to add back, 0 for none.
     float u_glow;
@@ -64,10 +65,46 @@ vec2 sharpen(vec2 uv)
     return (base + moved) / u_source;
 }
 
+// Scale2x, the 1990s pixel-art doubler, as a per-output-pixel lookup.
+//
+// The original algorithm walks the source and writes four pixels; here
+// each output pixel works out which of those four it would have been and
+// computes only that one. Same rule, no intermediate buffer.
+//
+// A corner is only filled in when the two neighbours meeting there agree
+// and the two opposite pairs disagree, which is what turns a staircase
+// into a diagonal and leaves a deliberate right angle alone.
+vec3 scale2x(vec2 uv)
+{
+    vec2 texel = 1.0 / u_source;
+    vec2 pixel = uv * u_source;
+    vec2 within = fract(pixel);
+
+    vec3 e = texture(u_scene, uv).rgb;
+    vec3 b = texture(u_scene, uv + vec2(0.0, -texel.y)).rgb;
+    vec3 h = texture(u_scene, uv + vec2(0.0,  texel.y)).rgb;
+    vec3 d = texture(u_scene, uv + vec2(-texel.x, 0.0)).rgb;
+    vec3 f = texture(u_scene, uv + vec2( texel.x, 0.0)).rgb;
+
+    // Flat, or an edge running both ways: leave it alone.
+    if (b == h || d == f)
+        return e;
+
+    bool left = within.x < 0.5;
+    bool top = within.y < 0.5;
+
+    if (top)
+        return left ? (d == b ? d : e) : (b == f ? f : e);
+    return left ? (d == h ? d : e) : (h == f ? f : e);
+}
+
 void main()
 {
-    vec2 uv = u_pixel_art > 0.5 ? sharpen(v_uv) : v_uv;
-    vec3 colour = texture(u_scene, uv).rgb;
+    vec3 colour;
+    if (u_mode > 1.5)
+        colour = scale2x(v_uv);
+    else
+        colour = texture(u_scene, u_mode > 0.5 ? sharpen(v_uv) : v_uv).rgb;
 
     if (u_glow > 0.0)
     {

@@ -146,7 +146,7 @@ void showHelp(const char* executableName)
     printf( "  -scale <arg>      Scale to <arg>\n" );
     printf( "  -preset <arg>     classic or sharp\n" );
     printf( "  -scalemode <arg>  integer, fit or stretch\n" );
-    printf( "  -filter <arg>     nearest, linear or pixelart\n" );
+    printf( "  -filter <arg>     nearest, linear, pixelart or scale2x\n" );
     printf( "  -novsync          Do not wait for the display refresh\n" );
     printf( "  -language <arg>   en, fr, de, pt_BR, or xx_XX for pseudo\n" );
     printf( "  -font <arg>       classic art font, or extended for accents\n" );
@@ -178,7 +178,8 @@ void createRCFile( char *rcfile )
         fputs( "; anything set after it wins.\npreset=classic\n\n", fd );
         fputs( "; How the frame is scaled to the window: integer, fit, stretch\n", fd );
         fputs( "scalemode=fit\n\n", fd );
-        fputs( "; Texture filter: nearest, linear, pixelart\nfilter=pixelart\n\n", fd );
+        fputs( "; Texture filter: nearest, linear, pixelart, scale2x (gpu only)\n"
+               "filter=pixelart\n\n", fd );
         fputs( "; Wait for the display refresh\nvsync=1\n\n", fd );
         fputs( "; Frame cap, 0 for none\nfpslimit=0\n\n", fd );
         fputs( "; Colour of the bars around the image, rrggbb\nletterbox=000000\n\n", fd );

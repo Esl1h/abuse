@@ -44,7 +44,8 @@ enum class Filter
 {
     Nearest,    // hard pixel edges
     Linear,     // blurred
-    PixelArt    // nearest with smoothed edges at non-integer factors
+    PixelArt,   // nearest with smoothed edges at non-integer factors
+    Scale2x     // the 1990s doubler: staircases become diagonals
 };
 
 // The shape of the picture. The game draws into a buffer 200 pixels tall and

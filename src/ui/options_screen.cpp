@@ -347,12 +347,17 @@ void filter_step(int dir)
 {
     render::Filter const filters[] = { render::Filter::Nearest,
                                        render::Filter::Linear,
-                                       render::Filter::PixelArt };
+                                       render::Filter::PixelArt,
+                                       render::Filter::Scale2x };
+    // Scale2x is a shader, so it is only on the list when the GPU path
+    // is the one selected. Offering it otherwise would show a name and
+    // draw nearest.
+    int const count = render::options().backend == render::Backend::Gpu ? 4 : 3;
     int at = 0;
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < count; i++)
         if (filters[i] == render::options().filter)
             at = i;
-    render::options().filter = filters[list_wrap(at, dir, 3)];
+    render::options().filter = filters[list_wrap(at, dir, count)];
     apply_filter();
 }
 

@@ -154,7 +154,7 @@ struct PresentUniform
     float source_w;
     float source_h;
     float scanline;
-    float pixel_art;
+    float mode;
     float glow;
     float pad[3];
 };
@@ -781,7 +781,10 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     // Only where there is room for them, as on the old path: fewer than
     // two window rows per game row and a scanline is most of the picture.
     u.scanline = (opt.scanlines && gh >= h * 2) ? 0.35f : 0.0f;
-    u.pixel_art = opt.filter == render::Filter::PixelArt ? 1.0f : 0.0f;
+    // 0 plain, 1 sharp bilinear, 2 Scale2x. Must match present.frag.glsl.
+    u.mode = opt.filter == render::Filter::Scale2x    ? 2.0f
+             : opt.filter == render::Filter::PixelArt ? 1.0f
+                                                      : 0.0f;
     u.glow = (glowing && g_bloom[0]) ? opt.bloom : 0.0f;
     SDL_PushGPUFragmentUniformData(cmd, 0, &u, sizeof u);
 
@@ -791,8 +794,10 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     // Nearest keeps hard edges but makes them uneven at a fractional
     // scale; the sharpening in the shader needs a linear sampler to
     // blend between two texels at all.
-    scene_bind.sampler =
-        opt.filter == render::Filter::Nearest ? g_nearest : g_linear;
+    // Scale2x compares texels and must see them unblended, like nearest.
+    scene_bind.sampler = (opt.filter == render::Filter::Nearest
+                          || opt.filter == render::Filter::Scale2x)
+                             ? g_nearest : g_linear;
     SDL_GPUTextureSamplerBinding present_bind[2] = {};
     present_bind[0] = scene_bind;
     // Always bound, even with no glow: a pipeline asks for its samplers
