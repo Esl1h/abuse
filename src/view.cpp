@@ -575,7 +575,7 @@ void view::add_chat_key(int key)  // return string if buf is complete
       game_object *o=current_object;
       current_object=m_focus;
 
-      void *m = LSpace::Tmp.Mark();
+      LSpace::Marker m = LSpace::Tmp.Mark();
       void *list=NULL;
       push_onto_list(LString::Create(m_chat_buf),list);
       ((LSymbol *)l_chat_input)->EvalFunction(list);

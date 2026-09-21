@@ -1885,7 +1885,7 @@ int level::load_player_info(bFILE *fp, spec_directory *sd, object_node *save_lis
     if (f->m_focus)
     {
       current_object = f->m_focus;
-      void *m = LSpace::Tmp.Mark();
+      LSpace::Marker m = LSpace::Tmp.Mark();
       fun->EvalFunction(NULL);
       LSpace::Tmp.Restore(m);
     }

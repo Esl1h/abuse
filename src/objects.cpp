@@ -262,7 +262,7 @@ void game_object::reload_notify()
     game_object *o=current_object;
     current_object=this;
 
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
     ((LSymbol *)ns)->EvalFunction(NULL);
     LSpace::Tmp.Restore(m);
 
@@ -276,7 +276,7 @@ void game_object::next_sequence()
     if( ns )
     {
         current_object = this;
-        void *m = LSpace::Tmp.Mark();
+        LSpace::Marker m = LSpace::Tmp.Mark();
         ((LSymbol *)ns)->EvalFunction(NULL);
         LSpace::Tmp.Restore(m);
     }
@@ -412,7 +412,7 @@ int game_object::decide()
     old_aistate=aistate();
 
     current_object=this;
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
 
     time_marker *prof1=NULL;
     if (profiling())
@@ -498,7 +498,7 @@ void game_object::do_damage(int amount, game_object *from, int32_t hitx, int32_t
     game_object *o = current_object;
     current_object = this;
 
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
 
     am = LList::Create();
     PtrRef r1(am);
@@ -638,7 +638,7 @@ void game_object::draw()
   {
     current_object=this;
 
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
     time_marker *prof1=NULL;
     if (profiling())
       prof1=new time_marker;
@@ -663,7 +663,7 @@ void game_object::map_draw()
   {
     current_object=this;
 
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
     time_marker *prof1=NULL;
     if (profiling())
       prof1=new time_marker;
@@ -1168,7 +1168,7 @@ game_object *create(int type, int32_t x, int32_t y, int skip_constructor, int ai
     game_object *o=current_object;
     current_object=g;
 
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
 
     time_marker *prof1=NULL;
     if (profiling())
@@ -1230,7 +1230,7 @@ int game_object::move(int cx, int cy, int button)
     lcx->m_cdr = lcy;
     lcy->m_cdr = lb;
 
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
 
     time_marker *prof1 = NULL;
     if (profiling())
@@ -1634,7 +1634,7 @@ void game_object::change_type(int new_type)
     game_object *o=current_object;
     current_object=this;
 
-    void *m = LSpace::Tmp.Mark();
+    LSpace::Marker m = LSpace::Tmp.Mark();
 
     time_marker *prof1=NULL;
     if (profiling())

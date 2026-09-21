@@ -55,11 +55,26 @@ typedef uint8_t ltype;
 
 struct LSpace
 {
+    // Where the allocation point was, so everything after it can be given
+    // back in one go.
+    //
+    // An offset and not a pointer, and carrying the generation with it.
+    // A collection frees this block and allocates another, so a saved
+    // m_free becomes a pointer into freed memory; and the collection also
+    // compacts what it kept, so even the offset no longer describes the
+    // same boundary. Both halves are needed to know whether the mark
+    // still means anything.
+    struct Marker
+    {
+        size_t offset;
+        uint32_t generation;
+    };
+
     size_t GetFree();
     void *Alloc(size_t size);
 
-    void *Mark();
-    void Restore(void *val);
+    Marker Mark();
+    void Restore(Marker const &val);
     void Clear();
 
     static LSpace Tmp, Perm, Gc;
@@ -69,6 +84,10 @@ struct LSpace
     uint8_t *m_free;
     char const *m_name;
     size_t m_size;
+
+    // Bumped every time the block underneath is replaced, which is what
+    // makes a Marker from before it recognisably stale.
+    uint32_t m_generation;
 };
 
 struct LObject

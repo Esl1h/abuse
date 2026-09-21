@@ -163,14 +163,38 @@ void need_perm_space(char const *why)
   }
 }
 
-void *LSpace::Mark()
+LSpace::Marker LSpace::Mark()
 {
-    return m_free;
+    Marker m;
+    m.offset = (size_t)(m_free - m_data);
+    m.generation = m_generation;
+    return m;
 }
 
-void LSpace::Restore(void *val)
+void LSpace::Restore(Marker const &val)
 {
-    m_free = (uint8_t *)val;
+    // A collection since the mark has freed the block this offset was
+    // measured in, and compacted what it kept into a new one. Truncating
+    // to the old offset would either cut into live objects or point at
+    // memory that is no longer ours; the collector has already reclaimed
+    // what it could, so there is nothing left to do here.
+    //
+    // Before this check, Restore wrote the old raw m_free straight back,
+    // pointing into a block the collector had freed. Measured with the
+    // temporary space shrunk to force collections: 461 of those in one
+    // run of a fight.
+    //
+    // It usually heals itself, which is why it survived thirty years. The
+    // next Alloc computes the free space from a wild pointer, gets
+    // nonsense, and collects, which puts m_free back somewhere real. It
+    // only bites when an allocation lands in the freed block first, and
+    // then the damage shows up later and elsewhere: a use-after-free
+    // reported from inside the collector, walking an object that should
+    // not be there.
+    if (val.generation != m_generation)
+        return;
+
+    m_free = m_data + val.offset;
 }
 
 size_t LSpace::GetFree()
@@ -2392,7 +2416,7 @@ LObject *LSysFunction::EvalFunction(LList *arg_list)
                 if (stat_man)
                     stat_man->update((cs - s) * 100 / l);
 #endif
-                void *m = LSpace::Tmp.Mark();
+                LSpace::Marker m = LSpace::Tmp.Mark();
                 compiled_form = LObject::Compile(cs);
                 compiled_form->Eval();
                 compiled_form = NULL;
@@ -3133,10 +3157,12 @@ void Lisp::Init()
 
     LSpace::Tmp.m_free = LSpace::Tmp.m_data = (uint8_t *)malloc(0x1000);
     LSpace::Tmp.m_size = 0x1000;
+    LSpace::Tmp.m_generation = 0;
     LSpace::Tmp.m_name = "temporary space";
 
     LSpace::Perm.m_free = LSpace::Perm.m_data = (uint8_t *)malloc(0x1000);
     LSpace::Perm.m_size = 0x1000;
+    LSpace::Perm.m_generation = 0;
     LSpace::Perm.m_name = "permanent space";
 
     LSpace::Gc.m_name = "garbage space";

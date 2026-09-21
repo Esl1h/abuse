@@ -239,6 +239,11 @@ void Lisp::CollectSpace(LSpace *which_space, int grow)
     which_space->m_size = LSpace::Gc.m_size;
     which_space->m_free = new_data + (LSpace::Gc.m_free - LSpace::Gc.m_data);
 
+    // The block underneath has been replaced, so every Marker taken
+    // before now describes a boundary in memory that is no longer ours.
+    // See LSpace::Restore.
+    which_space->m_generation++;
+
     LSpace::Current = sp;
 }
 
