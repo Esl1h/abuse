@@ -14,6 +14,7 @@
 #include <SDL3/SDL.h>
 
 #include "gpu_shaders.h"
+#include "render/lightmap.h"
 #include "render/options.h"
 
 namespace abuse::sdlport::gpu {
@@ -30,6 +31,7 @@ SDL_GPUGraphicsPipeline *g_overlay_pipe = NULL;
 SDL_GPUTexture *g_indexed = NULL;   // the game buffer, one byte a pixel
 SDL_GPUTexture *g_palette = NULL;   // 256x1 RGBA
 SDL_GPUTexture *g_overlay = NULL;   // window sized ARGB
+SDL_GPUTexture *g_light = NULL;     // one light level per game pixel
 SDL_GPUTexture *g_scene = NULL;     // the game picture in colour, game sized
 int g_scene_w = 0, g_scene_h = 0;
 
@@ -126,6 +128,20 @@ SDL_GPUTexture *make_texture(int w, int h, SDL_GPUTextureFormat format)
 }
 
 // What the present shader reads, laid out as its uniform block is.
+// What the first pass reads, laid out as its uniform block is.
+//
+// Padded to sixteen bytes. A uniform block is laid out in multiples of a
+// four-component vector, and pushing only the four bytes the one member
+// needs left the shader reading whatever was there: the lighting branch
+// never ran, and the frame came out identical to one with the lighting
+// switched off, which took a while to tell apart from a missing light
+// map.
+struct SceneUniform
+{
+    float lit;
+    float pad[3];
+};
+
 struct PresentUniform
 {
     float source_w;
@@ -300,7 +316,7 @@ bool start(SDL_Window *window)
                                     SDL_GPU_SHADERSTAGE_VERTEX, 0);
     SDL_GPUShader *fs_game = make_shader(render::gpu::k_palette_frag,
                                          sizeof render::gpu::k_palette_frag,
-                                         SDL_GPU_SHADERSTAGE_FRAGMENT, 2);
+                                         SDL_GPU_SHADERSTAGE_FRAGMENT, 3, 1);
     SDL_GPUShader *fs_over = make_shader(render::gpu::k_overlay_frag,
                                          sizeof render::gpu::k_overlay_frag,
                                          SDL_GPU_SHADERSTAGE_FRAGMENT, 1);
@@ -362,6 +378,7 @@ void stop()
     if (g_overlay) SDL_ReleaseGPUTexture(g_device, g_overlay);
     if (g_nearest) SDL_ReleaseGPUSampler(g_device, g_nearest);
     if (g_linear) SDL_ReleaseGPUSampler(g_device, g_linear);
+    if (g_light) SDL_ReleaseGPUTexture(g_device, g_light);
     if (g_scene) SDL_ReleaseGPUTexture(g_device, g_scene);
     if (g_game_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_game_pipe);
     if (g_present_pipe) SDL_ReleaseGPUGraphicsPipeline(g_device, g_present_pipe);
@@ -375,6 +392,7 @@ void stop()
     g_offscreen = NULL; g_offscreen_w = g_offscreen_h = 0;
     g_indexed = g_palette = g_overlay = NULL;
     g_nearest = g_linear = NULL;
+    g_light = NULL;
     g_scene = NULL; g_scene_w = g_scene_h = 0;
     g_game_pipe = g_present_pipe = g_overlay_pipe = NULL;
     g_device = NULL;
@@ -401,6 +419,11 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
         if (g_indexed)
             SDL_ReleaseGPUTexture(g_device, g_indexed);
         g_indexed = make_texture(w, h, SDL_GPU_TEXTUREFORMAT_R8_UNORM);
+
+        if (g_light)
+            SDL_ReleaseGPUTexture(g_device, g_light);
+        g_light = make_texture(w, h, SDL_GPU_TEXTUREFORMAT_R8_UNORM);
+
         g_game_w = w;
         g_game_h = h;
     }
@@ -436,15 +459,23 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
         g_overlay_h = oh;
     }
 
-    if (!g_indexed || !g_scene || (want_overlay && !g_overlay))
+    if (!g_indexed || !g_light || !g_scene || (want_overlay && !g_overlay))
         return;
 
     // One staging buffer for everything this frame: the game rows, the
     // palette when it moved, and the overlay when there is one.
+    // The light map only goes up when it is being used and when it covers
+    // the frame. When it does not, the lighting was already applied by
+    // remapping indices and there is nothing here to apply.
+    render::LightMap const &levels = render::lightmap();
+    bool const lit = render::rgb_lighting()
+                     && levels.width() >= w && levels.height() >= h;
+
     uint32_t const game_bytes = (uint32_t)(w * h);
+    uint32_t const light_bytes = lit ? (uint32_t)(w * h) : 0u;
     uint32_t const pal_bytes = g_palette_dirty ? 256u * 4u : 0u;
     uint32_t const over_bytes = want_overlay ? (uint32_t)(ow * oh * 4) : 0u;
-    if (!want_upload(game_bytes + pal_bytes + over_bytes))
+    if (!want_upload(game_bytes + light_bytes + pal_bytes + over_bytes))
         return;
 
     uint8_t *m = (uint8_t *)SDL_MapGPUTransferBuffer(g_device, g_upload, true);
@@ -455,9 +486,16 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     for (int y = 0; y < h; y++)
         memcpy(m + (size_t)y * w, indexed + (size_t)y * pitch, (size_t)w);
 
+    if (light_bytes)
+    {
+        uint8_t *l = m + game_bytes;
+        for (int y = 0; y < h; y++)
+            memcpy(l + (size_t)y * w, levels.row(y), (size_t)w);
+    }
+
     if (pal_bytes)
     {
-        uint8_t *p = m + game_bytes;
+        uint8_t *p = m + game_bytes + light_bytes;
         for (int i = 0; i < 256; i++)
         {
             p[i * 4 + 0] = g_palette_rgb[i * 3 + 0];
@@ -469,7 +507,7 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
 
     if (over_bytes)
     {
-        uint8_t *o = m + game_bytes + pal_bytes;
+        uint8_t *o = m + game_bytes + light_bytes + pal_bytes;
         for (int y = 0; y < oh; y++)
             memcpy(o + (size_t)y * ow * 4,
                    (uint8_t const *)overlay + (size_t)y * opitch,
@@ -495,9 +533,18 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     to.h = (uint32_t)h;
     SDL_UploadToGPUTexture(copy, &from, &to, true);
 
-    if (pal_bytes)
+    if (light_bytes)
     {
         from.offset = game_bytes;
+        to.texture = g_light;
+        to.w = (uint32_t)w;
+        to.h = (uint32_t)h;
+        SDL_UploadToGPUTexture(copy, &from, &to, true);
+    }
+
+    if (pal_bytes)
+    {
+        from.offset = game_bytes + light_bytes;
         to.texture = g_palette;
         to.w = 256;
         to.h = 1;
@@ -507,7 +554,7 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
 
     if (over_bytes)
     {
-        from.offset = game_bytes + pal_bytes;
+        from.offset = game_bytes + light_bytes + pal_bytes;
         to.texture = g_overlay;
         to.w = (uint32_t)ow;
         to.h = (uint32_t)oh;
@@ -565,15 +612,21 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
     scene_target.load_op = SDL_GPU_LOADOP_DONT_CARE;
     scene_target.store_op = SDL_GPU_STOREOP_STORE;
 
+    SceneUniform su = {};
+    su.lit = lit ? 1.0f : 0.0f;
+    SDL_PushGPUFragmentUniformData(cmd, 0, &su, sizeof su);
+
     SDL_GPURenderPass *scene_pass =
         SDL_BeginGPURenderPass(cmd, &scene_target, 1, NULL);
     SDL_BindGPUGraphicsPipeline(scene_pass, g_game_pipe);
-    SDL_GPUTextureSamplerBinding game_bind[2] = {};
+    SDL_GPUTextureSamplerBinding game_bind[3] = {};
     game_bind[0].texture = g_indexed;
     game_bind[0].sampler = g_nearest;
     game_bind[1].texture = g_palette;
     game_bind[1].sampler = g_nearest;
-    SDL_BindGPUFragmentSamplers(scene_pass, 0, game_bind, 2);
+    game_bind[2].texture = g_light;
+    game_bind[2].sampler = g_nearest;
+    SDL_BindGPUFragmentSamplers(scene_pass, 0, game_bind, 3);
     SDL_DrawGPUPrimitives(scene_pass, 3, 1, 0, 0);
     SDL_EndGPURenderPass(scene_pass);
 
