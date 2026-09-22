@@ -452,6 +452,23 @@ bool save_frame_bmp(char const *path)
 bool game_rect_to_window(int gx, int gy, int gw, int gh,
                          int &x, int &y, int &w, int &h)
 {
+    // The GPU path has no SDL_Renderer to ask, and answering "no" here left
+    // every overlay screen without a picture to measure against.
+    if (abuse::sdlport::gpu::running())
+    {
+        int px = 0, py = 0, pw = 0, ph = 0;
+        if (!abuse::sdlport::gpu::picture_rect(xres, yres, px, py, pw, ph))
+            return false;
+
+        float const sx = pw / (float)xres;
+        float const sy = ph / (float)yres;
+        x = (int)(px + gx * sx);
+        y = (int)(py + gy * sy);
+        w = (int)(gw * sx);
+        h = (int)(gh * sy);
+        return true;
+    }
+
     if (renderer == NULL)
         return false;
 
@@ -483,6 +500,16 @@ static int overlay_tex_h = 0;
 
 bool window_pixel_size(int &w, int &h)
 {
+    // Before the renderer check, and this is the whole bug of 2026-09-22:
+    // on the GPU path there is no SDL_Renderer, so this said false, and
+    // every caller of it bails out. draw_hud() is one, and so is every
+    // screen drawn into the native resolution overlay. With the enhanced
+    // preset the modern HUD and the menus simply were not there, and
+    // nothing said so, because returning false is how this reports "no
+    // window yet" as well.
+    if (abuse::sdlport::gpu::running())
+        return abuse::sdlport::gpu::window_size(w, h);
+
     if (renderer == NULL)
         return false;
 

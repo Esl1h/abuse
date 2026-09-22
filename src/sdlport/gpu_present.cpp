@@ -301,6 +301,23 @@ void save_capture(SDL_GPUTexture *from, uint32_t w, uint32_t h,
 
 }
 
+bool window_size(int &w, int &h)
+{
+    if (!g_device || !g_window)
+        return false;
+    return SDL_GetWindowSizeInPixels(g_window, &w, &h);
+}
+
+bool picture_rect(int game_w, int game_h, int &x, int &y, int &w, int &h)
+{
+    int win_w = 0, win_h = 0;
+    if (!window_size(win_w, win_h) || game_w < 1 || game_h < 1)
+        return false;
+
+    fit(win_w, win_h, game_w, game_h, x, y, w, h);
+    return true;
+}
+
 void capture_next_frame(char const *path)
 {
     if (path)

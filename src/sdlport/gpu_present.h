@@ -47,6 +47,19 @@ void set_palette(uint8_t const rgb[768]);
 void present(uint8_t const *indexed, int w, int h, int pitch,
              uint32_t const *overlay, int ow, int oh, int opitch);
 
+// The window in pixels, and where the game picture sits inside it.
+//
+// The native resolution overlay needs both: it covers the window, and the
+// HUD inside it is measured against the picture rather than the window, so
+// that it keeps its proportion when there are letterbox bars. They come
+// from here rather than being worked out again on the other side, because
+// the two answers have to be the same one: the presenter positions the
+// picture with exactly this calculation.
+//
+// False when this path is not running, and the caller asks SDL_Renderer.
+bool window_size(int &w, int &h);
+bool picture_rect(int game_w, int game_h, int &x, int &y, int &w, int &h);
+
 // Saves the next frame to `path` as BMP. The same thing --dump-window does
 // on the old path, and the only way to see what this one produces without
 // a person at the screen.
