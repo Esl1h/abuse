@@ -20,6 +20,17 @@ finished and run.
 - **Binary**: `abuse-vrenna`
 - **Licence**: GPL-2.0-or-later for the code; see `data/MANIFEST.toml` for data
 
+The repository is `Esl1h/abuse-vrenna`, renamed from `Esl1h/abuse` on
+2026-09-22 to match. GitHub redirects the old URL, so a clone made before the
+rename keeps working.
+
+The App ID keeps its capitals, `io.github.Esl1h.AbuseVrenna`, and does not
+have to follow the repository name. AppStream accepts it: `appstreamcli
+validate` passes, with one pedantic note that a component ID should be all
+lowercase. A hyphen in an ID is fine, measured the same way, so
+`io.github.esl1h.abuse-vrenna` would validate with nothing at all. Changing
+it renames four files and the manifest, and is a decision of its own.
+
 The App ID and the package names carry `vrenna` because `abuse` is already
 taken on both Flathub and the AUR: `com.github.Xenoveritas.abuse` is the
 upstream of this fork, and `abuse` and `abuse-git` are the SDL 1.2 port.

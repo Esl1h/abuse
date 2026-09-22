@@ -99,7 +99,7 @@ working driver is enough, integrated graphics included; there is no shader
 pipeline yet. It needs about 20 MB of disk and no network.
 
 On Windows, take `abuse-windows` from the
-[latest CI run](https://github.com/Esl1h/abuse/actions): the executable, the
+[latest CI run](https://github.com/Esl1h/abuse-vrenna/actions): the executable, the
 SDL DLLs, the game data and the fetcher for the original sound, in one folder.
 Unpack and run, no compiler and no clone.
 

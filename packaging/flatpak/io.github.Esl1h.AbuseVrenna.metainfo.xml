@@ -49,9 +49,9 @@
 
   <launchable type="desktop-id">io.github.Esl1h.AbuseVrenna.desktop</launchable>
 
-  <url type="homepage">https://github.com/Esl1h/abuse</url>
-  <url type="bugtracker">https://github.com/Esl1h/abuse/issues</url>
-  <url type="vcs-browser">https://github.com/Esl1h/abuse</url>
+  <url type="homepage">https://github.com/Esl1h/abuse-vrenna</url>
+  <url type="bugtracker">https://github.com/Esl1h/abuse-vrenna/issues</url>
+  <url type="vcs-browser">https://github.com/Esl1h/abuse-vrenna</url>
 
   <categories>
     <category>Game</category>
@@ -79,11 +79,11 @@
        modernisation and these URLs move to main. -->
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/Esl1h/abuse/modernisation/doc/screenshots/gameplay.png</image>
+      <image>https://raw.githubusercontent.com/Esl1h/abuse-vrenna/modernisation/doc/screenshots/gameplay.png</image>
       <caption>Fighting a mutant in the prison corridors</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/Esl1h/abuse/modernisation/doc/screenshots/startmenu.png</image>
+      <image>https://raw.githubusercontent.com/Esl1h/abuse-vrenna/modernisation/doc/screenshots/startmenu.png</image>
       <caption>The start menu, in the player's language</caption>
     </screenshot>
   </screenshots>
