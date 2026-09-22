@@ -621,7 +621,8 @@ static void convert_lit(SDL_Surface *screen)
         for (int x = 0; x < surface->w; x++)
         {
             SDL_Color const &c = pal->colors[src[x]];
-            dst[x] = abuse::render::shade(c.r, c.g, c.b, level[x]);
+            dst[x] = abuse::render::shade(c.r, c.g, c.b, level[x * 3],
+                                          level[x * 3 + 1], level[x * 3 + 2]);
         }
     }
 }

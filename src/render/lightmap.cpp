@@ -25,7 +25,7 @@ void LightMap::resize(int width, int height)
 
     m_width = width;
     m_height = height;
-    m_levels.assign((size_t)width * (size_t)height, (uint8_t)kFullLight);
+    m_levels.assign((size_t)width * (size_t)height * 3u, (uint8_t)kFullLight);
 }
 
 void LightMap::clear()
@@ -52,23 +52,42 @@ void LightMap::fill(int x, int y, int run, int level)
     if (level < 0) level = 0;
     if (level > kFullLight) level = kFullLight;
 
-    uint8_t *p = &m_levels[(size_t)y * (size_t)m_width + (size_t)x];
-    for (int i = 0; i < run; i++)
+    uint8_t *p = &m_levels[((size_t)y * (size_t)m_width + (size_t)x) * 3u];
+    for (int i = 0; i < run * 3; i++)
         p[i] = (uint8_t)level;
 }
 
-uint8_t LightMap::at(int x, int y) const
+Level LightMap::at(int x, int y) const
 {
     if (m_levels.empty() || x < 0 || y < 0 || x >= m_width || y >= m_height)
-        return (uint8_t)kFullLight;
-    return m_levels[(size_t)y * (size_t)m_width + (size_t)x];
+        return { (uint8_t)kFullLight, (uint8_t)kFullLight, (uint8_t)kFullLight };
+
+    size_t const at = ((size_t)y * (size_t)m_width + (size_t)x) * 3u;
+    return { m_levels[at], m_levels[at + 1], m_levels[at + 2] };
+}
+
+void LightMap::add(int x, int y, int r, int g, int b)
+{
+    if (m_levels.empty() || x < 0 || y < 0 || x >= m_width || y >= m_height)
+        return;
+
+    size_t const at = ((size_t)y * (size_t)m_width + (size_t)x) * 3u;
+    int const add[3] = { r, g, b };
+
+    for (int i = 0; i < 3; i++)
+    {
+        int level = m_levels[at + (size_t)i] + add[i];
+        if (level > kFullLight) level = kFullLight;
+        if (level < 0) level = 0;
+        m_levels[at + (size_t)i] = (uint8_t)level;
+    }
 }
 
 uint8_t const *LightMap::row(int y) const
 {
     if (m_levels.empty() || y < 0 || y >= m_height)
         return nullptr;
-    return &m_levels[(size_t)y * (size_t)m_width];
+    return &m_levels[(size_t)y * (size_t)m_width * 3u];
 }
 
 void LightMap::smooth(int x, int y, int w, int h, int radius_x, int radius_y)
@@ -90,14 +109,14 @@ void LightMap::smooth(int x, int y, int w, int h, int radius_x, int radius_y)
     if (radius_x == 0 && radius_y == 0)
         return;
 
-    m_scratch.resize((size_t)w * (size_t)h);
+    m_scratch.resize((size_t)w * (size_t)h * 3u);
 
     // Horizontal, into the scratch. A running sum, so the cost does not grow
     // with the radius.
     for (int row_i = 0; row_i < h; row_i++)
     {
-        uint8_t const *src = &m_levels[(size_t)(y + row_i) * (size_t)m_width + (size_t)x];
-        uint8_t *dst = &m_scratch[(size_t)row_i * (size_t)w];
+        uint8_t const *src = &m_levels[((size_t)(y + row_i) * (size_t)m_width + (size_t)x) * 3u];
+        uint8_t *dst = &m_scratch[(size_t)row_i * (size_t)w * 3u];
 
         for (int i = 0; i < w; i++)
         {
@@ -106,10 +125,14 @@ void LightMap::smooth(int x, int y, int w, int h, int radius_x, int radius_y)
             if (lo < 0) lo = 0;
             if (hi > w - 1) hi = w - 1;
 
-            int sum = 0;
-            for (int k = lo; k <= hi; k++)
-                sum += src[k];
-            dst[i] = (uint8_t)(sum / (hi - lo + 1));
+            for (int ch = 0; ch < 3; ch++)
+            {
+                int sum = 0;
+                for (int k = lo; k <= hi; k++)
+                    sum += src[(size_t)k * 3u + (size_t)ch];
+                dst[(size_t)i * 3u + (size_t)ch] =
+                    (uint8_t)(sum / (hi - lo + 1));
+            }
         }
     }
 
@@ -123,12 +146,17 @@ void LightMap::smooth(int x, int y, int w, int h, int radius_x, int radius_y)
             if (lo < 0) lo = 0;
             if (hi > h - 1) hi = h - 1;
 
-            int sum = 0;
-            for (int k = lo; k <= hi; k++)
-                sum += m_scratch[(size_t)k * (size_t)w + (size_t)col];
+            for (int ch = 0; ch < 3; ch++)
+            {
+                int sum = 0;
+                for (int k = lo; k <= hi; k++)
+                    sum += m_scratch[((size_t)k * (size_t)w + (size_t)col) * 3u
+                                     + (size_t)ch];
 
-            m_levels[(size_t)(y + row_i) * (size_t)m_width + (size_t)(x + col)] =
-                (uint8_t)(sum / (hi - lo + 1));
+                m_levels[((size_t)(y + row_i) * (size_t)m_width
+                          + (size_t)(x + col)) * 3u + (size_t)ch] =
+                    (uint8_t)(sum / (hi - lo + 1));
+            }
         }
     }
 }

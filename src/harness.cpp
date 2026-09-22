@@ -495,7 +495,7 @@ void print_dynlight_dump()
 
     printf("dynlight-dump entries=%d types=%d\n", (int)table.size(),
            total_objects);
-    printf("dynlight-dump name radius strength otype\n");
+    printf("dynlight-dump name radius strength r g b flicker otype\n");
 
     for (size_t i = 0; i < table.size(); i++)
     {
@@ -510,8 +510,9 @@ void print_dynlight_dump()
         // An entry naming a type this data set does not define is not an
         // error: the shareware data aliases some bullets onto others, and
         // the table is written once for every data set there is.
-        printf("dynlight %s %d %d %d\n", table[i].name.c_str(),
-               table[i].radius, table[i].strength, otype);
+        printf("dynlight %s %d %d %d %d %d %d %d\n", table[i].name.c_str(),
+               table[i].radius, table[i].strength, table[i].r, table[i].g,
+               table[i].b, table[i].flicker, otype);
     }
 }
 

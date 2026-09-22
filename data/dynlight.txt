@@ -3,17 +3,23 @@
 #
 # One entry per line:
 #
-#   NAME   radius   strength
+#   NAME   radius   strength   [r g b   [flicker]]
 #
 # NAME is the object type as data/lisp spells it in def_char, radius is the
 # reach in world pixels, and strength is how many light levels are added at
 # the centre, out of 63. The light falls off to nothing at the radius and
 # never takes a pixel past full brightness, so a lit room does not change.
 #
+# The colour is optional and white when left out. A light here never adds
+# colour to the picture: it takes less off the channels it is made of, which
+# on a grey wall reads as a tint and on a red one reads as red staying red.
+# The flicker, also optional, is how much the light wavers as a percentage
+# of its strength, changing once a logical tick.
+#
 # The numbers are deliberately small. This is a flash in a dark corridor,
 # not a lamp: a shot that lights the whole screen reads as a bug, and the
 # levels were drawn for a game where almost nothing moved the light.
-
+#
 # A name that the loaded data does not define is ignored, so this table can
 # name everything any data set has. `--dump-dynlight` prints which ones
 # resolved.
@@ -22,25 +28,26 @@
 # then the light travels with it, which is what a tracer does anyway.
 #
 # SHOTGUN_BULLET is the first one that matters: fire_object makes one of
-# those for weapon 0, the laser everybody starts with and the only weapon
-# with unlimited ammunition.
-MBULLET             26   16
-SHOTGUN_BULLET      30   20
-PLASMAGUN_BULLET    40   26
-LSABER_BULLET       36   24
-DFRIS_BULLET        34   22
+# those for weapon 0, the machine gun everybody starts with.
+MBULLET             26   16   255 240 190
+SHOTGUN_BULLET      30   20   255 240 190
+PLASMAGUN_BULLET    40   26   150 200 255
+LSABER_BULLET       36   24   190 255 210
+DFRIS_BULLET        34   22   210 190 255
 
 # In flight. The rocket lighting the corridor ahead of it is most of what
-# makes it feel heavy.
-ROCKET              48   28
-STRAIT_ROCKET       48   28
-GRENADE             30   14
-FIREBOMB            40   24
+# makes it feel heavy, and its exhaust is the one steady flame here, so it
+# is the one thing that wavers while it travels.
+ROCKET              48   28   255 180  90   25
+STRAIT_ROCKET       48   28   255 180  90   25
+GRENADE             30   14   255 220 160
+FIREBOMB            40   24   255 140  40   35
 
 # Explosions already drop an EXP_LIGHT of their own, which is a real light
 # source and brighter than this. These are the frames around it, so that the
-# blast does not go dark a tick before the sprite does.
-EXPLODE1            56   20
-EXPLODE2            48   18
-EXPLODE3            40   16
-EXPLODE5            56   20
+# blast does not go dark a tick before the sprite does. They waver, because
+# fire does.
+EXPLODE1            56   20   255 170  70   30
+EXPLODE2            48   18   255 170  70   30
+EXPLODE3            40   16   255 180  90   30
+EXPLODE5            56   20   255 200 120   30

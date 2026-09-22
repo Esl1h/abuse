@@ -9,6 +9,7 @@
 #include "dynlight.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,6 +21,20 @@ std::vector<Emitter> g_emitters;
 bool g_enabled = true;
 
 bool blank(char c) { return c == ' ' || c == '\t' || c == '\r'; }
+
+int clamp_byte(long v) { return (int)(v < 0 ? 0 : v > 255 ? 255 : v); }
+
+// A hash, not a random number. The waver has to be the same on every
+// machine replaying the same tick, and it must not touch the game's RNG,
+// whose cursor is part of the state hash. Splitmix64's finaliser, which is
+// cheap and mixes low bits well.
+uint32_t mix(uint64_t x)
+{
+    x += 0x9e3779b97f4a7c15ULL;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    return (uint32_t)((x ^ (x >> 31)) & 0xffffffffULL);
+}
 
 }
 
@@ -71,6 +86,36 @@ int parse_emitters(char const *text, std::vector<Emitter> &out)
             continue;
         }
 
+        // The colour and the waver are optional, and all four together or
+        // none: a line with one or two colour channels is a typo, not a
+        // light, and taking the two it has would put out a colour nobody
+        // asked for.
+        char *end3 = nullptr;
+        long const red = strtol(end2, &end3, 10);
+        if (end3 != end2)
+        {
+            char *end4 = nullptr;
+            long const green = strtol(end3, &end4, 10);
+            char *end5 = nullptr;
+            long const blue = strtol(end4, &end5, 10);
+            if (end4 == end3 || end5 == end4)
+            {
+                bad++;
+                continue;
+            }
+
+            e.r = clamp_byte(red);
+            e.g = clamp_byte(green);
+            e.b = clamp_byte(blue);
+
+            char *end6 = nullptr;
+            long const waver = strtol(end5, &end6, 10);
+            if (end6 != end5)
+            {
+                e.flicker = (int)(waver < 0 ? 0 : waver > 100 ? 100 : waver);
+            }
+        }
+
         if (e.radius <= 0 || e.strength <= 0)
         {
             bad++;
@@ -92,8 +137,31 @@ int load_emitters(char const *text)
 
 std::vector<Emitter> const &emitters() { return g_emitters; }
 
-void brighten(LightMap &map, int cx, int cy, int radius, int strength)
+void emitter_strength(Emitter const &e, int tick, int seed, int &sr, int &sg,
+                      int &sb)
 {
+    int strength = e.strength;
+
+    if (e.flicker > 0)
+    {
+        // Between (100 - flicker)% and 100% of the strength, never above
+        // it: a light that brightens past what the table says would wash
+        // out the frame on the tick it happened to peak.
+        uint32_t const r = mix(((uint64_t)(uint32_t)tick << 32)
+                               ^ (uint32_t)seed) % 1000u;
+        int const down = (int)((uint64_t)strength * e.flicker * r / 100000u);
+        strength -= down;
+    }
+
+    sr = strength * e.r / 255;
+    sg = strength * e.g / 255;
+    sb = strength * e.b / 255;
+}
+
+void brighten(LightMap &map, int cx, int cy, int radius, int sr, int sg,
+              int sb)
+{
+    int const strength = sr > sg ? (sr > sb ? sr : sb) : (sg > sb ? sg : sb);
     if (map.empty() || radius <= 0 || strength <= 0)
         return;
 
@@ -114,9 +182,9 @@ void brighten(LightMap &map, int cx, int cy, int radius, int strength)
             if (d >= reach)
                 continue;
 
-            int level = map.at(x, y)
-                        + (int)((1.0f - d / reach) * (float)strength);
-            map.fill(x, y, 1, level > kFullLight ? kFullLight : level);
+            float const fade = 1.0f - d / reach;
+            map.add(x, y, (int)(fade * (float)sr), (int)(fade * (float)sg),
+                    (int)(fade * (float)sb));
         }
     }
 }

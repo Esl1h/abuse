@@ -822,9 +822,27 @@ void Game::draw_dynlights(view *v, int xoff, int yoff)
     if (map.empty())
         return;
 
+    // Per tick and not per frame: at 165 frames a second a waver that
+    // changed every frame would be a strobe, not a flame.
+    int const tick = (int)current_level->tick_counter();
+
     if (abuse::harness::dynlight_demo() && v->m_focus)
+    {
+        // Warm and wavering, so that the golden frame covers the colour
+        // and the waver and not only the reach. Deterministic: the waver
+        // is a hash of the tick, and the frame is dumped at a fixed one.
+        abuse::render::Emitter demo;
+        demo.radius = 40;
+        demo.strength = 30;
+        demo.r = 255; demo.g = 150; demo.b = 60;
+        demo.flicker = 30;
+
+        int sr = 0, sg = 0, sb = 0;
+        abuse::render::emitter_strength(demo, tick, 1, sr, sg, sb);
         abuse::render::brighten(map, v->m_focus->x - xoff + v->m_aa.x,
-                                v->m_focus->y - yoff + v->m_aa.y, 40, 30);
+                                v->m_focus->y - yoff + v->m_aa.y,
+                                demo.radius, sr, sg, sb);
+    }
 
     std::vector<int> const &by_type = dynlight_by_type();
     if (by_type.empty())
@@ -841,9 +859,15 @@ void Game::draw_dynlights(view *v, int xoff, int yoff)
         if (at < 0)
             continue;
 
+        // The seed separates two objects of the same type on the same
+        // tick: two explosions side by side should not waver together.
+        int sr = 0, sg = 0, sb = 0;
+        abuse::render::emitter_strength(table[at], tick, o->x * 31 + o->y,
+                                        sr, sg, sb);
+
         abuse::render::brighten(map, o->x - xoff + v->m_aa.x,
                                 o->y - yoff + v->m_aa.y,
-                                table[at].radius, table[at].strength);
+                                table[at].radius, sr, sg, sb);
     }
 }
 

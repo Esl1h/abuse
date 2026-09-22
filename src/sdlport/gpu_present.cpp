@@ -461,7 +461,9 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
 
         if (g_light)
             SDL_ReleaseGPUTexture(g_device, g_light);
-        g_light = make_texture(w, h, SDL_GPU_TEXTUREFORMAT_R8_UNORM);
+        // Four channels since block 6.2 grew a level per channel: a
+        // coloured light takes less off the channels it is made of.
+        g_light = make_texture(w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
 
         g_game_w = w;
         g_game_h = h;
@@ -511,7 +513,7 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
                      && levels.width() >= w && levels.height() >= h;
 
     uint32_t const game_bytes = (uint32_t)(w * h);
-    uint32_t const light_bytes = lit ? (uint32_t)(w * h) : 0u;
+    uint32_t const light_bytes = lit ? (uint32_t)(w * h * 4) : 0u;
     uint32_t const pal_bytes = g_palette_dirty ? 256u * 4u : 0u;
     uint32_t const over_bytes = want_overlay ? (uint32_t)(ow * oh * 4) : 0u;
     if (!want_upload(game_bytes + light_bytes + pal_bytes + over_bytes))
@@ -527,9 +529,20 @@ void present(uint8_t const *indexed, int w, int h, int pitch,
 
     if (light_bytes)
     {
+        // Three bytes per pixel on this side, four on that one.
         uint8_t *l = m + game_bytes;
         for (int y = 0; y < h; y++)
-            memcpy(l + (size_t)y * w, levels.row(y), (size_t)w);
+        {
+            uint8_t const *src = levels.row(y);
+            uint8_t *dst = l + (size_t)y * (size_t)w * 4u;
+            for (int x = 0; x < w; x++)
+            {
+                dst[x * 4 + 0] = src[x * 3 + 0];
+                dst[x * 4 + 1] = src[x * 3 + 1];
+                dst[x * 4 + 2] = src[x * 3 + 2];
+                dst[x * 4 + 3] = 255;
+            }
+        }
     }
 
     if (pal_bytes)

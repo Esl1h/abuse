@@ -57,8 +57,31 @@ inline uint32_t shade(uint8_t r, uint8_t g, uint8_t b, int level)
            | (uint32_t)shade_channel(b, level);
 }
 
-// A light level per pixel of the game buffer. Written by the lighting pass,
-// read by the conversion to the window.
+// The same, with a level of its own per channel. A white light has the
+// three equal and this is the line above; a coloured one takes less off
+// the channels it is made of, which is what makes a red flash red without
+// any colour being added to the picture.
+//
+// Light here only ever subtracts less, never adds: the picture is what the
+// palette says, and a light can at most leave it alone.
+inline uint32_t shade(uint8_t r, uint8_t g, uint8_t b, int lr, int lg, int lb)
+{
+    return 0xff000000u
+           | ((uint32_t)shade_channel(r, lr) << 16)
+           | ((uint32_t)shade_channel(g, lg) << 8)
+           | (uint32_t)shade_channel(b, lb);
+}
+
+// A light level per channel. The lighting pass writes the three equal,
+// because the 1995 light has no colour; the object lights of block 6.4 are
+// what pulls them apart.
+struct Level
+{
+    uint8_t r, g, b;
+};
+
+// A light level per channel per pixel of the game buffer. Written by the
+// lighting pass, read by the conversion to the window.
 class LightMap
 {
 public:
@@ -74,9 +97,17 @@ public:
     // Out of bounds writes are dropped and out of bounds reads answer full
     // brightness: the lighting pass works in clipped runs and rounding a run
     // up is cheaper than testing every pixel inside it.
+    //
+    // fill() writes one level to all three channels, which is what the
+    // lighting pass has to say.
     void fill(int x, int y, int run, int level);
-    uint8_t at(int x, int y) const;
+    Level at(int x, int y) const;
 
+    // Adds to one pixel, per channel, stopping at full brightness. What a
+    // light does: it can only make a pixel less dark.
+    void add(int x, int y, int r, int g, int b);
+
+    // Three bytes per pixel, in r, g, b order.
     uint8_t const *row(int y) const;
 
     // Softens the step between one light patch and the next, inside the
@@ -94,6 +125,7 @@ public:
     void smooth(int x, int y, int w, int h, int radius_x, int radius_y);
 
 private:
+    // Three bytes per pixel.
     std::vector<uint8_t> m_levels;
     std::vector<uint8_t> m_scratch;
     int m_width = 0;

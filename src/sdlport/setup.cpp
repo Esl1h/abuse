@@ -244,9 +244,10 @@ void createRCFile( char *rcfile )
         fputs( ";classicsfx=off\n\n", fd );
         fputs( "; Sparks off a hit and an ejected casing off a shot.\n", fd );
         fputs( ";particles=off\n\n", fd );
-        fputs( "; Shots and explosions light the room around them, from the\n", fd );
-        fputs( "; table in data/dynlight.txt. Needs rgblight=on: the 1995\n", fd );
-        fputs( "; light path can only darken.\n", fd );
+        fputs( "; Shots and explosions light the room around them, in the\n", fd );
+        fputs( "; colour and with the waver that data/dynlight.txt gives\n", fd );
+        fputs( "; them. Needs rgblight=on: the 1995 light path can only\n", fd );
+        fputs( "; darken.\n", fd );
         fputs( ";dynlight=off\n\n", fd );
         fputs( "; Turns off every effect that moves the picture by itself,\n", fd );
         fputs( "; without clearing the settings below.\n", fd );

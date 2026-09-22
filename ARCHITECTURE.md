@@ -243,6 +243,12 @@ lights the room. It writes nothing but the map: no light source is created, and 
 replay hash is the same with it on or off. It needs `rgblight=on`, because the 1995
 path has no way to make a pixel brighter than the palette entry it already is.
 
+The map holds a level **per channel**, which is what lets those lights have a colour:
+a red flash takes less off the red than off the other two, and on a grey wall that
+reads as red. It never adds colour, because the colour is the palette's. With the
+three channels equal, which is what the lighting pass writes, the result is bit for
+bit the single-level one.
+
 ## 8. Input
 
 Flow: SDL → the engine's own `Event` → `view::get_input()` → packet →

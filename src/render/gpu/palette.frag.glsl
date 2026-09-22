@@ -47,8 +47,11 @@ void main()
         // Doing it here rather than by remapping indices is the whole
         // point of the RGB lighting: the palette snap is what bands every
         // dark corner, and there is no palette to snap to at this stage.
-        float level = texture(u_light, v_uv).r * 255.0;
-        float drop = max(63.0 - level, 0.0) / 255.0;
+        // A level per channel: the three are equal for the 1995 light,
+        // and pulled apart by the object lights of block 6.4, which is
+        // what makes a red flash red without adding any colour.
+        vec3 level = texture(u_light, v_uv).rgb * 255.0;
+        vec3 drop = max(vec3(63.0) - level, vec3(0.0)) / 255.0;
         colour = max(colour - drop, vec3(0.0));
     }
 
