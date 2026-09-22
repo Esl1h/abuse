@@ -1776,8 +1776,12 @@ Game::Game(int argc, char **argv)
   if(main_net_cfg == NULL || (main_net_cfg->state != net_configuration::SERVER &&
                  main_net_cfg->state != net_configuration::CLIENT))
   {
-    // The intro waits for a keypress; headless runs have no keyboard.
-    if(!start_edit && !net_start() && !abuse::harness::headless())
+    // The intro waits for a keypress, and a scripted run has nobody to
+    // press one. It used to ask headless(), so a windowed playback sat
+    // through the whole attract sequence: measured at 52 seconds before
+    // the first tick of the replay, against 0.6 headless. That is also
+    // what made a windowed capture show the title rather than the level.
+    if(!start_edit && !net_start() && !abuse::harness::scripted_run())
       do_title();
   } else if(main_net_cfg && main_net_cfg->state == net_configuration::SERVER)
   {
