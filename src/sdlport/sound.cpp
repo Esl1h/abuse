@@ -243,6 +243,12 @@ int sound_init( int argc, char **argv )
     audiospec.format = SDL_AUDIO_S16;
     audiospec.channels = 2;
     audiospec.freq = 44100;
+    // The default device and never a named one. SDL3 opens a logical
+    // device on top of the physical one and, for the default, moves it by
+    // itself when the system default changes or headphones are plugged in
+    // (SDL_audio.h, "One other benefit of logical devices"). Asking for a
+    // particular device would buy a settings row and lose that, and the
+    // game would go silent the moment someone plugged anything in.
     mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audiospec);
     if (mixer == NULL)
     {

@@ -66,6 +66,14 @@ classic preset is always there.
   up in a level is a 4:3 region around the player whatever the window does
 - **Optional RGB lighting**, the 1995 curve without the palette snap that
   bands every dark corner, and **CRT scanlines** to go with it
+- **A GPU presentation path** (`renderer=gpu`), which adds Scale2x and a
+  bloom around what is already bright. The classic path stays, and it is
+  what the reference frames are taken through
+- **Light that moves** (`dynlight`): a shot lights the corridor it crosses
+  and an explosion lights the room, each in its own colour, from a table in
+  `data/dynlight.txt`. The 1995 game had this written and commented out for
+  being too slow on the machines of the day
+- **Particles**: sparks off a hit, casings off a shot
 - **Smooth movement** between logical ticks, which is there and is off: the
   art is animated at the tick rate, so the character skates. Kept because the
   camera half of it is worth revisiting
@@ -169,22 +177,31 @@ rather than the repository carrying them.
 
 Done: the SDL3 port, the build and test foundation, the data and licence
 separation, the fixed timestep, gamepad support, the UI layer, the
-translations, the start menu, the new HUD, smooth movement, RGB lighting,
-and the audio mix stage.
+translations, the start menu, the new HUD, smooth movement, widescreen,
+the SDL_GPU presentation path with its filters, scanlines and bloom, RGB
+lighting with light that shots and explosions cast in their own colour, an
+override mechanism for higher resolution art, and the audio mix stage.
+
+Every one of those is optional and off unless asked for. The classic preset
+and the Original mode are compared against reference frames on every run,
+and the replay hashes have to stay identical whatever is switched on: the
+simulation is not allowed to notice any of it.
 
 Open:
 
 - **A free sound set.** The public domain Golgotha pack covers 19 of the 78
   events; the other 59 need a source, and the ones that need a human voice
-  are the hard part. Until then the Remastered mode is silent
-- **Human validation** of everything above: none of it has been played yet,
-  and Windows has never run this code at all
-- GPU post-processing (CRT, bloom), coloured light, an HD pack
-- Widescreen needs a person to look at it: the scan says no level shows an
-  empty edge at 16:9 or 21:9, but that is one position per level
-- Packaging, which waits on a name for the project
-- More replays that do something. One exists now, recorded from a text
-  script, and it is what a person's eyes caught before any test did
+  are the hard part. Until then the Remastered mode borrows the original
+  audio when it is installed, and is otherwise silent
+- **Human validation.** The game has been played on Linux and, once, on
+  Windows 11. What nobody has judged yet by playing: widescreen, the new
+  HUD, a physical gamepad, and how any of the visual additions feel
+- **Art.** The higher resolution pack has the mechanism and no art; a second,
+  more distant background layer for parallax needs tiles that do not exist
+- Packaging. The manifests for Flatpak, the AUR and an AppImage are written
+  and none of them has been built yet
+- More replays that do something. One exists, recorded from a text script,
+  and it is what a person's eyes caught before any test did
 
 Inherited from upstream and still open: dead code removal, and replacing the
 jFILE/bFILE layer with SDL's IO abstraction.
@@ -212,8 +229,10 @@ which is the point of having two. CI adds Ubuntu, Windows and macOS, and the
 replay hashes agree across all of them: the simulation is deterministic
 whatever it is running on.
 
-Windows 11 on that same laptop is the next thing to be checked by hand; so far
-it is only known to build and to pass the tests.
+Windows 11 on that same laptop has been played once, from a stick: first run,
+configuration, the language screen, saving and the window size all behaved.
+Widescreen, the new HUD, the gamepad and the original data are still unchecked
+there.
 
 [AGENTS.md](AGENTS.md) is the contract for anyone working on this, human or
 agent, and [ARCHITECTURE.md](ARCHITECTURE.md) maps the engine, including the
