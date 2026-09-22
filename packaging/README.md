@@ -3,7 +3,16 @@
 Skeletons for the four channels of phase 8. **None of these has been built
 yet**: they carry the identity (name, App ID, licence, description) so that
 everything downstream agrees on it, and the build recipes still need to be
-finished and run.
+run.
+
+The Flatpak manifest is now pinned to what `CMakeLists.txt` actually
+fetches, with a commit for every dependency, and `SDL3_native_midi` and
+doctest dealt with: a Flathub build has no network, so anything CPM would
+fetch at configure time has to be supplied as a source or switched off.
+`scripts/check-flatpak-pins.sh`, which runs in CTest, fails when the two
+drift apart. They already had: the manifest asked for SDL3 3.2.0 while the
+build used 3.4.14, and pinned SDL_mixer to a branch, which Flathub does not
+accept.
 
 | Channel | Directory | Package name |
 | --- | --- | --- |

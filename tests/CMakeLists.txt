@@ -108,6 +108,15 @@ add_test(NAME aspect
     WORKING_DIRECTORY ${abuse_SOURCE_DIR})
 set_tests_properties(aspect PROPERTIES SKIP_RETURN_CODE 77)
 
+# The Flatpak manifest against what the build actually fetches. Cheap, and
+# it has already been wrong once: pinned to SDL3 3.2.0 while the build used
+# 3.4.14, and to a branch, which Flathub refuses. Skips itself without
+# PyYAML.
+add_test(NAME flatpak
+    COMMAND bash ${abuse_SOURCE_DIR}/scripts/check-flatpak-pins.sh
+    WORKING_DIRECTORY ${abuse_SOURCE_DIR})
+set_tests_properties(flatpak PROPERTIES SKIP_RETURN_CODE 77)
+
 # The GPU presentation path, compared against the classic one rather than
 # against the stored frames: a window read back from a real driver does not
 # match one read back from SDL's dummy driver, and the references are all

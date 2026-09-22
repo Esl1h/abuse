@@ -1,13 +1,17 @@
 # Flatpak manifest for Abuse: Vrenna.
 #
-# NOT YET BUILT. The module list below is the shape the build needs, not a
-# recipe that has been run: SDL3_mixer and SDL3_native_midi have no
-# distribution package and no Flathub base yet, so they are built here from
-# the same sources CPM fetches. Pin every commit before submitting.
+# NOT YET BUILT. Every version below is pinned to what CMakeLists.txt
+# actually fetches, and every commit is pinned because Flathub does not
+# accept a branch, but nothing here has been through flatpak-builder.
+# scripts/check-flatpak-pins.sh is what keeps it honest until then.
 #
-#   flatpak-builder --user --install --force-clean build-flatpak \
-#       packaging/flatpak/io.github.Esl1h.AbuseVrenna.yml
+#   flatpak install --user flathub org.flatpak.Builder
+#   flatpak run org.flatpak.Builder --user --install --force-clean \
+#       build-flatpak packaging/flatpak/io.github.Esl1h.AbuseVrenna.yml
 #   flatpak run io.github.Esl1h.AbuseVrenna
+#
+# A Flathub build has no network, so every dependency has to be a source
+# here. CPM would otherwise fetch them at configure time and fail.
 
 app-id: io.github.Esl1h.AbuseVrenna
 runtime: org.freedesktop.Platform
@@ -28,6 +32,9 @@ finish-args:
   - --share=network
 
 modules:
+  # No distribution packages SDL3_mixer yet, so it is built here, and SDL3
+  # with it: CPM_USE_LOCAL_PACKAGES=ON below then finds both in /app rather
+  # than fetching them.
   - name: sdl3
     buildsystem: cmake-ninja
     config-opts:
@@ -36,33 +43,56 @@ modules:
     sources:
       - type: git
         url: https://github.com/libsdl-org/SDL.git
-        tag: release-3.2.0
-        # commit: PIN BEFORE SUBMITTING
+        tag: release-3.4.14
+        commit: 147a8ee32dbf9ac02f3794964490687b6bbda1bc
 
   - name: sdl3-mixer
     buildsystem: cmake-ninja
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DSDLMIXER_SAMPLES=OFF
+      # The same as CMakeLists.txt asks for: the vendored decoders add
+      # formats this game never plays.
+      - -DSDLMIXER_VENDORED=OFF
+      - -DSDLMIXER_MIDI_FLUIDSYNTH=OFF
+      - -DSDLMIXER_MIDI_TIMIDITY=OFF
     sources:
       - type: git
         url: https://github.com/libsdl-org/SDL_mixer.git
-        branch: main
-        # commit: PIN BEFORE SUBMITTING
+        tag: release-3.2.4
+        commit: 72a81869b45e249e8e67102db4e98dd2441f05a1
 
   - name: abuse-vrenna
     buildsystem: cmake-ninja
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
+      # Find SDL3 and SDL3_mixer in /app instead of fetching them.
       - -DCPM_USE_LOCAL_PACKAGES=ON
+      # doctest is only fetched for the tests, and a Flathub build has no
+      # network to fetch it with. The suite runs in CI, not here.
+      - -DABUSE_BUILD_TESTS=OFF
+      # SDL3_native_midi is not a library but a handful of source files
+      # compiled into the game, so it cannot be a module above. CPM takes
+      # a local directory for a package through CPM_<name>_SOURCE, and the
+      # source below puts one there. The path is where flatpak-builder
+      # unpacks this module, which is /run/build/<module name>.
+      - -DCPM_SDL3_native_midi_SOURCE=/run/build/abuse-vrenna/third_party/SDL_native_midi
     sources:
       - type: dir
         path: ../..
+      - type: git
+        url: https://github.com/libsdl-org/SDL_native_midi.git
+        commit: 64236646bc50ba7a196c2cc05dad86f0bde3f55f
+        dest: third_party/SDL_native_midi
     post-install:
       - install -Dm644 packaging/flatpak/io.github.Esl1h.AbuseVrenna.metainfo.xml
           /app/share/metainfo/io.github.Esl1h.AbuseVrenna.metainfo.xml
       - install -Dm644 packaging/flatpak/io.github.Esl1h.AbuseVrenna.desktop
           /app/share/applications/io.github.Esl1h.AbuseVrenna.desktop
-      # The original data fetcher, which the player runs once from inside the
-      # sandbox. It writes to the app's own data directory.
+      # The icons install themselves, from data/CMakeLists.txt, into
+      # /app/share/icons/hicolor. Nothing to do here.
+      #
+      # The original data fetcher, which the player runs once from inside
+      # the sandbox. It finds its checksum list beside the game data; see
+      # scripts/fetch-classic-data.sh.
       - install -Dm755 scripts/fetch-classic-data.sh /app/bin/fetch-classic-data
