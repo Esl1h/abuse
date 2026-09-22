@@ -173,22 +173,35 @@ if(WIN32)
         ${abuse_SOURCE_DIR}/scripts/fetch-classic-data.ps1
         ${abuse_SOURCE_DIR}/data/classic.sha256
         DESTINATION ".")
-else()
-    # Under Linux, we want the tools in bin
+elseif(APPLE)
     install(TARGETS abuse abuse-tool RUNTIME DESTINATION bin
     BUNDLE DESTINATION "${CMAKE_INSTALL_PREFIX}")
-    if(APPLE)
-        # Fix up the bundle (basically, install SDL with it)
-        install(CODE "
-            include(BundleUtilities)
-            set(BU_CHMOD_BUNDLE_ITEMS TRUE)
-            fixup_bundle(
-                \"${CMAKE_INSTALL_PREFIX}/abuse.app\"
-                \"\"
-                \"${SDL3_BINARY_DIR};${SDL3_mixer_BINARY_DIR}\"
-            )
-        ")
-        # Add icon
-        install(FILES "../macOS/abuse.icns" DESTINATION "${CMAKE_INSTALL_PREFIX}/abuse.app/Contents/Resources")
-    endif()
+    # Fix up the bundle (basically, install SDL with it)
+    install(CODE "
+        include(BundleUtilities)
+        set(BU_CHMOD_BUNDLE_ITEMS TRUE)
+        fixup_bundle(
+            \"${CMAKE_INSTALL_PREFIX}/abuse.app\"
+            \"\"
+            \"${SDL3_BINARY_DIR};${SDL3_mixer_BINARY_DIR}\"
+        )
+    ")
+    # Add icon
+    install(FILES "../macOS/abuse.icns" DESTINATION "${CMAKE_INSTALL_PREFIX}/abuse.app/Contents/Resources")
+else()
+    # The installed name is abuse-vrenna, and the built one stays abuse.
+    #
+    # The two cannot be the same. `abuse` is taken on Flathub and in the AUR
+    # by two other ports of this game, which is the whole reason for the
+    # project's name; and every test script, the CI workflow and the
+    # packaging notes point at build/<preset>/src/abuse, so renaming the
+    # target instead of the installed copy would rename the thing hundreds
+    # of lines already refer to.
+    #
+    # install(PROGRAMS) rather than install(TARGETS) because only the former
+    # takes RENAME.
+    install(PROGRAMS $<TARGET_FILE:abuse> DESTINATION bin
+            RENAME abuse-vrenna)
+    install(PROGRAMS $<TARGET_FILE:abuse-tool> DESTINATION bin
+            RENAME abuse-vrenna-tool)
 endif()
