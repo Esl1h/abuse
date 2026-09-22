@@ -1,5 +1,7 @@
 # Abuse: Vrenna
 
+<img src="doc/art/key-art-wordmark.png" alt="Abuse: Vrenna key art" width="420">
+
 A modern port of Abuse (1995), named for Nick Vrenna, the man you play.
 
 ![Fighting a mutant in the prison corridors](doc/screenshots/gameplay.png)

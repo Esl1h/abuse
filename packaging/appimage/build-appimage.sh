@@ -38,11 +38,14 @@ DESTDIR="$appdir" cmake --install "$build"
 install -Dm755 "$root/scripts/fetch-classic-data.sh" \
     "$appdir/usr/bin/abuse-vrenna-fetch-classic-data"
 
+# --icon-filename, because the name of the file on disk has to match the
+# Icon= key of the desktop entry and the source is not called that.
 linuxdeploy-x86_64.AppImage \
     --appdir "$appdir" \
     --executable "$appdir/usr/bin/abuse-vrenna" \
     --desktop-file "$root/packaging/flatpak/$app_id.desktop" \
-    --icon-file "$root/doc/abuse.png" \
+    --icon-file "$root/data/freedesktop/icons/hicolor/256x256/apps/$app_id.png" \
+    --icon-filename "$app_id" \
     --output appimage
 
 echo "AppImage written to $root"

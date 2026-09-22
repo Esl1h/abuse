@@ -166,6 +166,29 @@ modified = false
 # Desktop packaging (upstream Xenoveritas)
 # ============================================================
 
+# Ours, and these must come before the freedesktop/** glob below: the
+# checker takes the first glob that matches.
+
+[[asset]]
+path = "freedesktop/icon-source-1024.png"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = true
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "master the icon set is derived from; trademark symbol removed by hand"
+
+[[asset]]
+path = "freedesktop/icons/**"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = true
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "sizes derived from freedesktop/icon-source-1024.png by scripts/make-icons.sh"
+
 [[asset]]
 path = "freedesktop/**"
 origin = "Xenoveritas (upstream)"
@@ -185,3 +208,65 @@ path = "dynlight.txt"
 origin = "Abuse: Vrenna"
 license = "GPL-2.0-or-later"
 modified = true
+
+# ============================================================
+# Identity: the icon and the key art
+# ============================================================
+
+# Generated for this project in 2026-09. The icon is a 1024x1024 master with
+# a transparent background; every size under freedesktop/icons/ and
+# doc/icon.ico are derived from it by scripts/make-icons.sh and are not
+# separate artworks.
+#
+# ai_tool and ai_model carry the same string because that is the name the
+# author gave, and one name is what there is. Writing a longer one here
+# would be a guess about what the product is underneath.
+#
+# The trademark symbol the generator put after ABUSE was removed from the
+# icon on 2026-09-22: the game is public domain and this project holds no
+# mark, so claiming one would be a statement that is not true.
+
+# Outside data/, so scripts/check-licenses.sh does not walk them: it checks
+# that every file under data/ is accounted for. They are recorded here
+# because rule 3 of AGENTS.md is about every asset, not about every asset
+# the checker happens to reach.
+
+[[asset]]
+path = "../doc/art/key-art-wordmark.png"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = false
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "promotional key art; not used in the game"
+
+[[asset]]
+path = "../doc/art/key-art-tall.png"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = false
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "promotional key art; not used in the game"
+
+[[asset]]
+path = "../doc/art/key-art-foundry.png"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = false
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "promotional key art; not used in the game"
+
+[[asset]]
+path = "../doc/icon.ico"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = true
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "16, 32, 48 and 256 derived from the icon master; the executable and the WiX installer point at it"

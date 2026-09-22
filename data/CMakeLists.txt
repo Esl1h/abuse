@@ -1,5 +1,22 @@
 cmake_policy(SET CMP0177 NEW)
 
+# The application icon, in the layout the desktop expects to find it in.
+#
+# Not game data, and it does not go to ASSETDIR with the rest of this
+# directory: a desktop looks for icons under share/icons/hicolor and
+# nowhere else. Windows has no such tree and gets its icon compiled into
+# the executable instead, from doc/icon.ico.
+#
+# Every size here is derived from data/freedesktop/icon-source-1024.png by
+# scripts/make-icons.sh, which is also what writes doc/icon.ico.
+if(NOT WIN32 AND NOT APPLE)
+    foreach(size 64 128 256 512)
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/freedesktop/icons/hicolor/${size}x${size}/apps/io.github.Esl1h.AbuseVrenna.png"
+            DESTINATION "share/icons/hicolor/${size}x${size}/apps")
+    endforeach()
+endif()
+
 INSTALL(FILES
     abuse.lsp
     edit.lsp
