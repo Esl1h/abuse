@@ -10,13 +10,40 @@
 # end.
 set -euo pipefail
 
-root=$(cd "$(dirname "$0")/.." && pwd)
-sums="$root/data/classic.sha256"
+here=$(cd -- "$(dirname -- "$0")" && pwd)
 base=${ABUSE_CLASSIC_URL:-http://abuse.zoy.org/raw-attachment/wiki/download}
 
 dest=${1:-${XDG_DATA_HOME:-$HOME/.local/share}/abuse/classic}
 
-[ -f "$sums" ] || { echo "missing $sums" >&2; exit 1; }
+# The checksums are looked for in the three places this script is ever run
+# from, in order: a checkout, an installed tree, and a directory where the
+# game and its data sit together.
+#
+# It used to be only the first, "$here/../data/classic.sha256", which works
+# in a clone and in nothing else. Installed as /usr/bin/abuse-vrenna-fetch-
+# classic-data the script asked for /usr/data/classic.sha256 and refused to
+# do anything, which made the Original mode unreachable from every package.
+#
+# ABUSE_CLASSIC_SUMS overrides the search outright.
+sums=${ABUSE_CLASSIC_SUMS:-}
+if [ -z "$sums" ]; then
+    for candidate in \
+        "$here/../data/classic.sha256" \
+        "$here/../share/games/abuse/classic.sha256" \
+        "$here/classic.sha256"
+    do
+        if [ -f "$candidate" ]; then
+            sums=$candidate
+            break
+        fi
+    done
+fi
+
+if [ -z "$sums" ] || [ ! -f "$sums" ]; then
+    echo "cannot find classic.sha256 next to $here" >&2
+    echo "point ABUSE_CLASSIC_SUMS at it" >&2
+    exit 1
+fi
 command -v curl > /dev/null || { echo "curl not found" >&2; exit 1; }
 command -v sha256sum > /dev/null || { echo "sha256sum not found" >&2; exit 1; }
 

@@ -166,12 +166,13 @@ if(WIN32)
         LIBRARY DESTINATION ".")
     install(FILES $<TARGET_FILE:SDL3::SDL3> DESTINATION ".")
     install(FILES $<TARGET_FILE:SDL3_mixer::SDL3_mixer> DESTINATION ".")
-    # The Original mode needs data this project cannot ship. The fetcher and
-    # the checksum list travel with the game, so a player who unpacked a zip
-    # has everything they need to get the sound without a clone.
+    # The Original mode needs data this project cannot ship, so the fetcher
+    # travels with the game: a player who unpacked a zip has everything they
+    # need to get the sound without a clone. The checksum list it reads is
+    # installed with the data, by data/CMakeLists.txt, which on Windows is
+    # this same directory.
     install(FILES
         ${abuse_SOURCE_DIR}/scripts/fetch-classic-data.ps1
-        ${abuse_SOURCE_DIR}/data/classic.sha256
         DESTINATION ".")
 elseif(APPLE)
     install(TARGETS abuse abuse-tool RUNTIME DESTINATION bin

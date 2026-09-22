@@ -5,6 +5,11 @@ INSTALL(FILES
     edit.lsp
     hardness.lsp
     dynlight.txt
+    # Not data the game reads: the checksums the fetcher for the original
+    # sound and music verifies against. It travels with the data directory
+    # because that is the one place every package puts in the same relation
+    # to the script. See scripts/fetch-classic-data.sh.
+    classic.sha256
 DESTINATION ${ASSETDIR})
 
 # No idea what this was for
