@@ -1,1 +1,1 @@
-(setf difficulty 'hard)
+(setf difficulty 'easy)

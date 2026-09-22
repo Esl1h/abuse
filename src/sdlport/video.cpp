@@ -48,7 +48,7 @@ static SDL_Texture *overlay_texture = NULL;
 SDL_Surface *surface = NULL;
 SDL_Texture *texture = NULL;
 image *main_screen = NULL;
-float mouse_yscale;
+float mouse_yscale = 1.0f;   // never 0: SysWarpMouse divides by it
 int xres, yres;
 
 extern palette *lastl;
@@ -88,8 +88,24 @@ SDL_ScaleMode scale_mode_for(abuse::render::Filter f)
 
 // The 320x200 mode is presented as 320x240 on purpose: the original pixels are
 // not square, and lying about the logical height restores the intended shape.
+// How much of the presented height is real buffer: 200 rows are shown as
+// 240, and the pointer arrives in the presented space.
+//
+// Set here *and* where the video comes up, before the renderer check
+// below, because the GPU path never reaches that line. Left at its
+// zero-initialised value, the pointer's y came out as zero for every
+// position on screen and the cursor sat on the top row of the window,
+// which is what a player reported; the warp that moves it with the pad
+// divided by it and got infinity.
+void set_mouse_yscale()
+{
+    mouse_yscale = yres == 200 ? 200.0f / 240.0f : 1.0f;
+}
+
 void apply_presentation()
 {
+    set_mouse_yscale();
+
     if (renderer == NULL)
         return;
 
@@ -102,12 +118,10 @@ void apply_presentation()
     if (yres == 200)
     {
         SDL_SetRenderLogicalPresentation(renderer, xres, 240, mode);
-        mouse_yscale = 200.0f / 240.0f;
     }
     else
     {
         SDL_SetRenderLogicalPresentation(renderer, xres, yres, mode);
-        mouse_yscale = 1.0f;
     }
 
     // There is no display to sync to in a scripted run, and waiting for one
@@ -188,6 +202,9 @@ void set_mode(int argc, char **argv)
     // and nothing else here changes.
     if (abuse::render::options().backend == abuse::render::Backend::Gpu)
         abuse::sdlport::gpu::start(window);
+
+    // Whichever path took the window, the pointer needs this.
+    set_mouse_yscale();
 
     if (!abuse::sdlport::gpu::running())
     {
