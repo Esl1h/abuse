@@ -4,6 +4,7 @@ INSTALL(FILES
     abuse.lsp
     edit.lsp
     hardness.lsp
+    dynlight.txt
 DESTINATION ${ASSETDIR})
 
 # No idea what this was for
