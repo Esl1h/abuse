@@ -58,6 +58,7 @@ inline constexpr Phrase kOptSmooth      = { "Smooth movement", "Movimento suave"
 inline constexpr Phrase kOptLighting    = { "Lighting", "Ilumina\xe7\xe3o" };
 inline constexpr Phrase kOptReduceMotion = { "Reduce motion", "Reduzir movimento" };
 inline constexpr Phrase kOptParticles  = { "Particles", "Part\xed" "culas" };
+inline constexpr Phrase kOptDynLight  = { "Dynamic light", "Luz din\xe2mica" };
 inline constexpr Phrase kOptPreset    = { "Preset", "Predefini\xe7\xe3o" };
 inline constexpr Phrase kLightClassic   = { "classic", "cl\xe1" "ssica" };
 inline constexpr Phrase kLightRgb       = { "smooth", "suave" };

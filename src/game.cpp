@@ -77,6 +77,8 @@
 #include "render/options.h"
 #include "render/shake.h"
 #include "render/particles.h"
+#include "render/dynlight.h"
+#include "render/lightmap.h"
 #include "data/paths.h"
 #include "timing/pacer.h"
 
@@ -566,6 +568,12 @@ void Game::load_level(char const *name)
         exit(0);
     }
 
+    if(abuse::harness::want_dynlight_dump())
+    {
+        abuse::harness::print_dynlight_dump();
+        exit(0);
+    }
+
     if(abuse::harness::want_level_info())
     {
         int empty = 0;
@@ -732,6 +740,110 @@ static uint8_t const *particle_ramp(abuse::render::ParticleKind kind, int &steps
     case abuse::render::ParticleKind::Smoke:  steps = 5; return smoke;
     case abuse::render::ParticleKind::Casing: steps = 3; return casing;
     default:                                  steps = 6; return spark;
+    }
+}
+
+// Reads data/dynlight.txt. Missing is not an error: the table is an
+// addition, and the game plays with no light-emitting objects at all.
+// Called once, after setup() has settled the data directory, because
+// open_file prefixes what it is given with it.
+static void load_dynlight_table()
+{
+    bFILE *fp = open_file("dynlight.txt", "rb");
+    if (!fp || fp->open_failure())
+    {
+        delete fp;
+        return;
+    }
+
+    int const size = fp->file_size();
+    if (size > 0 && size < 1 << 20)
+    {
+        std::vector<char> text((size_t)size + 1, '\0');
+        if (fp->read(text.data(), (size_t)size) == size)
+        {
+            int bad = abuse::render::load_emitters(text.data());
+            if (bad)
+                printf("dynlight.txt: %d line%s ignored\n", bad,
+                       bad == 1 ? "" : "s");
+        }
+    }
+    delete fp;
+}
+
+// Which entry of the light table each object type takes, or -1. Object
+// types are created once, when the Lisp defines them, so this is resolved
+// the first time it is wanted and rebuilt only when the count changes,
+// which means a reload. Resolving by name every frame would be a string
+// compare per object per frame for an answer that never moves.
+static std::vector<int> const &dynlight_by_type()
+{
+    static std::vector<int> table;
+    static int built_for_types = -1;
+    static size_t built_for_entries = (size_t)-1;
+
+    std::vector<abuse::render::Emitter> const &e = abuse::render::emitters();
+    if (built_for_types == total_objects && built_for_entries == e.size())
+        return table;
+
+    built_for_types = total_objects;
+    built_for_entries = e.size();
+    table.assign((size_t)(total_objects < 0 ? 0 : total_objects), -1);
+
+    for (size_t i = 0; i < e.size(); i++)
+        for (int t = 0; t < total_objects; t++)
+            if (object_names[t] && !strcmp(object_names[t], e[i].name.c_str()))
+            {
+                table[(size_t)t] = (int)i;
+                break;
+            }
+
+    return table;
+}
+
+// Shots and explosions lighting the room, from the table in
+// data/dynlight.txt. Phase 6, block 6.4.
+//
+// Runs after the lighting pass and before the particles, so a spark stays a
+// spark and a flash reaches the walls the lighting just darkened. The light
+// map is the only thing written; no light source is created, nothing in the
+// simulation is read apart from where the objects are, and the replay hash
+// is the same with this on or off.
+void Game::draw_dynlights(view *v, int xoff, int yoff)
+{
+    if (!abuse::render::dynlight_enabled()
+        || !abuse::render::motion_allowed()
+        || !abuse::render::rgb_lighting()
+        || abuse::data::mode() == abuse::data::Mode::Original
+        || !current_level)
+        return;
+
+    abuse::render::LightMap &map = abuse::render::lightmap();
+    if (map.empty())
+        return;
+
+    if (abuse::harness::dynlight_demo() && v->m_focus)
+        abuse::render::brighten(map, v->m_focus->x - xoff + v->m_aa.x,
+                                v->m_focus->y - yoff + v->m_aa.y, 40, 30);
+
+    std::vector<int> const &by_type = dynlight_by_type();
+    if (by_type.empty())
+        return;
+
+    std::vector<abuse::render::Emitter> const &table = abuse::render::emitters();
+
+    for (game_object *o = current_level->first_active_object(); o;
+         o = o->next_active)
+    {
+        if ((size_t)o->otype >= by_type.size())
+            continue;
+        int const at = by_type[o->otype];
+        if (at < 0)
+            continue;
+
+        abuse::render::brighten(map, o->x - xoff + v->m_aa.x,
+                                o->y - yoff + v->m_aa.y,
+                                table[at].radius, table[at].strength);
     }
 }
 
@@ -1245,6 +1357,7 @@ void Game::draw_map(view *v, int interpolate)
   rand_on = ro;                // restore random start in case in draw funs moved it
                                // ... not every machine will draw the same thing
 
+  draw_dynlights(v, xoff, yoff);
   draw_particles(v, xoff, yoff);
 
   post_render();
@@ -2746,6 +2859,8 @@ int main(int argc, char *argv[])
     jrand_init();
     abuse::harness::apply_seed();   // jrand_init() seeds rand_on from the clock
     jrand(); // so compiler doesn't complain
+
+    load_dynlight_table();
 
     set_spec_main_file("abuse.spe");
     check_for_lisp(argc, argv);

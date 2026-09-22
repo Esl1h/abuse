@@ -39,6 +39,7 @@
 #include "ui/classic_data_screen.h"
 #include "ui/language_screen.h"
 #include "render/lightmap.h"
+#include "render/dynlight.h"
 #include "render/options.h"
 #include "ui/start_menu.h"
 #include "ui/hud.h"
@@ -59,6 +60,7 @@ struct Options {
     bool mode_given = false;
     bool level_info = false;
     bool tile_dump = false;
+    bool dynlight_dump = false;
     bool player_dump = false;
     bool rgb_light = false;
     bool scanlines = false;
@@ -69,6 +71,7 @@ struct Options {
     bool bloom_threshold_given = false;
     bool save_test = false;
     bool particle_demo = false;
+    bool dynlight_demo = false;
     bool save_dialog = false;
     int viewport_w = 0;
     int viewport_h = 0;
@@ -324,6 +327,8 @@ void parse_args(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "--particle-demo"))
             opt.particle_demo = true;
+        else if (!strcmp(argv[i], "--dynlight-demo"))
+            opt.dynlight_demo = true;
         else if (!strcmp(argv[i], "--renderer"))
         {
             char const *name = take_value(argc, argv, i, "--renderer");
@@ -360,6 +365,8 @@ void parse_args(int argc, char **argv)
             opt.player_dump = true;
         else if (!strcmp(argv[i], "--dump-tiles"))
             opt.tile_dump = true;
+        else if (!strcmp(argv[i], "--dump-dynlight"))
+            opt.dynlight_dump = true;
         else if (!strcmp(argv[i], "--level-info"))
             opt.level_info = true;
         else if (!strcmp(argv[i], "--input-script"))
@@ -471,6 +478,41 @@ bool viewport_size(int &w, int &h)
 bool want_tile_dump()
 {
     return opt.tile_dump;
+}
+
+bool want_dynlight_dump()
+{
+    return opt.dynlight_dump;
+}
+
+void print_dynlight_dump()
+{
+    if (!opt.dynlight_dump)
+        return;
+
+    std::vector<abuse::render::Emitter> const &table
+        = abuse::render::emitters();
+
+    printf("dynlight-dump entries=%d types=%d\n", (int)table.size(),
+           total_objects);
+    printf("dynlight-dump name radius strength otype\n");
+
+    for (size_t i = 0; i < table.size(); i++)
+    {
+        int otype = -1;
+        for (int t = 0; t < total_objects; t++)
+            if (object_names[t] && !strcmp(object_names[t], table[i].name.c_str()))
+            {
+                otype = t;
+                break;
+            }
+
+        // An entry naming a type this data set does not define is not an
+        // error: the shareware data aliases some bullets onto others, and
+        // the table is written once for every data set there is.
+        printf("dynlight %s %d %d %d\n", table[i].name.c_str(),
+               table[i].radius, table[i].strength, otype);
+    }
 }
 
 bool want_player_dump()
@@ -666,6 +708,11 @@ void before_game()
 bool particle_demo()
 {
     return opt.particle_demo;
+}
+
+bool dynlight_demo()
+{
+    return opt.dynlight_demo;
 }
 
 bool start_demo()

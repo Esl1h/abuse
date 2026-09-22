@@ -122,11 +122,27 @@ void print_player_dump(int tick, int x, int y, int xvel, int yvel);
 bool want_tile_dump();
 void print_tile_dump();
 
+// --dump-dynlight: prints the light table and, for each entry, the object
+// type it resolved to in the loaded data, or -1. The table is written by
+// name and the names come from the Lisp, which differs between the free
+// data and the original: without this there is no way to tell a light that
+// is switched off from one whose name was never defined.
+bool want_dynlight_dump();
+void print_dynlight_dump();
+
 // True under --particle-demo: a burst of debris at the player every few
 // ticks, so the particle drawer gets a golden frame of its own. The two
 // spawns the game itself has need a hit and a round of ammunition, neither
 // of which happens in a scripted run down an empty corridor.
 bool particle_demo();
+
+// True under --dynlight-demo: the player carries a light, so that the
+// light-emitting objects of block 6.4 get a golden frame. The real sources
+// are shots and explosions, and a scripted run produces neither: the
+// player's first weapon needs ammunition it has not picked up yet, and the
+// shot itself is aimed at wherever the mouse is, which in a headless run is
+// the corner. Same reason --particle-demo exists.
+bool dynlight_demo();
 
 // Called once per iteration of the main loop, after the world has stepped.
 // Returns false when the run should end.

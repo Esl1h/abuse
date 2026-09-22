@@ -1,0 +1,46 @@
+# Object types that light the room around them. Phase 6, block 6.4.
+# See src/render/dynlight.h.
+#
+# One entry per line:
+#
+#   NAME   radius   strength
+#
+# NAME is the object type as data/lisp spells it in def_char, radius is the
+# reach in world pixels, and strength is how many light levels are added at
+# the centre, out of 63. The light falls off to nothing at the radius and
+# never takes a pixel past full brightness, so a lit room does not change.
+#
+# The numbers are deliberately small. This is a flash in a dark corridor,
+# not a lamp: a shot that lights the whole screen reads as a bug, and the
+# levels were drawn for a game where almost nothing moved the light.
+
+# A name that the loaded data does not define is ignored, so this table can
+# name everything any data set has. `--dump-dynlight` prints which ones
+# resolved.
+
+# Shots. The flash at the muzzle is the first tick of the shot's life, and
+# then the light travels with it, which is what a tracer does anyway.
+#
+# SHOTGUN_BULLET is the first one that matters: fire_object makes one of
+# those for weapon 0, the laser everybody starts with and the only weapon
+# with unlimited ammunition.
+MBULLET             26   16
+SHOTGUN_BULLET      30   20
+PLASMAGUN_BULLET    40   26
+LSABER_BULLET       36   24
+DFRIS_BULLET        34   22
+
+# In flight. The rocket lighting the corridor ahead of it is most of what
+# makes it feel heavy.
+ROCKET              48   28
+STRAIT_ROCKET       48   28
+GRENADE             30   14
+FIREBOMB            40   24
+
+# Explosions already drop an EXP_LIGHT of their own, which is a real light
+# source and brighter than this. These are the frames around it, so that the
+# blast does not go dark a tick before the sprite does.
+EXPLODE1            56   20
+EXPLODE2            48   18
+EXPLODE3            40   16
+EXPLODE5            56   20

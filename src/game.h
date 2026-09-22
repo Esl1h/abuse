@@ -148,6 +148,7 @@ public :
     void PutFg(ivec2 pos, int type);
     void PutBg(ivec2 pos, int type);
   void draw_particles(view *v, int xoff, int yoff);
+  void draw_dynlights(view *v, int xoff, int yoff);
   void draw_map(view *v, int interpolate=0);
   void dev_scroll();
 

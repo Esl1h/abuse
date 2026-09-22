@@ -24,6 +24,7 @@ add_executable(abuse_unit_tests
     unit/test_lightmap.cpp
     unit/test_shake.cpp
     unit/test_particles.cpp
+    unit/test_dynlight.cpp
     unit/test_formats.cpp
     ${abuse_SOURCE_DIR}/src/compat.cpp
     ${abuse_SOURCE_DIR}/src/data/paths.cpp
@@ -32,6 +33,7 @@ add_executable(abuse_unit_tests
     ${abuse_SOURCE_DIR}/src/render/lightmap.cpp
     ${abuse_SOURCE_DIR}/src/render/shake.cpp
     ${abuse_SOURCE_DIR}/src/render/particles.cpp
+    ${abuse_SOURCE_DIR}/src/render/dynlight.cpp
     ${abuse_SOURCE_DIR}/src/audio/formats.cpp
     ${abuse_SOURCE_DIR}/src/audio/buses.cpp
     ${abuse_SOURCE_DIR}/src/audio/voices.cpp

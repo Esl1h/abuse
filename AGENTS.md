@@ -95,6 +95,7 @@ without it, the README and this file are the whole contract.
 ├── data/                # game data
 │   ├── lisp/            # object behaviour, and the translation tables
 │   ├── abuse.lsp        # Lisp entry point
+│   ├── dynlight.txt     # which object types light the room, and by how much
 │   └── MANIFEST.toml    # licence per file; checked by scripts/check-licenses.sh
 ├── doc/                 # upstream documentation and icons
 ├── docs/                # planning (local, not in the repository)
@@ -173,6 +174,8 @@ Test harness flags (`src/harness.cpp`):
 | `--dump-bindings` | Prints the resolved action map |
 | `--dump-options`, `--dump-controls`, `--dump-language`, `--dump-classic-data`, `--dump-menu-hint`, `--dump-start-menu`, `--dump-hud` | Draws one of the new screens into a scripted frame |
 | `--particle-demo` | Throws debris at the player every few ticks, which nothing in a scripted run does on its own |
+| `--dynlight-demo` | Gives the player a light, for the same reason: a scripted run fires no shot, because the first weapon has no ammunition yet and the shot is aimed at wherever the mouse is |
+| `--dump-dynlight` | Prints `data/dynlight.txt` and the object type each entry resolved to, or -1. The free data and the original define different types |
 | `--dump-tiles` | Prints the collision each foreground tile carries. There is no hardness table in this engine: a tile blocks because its own art says so |
 | `--dump-player` | Prints the player's position and velocity every tick. How the jump height was measured rather than assumed |
 | `--renderer <classic\|gpu>` | Picks the presentation path without touching abuserc. The tests always use classic, which is what the golden frames were taken through |

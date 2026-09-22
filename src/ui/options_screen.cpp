@@ -38,6 +38,7 @@
 #include "render/lightmap.h"
 #include "render/options.h"
 #include "render/particles.h"
+#include "render/dynlight.h"
 #include "video.h"
 
 extern WindowManager *wm;
@@ -244,6 +245,28 @@ void particles_show(char *buf, size_t n)
 void particles_value(char *buf, size_t n)
 {
     snprintf(buf, n, "%s", render::particles_enabled() ? "on" : "off");
+}
+
+// ---- dynamic light --------------------------------------------------------
+
+// Shots and explosions lighting the room, from the table in
+// data/dynlight.txt. Shown as off, whatever the setting says, while the
+// lighting is on the 1995 path: that path remaps palette indices through a
+// table that only darkens, so there is nothing for this to add light to.
+void dynlight_step(int)
+{
+    render::set_dynlight_enabled(!render::dynlight_enabled());
+}
+
+void dynlight_show(char *buf, size_t n)
+{
+    bool const on = render::dynlight_enabled() && render::rgb_lighting();
+    snprintf(buf, n, "%s", say(on ? i18n::kOn : i18n::kOff));
+}
+
+void dynlight_value(char *buf, size_t n)
+{
+    snprintf(buf, n, "%s", render::dynlight_enabled() ? "on" : "off");
 }
 
 // ---- reduce motion --------------------------------------------------------
@@ -459,6 +482,7 @@ Item const kItems[] = {
     { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
     { i18n::kOptPreset,      "preset",      true,  preset_step,    preset_show,    preset_value },
     { i18n::kOptParticles,   "particles",   false, particles_step, particles_show, particles_value },
+    { i18n::kOptDynLight,    "dynlight",    false, dynlight_step, dynlight_show, dynlight_value },
     { i18n::kOptReduceMotion, "reducemotion", false, reduce_motion_step, reduce_motion_show, reduce_motion_value },
     { i18n::kOptLighting,    "rgblight",    false, light_step,    light_show,    light_value },
     { i18n::kOptLanguage,    "language",    false, lang_step,     lang_show,     NULL },

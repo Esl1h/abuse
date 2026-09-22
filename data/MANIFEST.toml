@@ -171,3 +171,17 @@ path = "freedesktop/**"
 origin = "Xenoveritas (upstream)"
 license = "GPL-2.0"
 modified = false
+
+# ============================================================
+# Ours
+# ============================================================
+
+# Which object types light the room around them, and by how much. A tuning
+# table, not art: it names types the Lisp defines and is read by
+# src/render/dynlight.h. See phase 6, block 6.4.
+
+[[asset]]
+path = "dynlight.txt"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = true

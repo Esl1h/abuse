@@ -236,6 +236,13 @@ lighting pass writes its levels into a map instead of remapping indices, and
 classic path, because the snap was landing below what the curve asked for. Off by
 default, and never in the Original mode.
 
+`src/render/dynlight.cpp` adds light back on top of that map. After the lighting pass
+has run, every active object whose type is listed in `data/dynlight.txt` brightens the
+map around itself, which is how a shot lights the corridor it crosses and an explosion
+lights the room. It writes nothing but the map: no light source is created, and the
+replay hash is the same with it on or off. It needs `rgblight=on`, because the 1995
+path has no way to make a pixel brighter than the palette entry it already is.
+
 ## 8. Input
 
 Flow: SDL → the engine's own `Event` → `view::get_input()` → packet →
