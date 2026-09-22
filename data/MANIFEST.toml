@@ -175,6 +175,16 @@ modified = false
 # that is the same warning working.
 
 [[asset]]
+path = "hd/frame/end_level_screen.png"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = true
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "the picture shown when a level is finished, and the backdrop of the language screen; 160x198 from doc/art/key-art-tall.png, trademark symbol patched out"
+
+[[asset]]
 path = "hd/title/title_screen.png"
 origin = "Abuse: Vrenna"
 license = "GPL-2.0-or-later"
@@ -263,11 +273,11 @@ ai_note = "promotional key art; not used in the game"
 path = "../doc/art/key-art-tall.png"
 origin = "Abuse: Vrenna"
 license = "GPL-2.0-or-later"
-modified = false
+modified = true
 ai_tool = "Nano Banana Pro"
 ai_model = "Nano Banana Pro"
 ai_date = "2026-09-22"
-ai_note = "promotional key art; not used in the game"
+ai_note = "key art, and the source of hd/frame/end_level_screen.png; the trademark symbol was patched out on 2026-09-22 by copying the gradient below it"
 
 [[asset]]
 path = "../doc/art/key-art-foundry.png"

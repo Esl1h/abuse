@@ -76,9 +76,10 @@ classic preset is always there.
   `data/dynlight.txt`. The 1995 game had this written and commented out for
   being too slow on the machines of the day
 - **Particles**: sparks off a hit, casings off a shot
-- **A title screen of its own** in the Remastered mode, swapped in through
-  the override pack rather than by editing the 1995 data. The Original mode
-  keeps the original, as it keeps everything else
+- **Art of its own** in the Remastered mode: the title screen, and the
+  picture shown when a level is finished. Both swapped in through the
+  override pack rather than by editing the 1995 data, so the Original mode
+  keeps the originals, as it keeps everything else
 - **Smooth movement** between logical ticks, which is there and is off: the
   art is animated at the tick rate, so the character skates. Kept because the
   camera half of it is worth revisiting

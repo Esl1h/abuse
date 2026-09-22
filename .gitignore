@@ -34,6 +34,9 @@
 !/data/hd/title/
 /data/hd/title/*
 !/data/hd/title/title_screen.png
+!/data/hd/frame/
+/data/hd/frame/*
+!/data/hd/frame/end_level_screen.png
 
 # ---------------------------------------------------------------------------
 # Local game state, in case someone runs from the tree

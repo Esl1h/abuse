@@ -8,7 +8,7 @@ accept.
 | File | Size | What it is |
 | --- | --- | --- |
 | `key-art-wordmark.png` | 862x811 | The wordmark over the character, the one that reads smallest. Used at the top of the README |
-| `key-art-tall.png` | 631x1022 | Portrait poster, wordmark above the character |
+| `key-art-tall.png` | 631x1022 | Portrait poster, wordmark above the character. The source of the picture the game shows when a level is finished |
 | `key-art-foundry.png` | 738x794 | The character in a foundry |
 | `social-preview.png` | 1280x640 | The card GitHub shows when the repository link is shared. Derived from `key-art-wordmark.png` by `scripts/make-social.sh` |
 
@@ -24,8 +24,13 @@ General, Social preview.
 
 ## The trademark symbol
 
-`key-art-tall.png` still carries a `™` after ABUSE. The game is public domain
-and this project holds no mark, so the claim is not one it can make; the
-symbol was removed from the icon and has to be removed from this one in
-whatever draws it, because there it sits on painted background rather than on
-transparency. `key-art-wordmark.png` and `social-preview.png` never had one.
+Gone from everything that ships. The game is public domain and this project
+holds no mark, so the claim was not one it could make.
+
+`key-art-wordmark.png` and `social-preview.png` never had one. The icon's was
+erased, which was easy: it sat on transparency. `key-art-tall.png` had one on
+painted background, and it was patched out by copying the stretch of gradient
+40 pixels below it, which is the same smooth brown and leaves no seam.
+
+`key-art-foundry.png` has not been checked, because nothing derives from it
+yet.

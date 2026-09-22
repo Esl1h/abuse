@@ -24,6 +24,8 @@ endif()
 # of the Remastered mode is, and it ships.
 INSTALL(FILES hd/title/title_screen.png
 DESTINATION ${ASSETDIR}/hd/title)
+INSTALL(FILES hd/frame/end_level_screen.png
+DESTINATION ${ASSETDIR}/hd/frame)
 
 INSTALL(FILES
     abuse.lsp
