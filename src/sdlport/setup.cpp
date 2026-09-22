@@ -1076,6 +1076,13 @@ void setup( int argc, char **argv )
         // always presents the classic way regardless of what the config says.
         abuse::render::apply_preset( abuse::render::Preset::Classic,
                                      abuse::render::options() );
+
+        // And the override pack is an addition like any other, so it is not
+        // available here either. Left on, an installed pack would replace
+        // pictures in the one mode whose pictures are the reference, and
+        // every frame recorded from it would depend on whether the machine
+        // that recorded it happened to have a pack.
+        abuse::hd::set_enabled( false );
     }
     else if( flags.classic_sfx && !abuse::harness::headless()
              && classic_sound_installed() )
