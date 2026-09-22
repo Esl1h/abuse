@@ -262,6 +262,16 @@ ai_date = "2026-09-22"
 ai_note = "promotional key art; not used in the game"
 
 [[asset]]
+path = "../doc/art/social-preview.png"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = true
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "the 1280x640 card, composed from key-art-wordmark.png by scripts/make-social.sh"
+
+[[asset]]
 path = "../doc/icon.ico"
 origin = "Abuse: Vrenna"
 license = "GPL-2.0-or-later"
