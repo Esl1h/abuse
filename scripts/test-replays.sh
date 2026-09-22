@@ -14,6 +14,30 @@ if [ ${#recs[@]} -eq 0 ]; then
     exit 77
 fi
 
+# One run of the game, bounded in time.
+#
+# Windows CI has twice killed this suite at its 300 second budget and
+# reported one line, "Timeout", which says neither which replay was running
+# nor whether the process hung or died behind a crash dialog. The healthy
+# run takes about fifty seconds in total there, so a single invocation that
+# passes two minutes is stuck, not slow.
+#
+# `timeout` comes with Git for Windows and with coreutils on Linux. Where it
+# is missing, which is macOS without coreutils, the run is unbounded exactly
+# as before: the bound is a diagnostic, not a requirement.
+bound=""
+if command -v timeout >/dev/null 2>&1; then
+    bound=${ABUSE_RUN_TIMEOUT:-120}
+fi
+
+run_game() {
+    if [ -n "$bound" ]; then
+        timeout "$bound" "$@"
+    else
+        "$@"
+    fi
+}
+
 errors=$(mktemp)
 trap 'rm -f "$errors"' EXIT
 
@@ -23,10 +47,18 @@ for rec in "${recs[@]}"; do
     golden="tests/golden/hash/$name.$mode.hash"
 
     set +e
-    raw=$("$bin" --headless -nodelay --playback "$rec" --state-hash -datadir ./data 2>"$errors")
+    raw=$(run_game "$bin" --headless -nodelay --playback "$rec" --state-hash -datadir ./data 2>"$errors")
     status=$?
     set -e
     out=$(printf '%s\n' "$raw" | grep '^final' || true)
+
+    if [ "$status" -eq 124 ]; then
+        echo "FAIL: $name ($mode) was still running after ${bound}s and was killed"
+        echo "  $bin --headless -nodelay --playback $rec --state-hash -datadir ./data"
+        tail -n 10 "$errors" | sed 's/^/  err| /'
+        rc=1
+        continue
+    fi
 
     if [ -z "$out" ]; then
         # Say why. A suite that hides the reason for failing costs more time

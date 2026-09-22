@@ -106,6 +106,20 @@ jobs:
           key: cpm-windows-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: cpm-windows-
 
+      # A process that dies on Windows can be held open by the error
+      # reporting dialog, and a held process looks exactly like a hang: the
+      # suite is killed at its budget having said only "Timeout". That is
+      # the shape of the two failures seen so far, on 2026-09-21 (aspect)
+      # and 2026-09-22 (replays), both on a tree whose next run passed.
+      #
+      # This is a hypothesis, not a diagnosis: it cannot be confirmed from
+      # here. Turning the dialog off costs nothing and, if the hypothesis
+      # holds, turns the next one into an exit code instead of a wait.
+      - name: No crash dialogs
+        run: |
+          reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f
+          reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f
+
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DABUSE_BUILD_TESTS=ON
 

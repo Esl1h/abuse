@@ -33,6 +33,30 @@ fi
 # 4:3, 16:10, 16:9 and 21:9 of a 200 pixel tall buffer.
 widths=(320 400 427 560)
 
+# One run of the game, bounded in time.
+#
+# Windows CI has twice killed this suite at its 300 second budget and
+# reported one line, "Timeout", which says neither which replay was running
+# nor whether the process hung or died behind a crash dialog. The healthy
+# run takes about fifty seconds in total there, so a single invocation that
+# passes two minutes is stuck, not slow.
+#
+# `timeout` comes with Git for Windows and with coreutils on Linux. Where it
+# is missing, which is macOS without coreutils, the run is unbounded exactly
+# as before: the bound is a diagnostic, not a requirement.
+bound=""
+if command -v timeout >/dev/null 2>&1; then
+    bound=${ABUSE_RUN_TIMEOUT:-120}
+fi
+
+run_game() {
+    if [ -n "$bound" ]; then
+        timeout "$bound" "$@"
+    else
+        "$@"
+    fi
+}
+
 rc=0
 for rec in "${recs[@]}"; do
     name=$(basename "$rec" .rec)
@@ -48,11 +72,20 @@ for rec in "${recs[@]}"; do
         started=$(date +%s)
         echo "  ${w}x200..."
 
-        hash=$("$bin" --headless -nodelay --playback "$rec" --state-hash \
-               --viewport "$w" 200 -datadir ./data 2>/dev/null \
-               | grep '^final' | grep -o 'hash=[0-9a-f]*')
+        # No set +e/-e around this: this script runs without -e (see the
+        # line at the top), and turning it on here would make the empty
+        # grep below end the run instead of reporting the width.
+        raw=$(run_game "$bin" --headless -nodelay --playback "$rec" \
+              --state-hash --viewport "$w" 200 -datadir ./data 2>/dev/null)
+        status=$?
+        hash=$(printf '%s\n' "$raw" | grep '^final' | grep -o 'hash=[0-9a-f]*')
 
         echo "  ${w}x200 took $(( $(date +%s) - started ))s"
+        if [ "$status" -eq 124 ]; then
+            echo "FAIL: $name at ${w}x200 was still running after ${bound}s"
+            rc=1
+            continue
+        fi
         if [ -z "$hash" ]; then
             echo "FAIL: $name at ${w}x200 produced no hash"
             rc=1
