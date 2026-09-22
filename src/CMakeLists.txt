@@ -190,6 +190,9 @@ elseif(APPLE)
     # Add icon
     install(FILES "../macOS/abuse.icns" DESTINATION "${CMAKE_INSTALL_PREFIX}/abuse.app/Contents/Resources")
 else()
+    # lib or lib64, and bin, spelled the way this distribution spells them.
+    include(GNUInstallDirs)
+
     # The installed name is abuse-vrenna, and the built one stays abuse.
     #
     # The two cannot be the same. `abuse` is taken on Flathub and in the AUR
@@ -199,10 +202,49 @@ else()
     # target instead of the installed copy would rename the thing hundreds
     # of lines already refer to.
     #
-    # install(PROGRAMS) rather than install(TARGETS) because only the former
-    # takes RENAME.
-    install(PROGRAMS $<TARGET_FILE:abuse> DESTINATION bin
-            RENAME abuse-vrenna)
-    install(PROGRAMS $<TARGET_FILE:abuse-tool> DESTINATION bin
-            RENAME abuse-vrenna-tool)
+    # install(TARGETS) and a rename afterwards, rather than the shorter
+    # install(PROGRAMS ... RENAME): only install(TARGETS) rewrites the
+    # RPATH. Copied as a plain file, the binary keeps the one the linker
+    # gave it, which points into this build tree, and the package then
+    # works on the machine that built it and nowhere else. Measured, not
+    # assumed: the first attempt shipped a RUNPATH of
+    # /home/.../build/dev/_deps/sdl3_mixer-build.
+    install(TARGETS abuse abuse-tool RUNTIME DESTINATION bin)
+    install(CODE "
+        foreach(pair \"abuse;abuse-vrenna\" \"abuse-tool;abuse-vrenna-tool\")
+            list(GET pair 0 built)
+            list(GET pair 1 shipped)
+            # The prefix is read at install time, not baked in here: a
+            # --prefix on the install command overrides the configured one,
+            # and CMAKE_INSTALL_FULL_BINDIR would still name the old path.
+            set(dir \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\")
+            if(EXISTS \"\${dir}/\${built}\")
+                file(RENAME \"\${dir}/\${built}\" \"\${dir}/\${shipped}\")
+            endif()
+        endforeach()
+    ")
+
+    # A library CPM built is a library only this build tree has.
+    #
+    # No distribution packages SDL3_mixer yet, so CPM builds it here, and
+    # until now nothing installed it: the installed binary died on
+    # "libSDL3_mixer.so.0: cannot open shared object file". Where a
+    # distribution does package it, CPM finds it instead and *_ADDED is
+    # false, so this installs nothing and the system copy is used.
+    #
+    # Both names go in, because what the loader asks for is the SONAME and
+    # what the target points at is the real file; they are two entries and
+    # not a symlink because install(FILES) writes files.
+    foreach(lib SDL3 SDL3_mixer)
+        if(${lib}_ADDED)
+            install(FILES
+                $<TARGET_FILE:${lib}::${lib}>
+                $<TARGET_SONAME_FILE:${lib}::${lib}>
+                DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        endif()
+    endforeach()
+
+    # So the binary finds them next door instead of only in a system path.
+    set_target_properties(abuse PROPERTIES
+        INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
 endif()
