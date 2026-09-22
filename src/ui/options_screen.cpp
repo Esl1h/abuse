@@ -39,6 +39,7 @@
 #include "render/options.h"
 #include "render/particles.h"
 #include "render/dynlight.h"
+#include "gamma.h"
 #include "video.h"
 
 extern WindowManager *wm;
@@ -245,6 +246,48 @@ void particles_show(char *buf, size_t n)
 void particles_value(char *buf, size_t n)
 {
     snprintf(buf, n, "%s", render::particles_enabled() ? "on" : "off");
+}
+
+// ---- brightness -----------------------------------------------------------
+
+// The gamma calibration, which until now could only be set through the
+// grey-scale picker the game has shown since 1995. That picker is driven
+// by the pointer and nothing else, and a player with a controller could
+// not work it at all.
+//
+// Shown as steps from the reference rather than as the stored number: 16
+// is gamma exactly 1, the palette untouched, and it is the value every
+// reference frame in this repository was recorded with. So 16 shows as 0,
+// darker is negative and brighter is positive, which is the only part of
+// this a player has any reason to care about.
+int const kGammaSteps[] = { 1, 4, 8, 12, 16, 20, 24, 32 };
+int const kGammaCount = (int)(sizeof(kGammaSteps) / sizeof(kGammaSteps[0]));
+int const kGammaReference = 4;      // the index of 16 above
+
+int gamma_index()
+{
+    int const dg = gamma_value();
+    int best = kGammaReference;
+    for (int i = 0; i < kGammaCount; i++)
+        if (kGammaSteps[i] == dg)
+            best = i;
+    return best;
+}
+
+void brightness_step(int dir)
+{
+    int const at = list_wrap(gamma_index(), dir, kGammaCount);
+    set_gamma_value(kGammaSteps[at]);
+    sbar.need_refresh();
+}
+
+void brightness_show(char *buf, size_t n)
+{
+    int const step = gamma_index() - kGammaReference;
+    if (step == 0)
+        snprintf(buf, n, "0");
+    else
+        snprintf(buf, n, "%+d", step);
 }
 
 // ---- dynamic light --------------------------------------------------------
@@ -482,6 +525,7 @@ Item const kItems[] = {
     { i18n::kOptSmooth,      "interpolate", false, smooth_step,   smooth_show,   smooth_value },
     { i18n::kOptPreset,      "preset",      true,  preset_step,    preset_show,    preset_value },
     { i18n::kOptParticles,   "particles",   false, particles_step, particles_show, particles_value },
+    { i18n::kOptBrightness,  "gamma",       false, brightness_step, brightness_show, NULL },
     { i18n::kOptDynLight,    "dynlight",    false, dynlight_step, dynlight_show, dynlight_value },
     { i18n::kOptReduceMotion, "reducemotion", false, reduce_motion_step, reduce_motion_show, reduce_motion_value },
     { i18n::kOptLighting,    "rgblight",    false, light_step,    light_show,    light_value },
@@ -915,6 +959,16 @@ void run_options_screen()
     {
         if (!changed_keys[i])
             continue;
+
+        // The brightness is written to gamma.lsp the moment it changes,
+        // by set_gamma_value, because that file is where this has been
+        // kept since 1995 and the Lisp reads it at startup. Writing it to
+        // abuserc as well would give one setting two homes.
+        if (strcmp(changed_keys[i], "gamma") == 0)
+        {
+            wrote = true;
+            continue;
+        }
 
         // The mode is the one setting that cannot live in abuserc: that file
         // is inside a directory named after the mode. It has a file of its

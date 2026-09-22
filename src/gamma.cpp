@@ -70,6 +70,83 @@ static char const *lang_string(char const *symbol)
     return lstring_value(v->GetValue());
 }
 
+// The palette as it was before any correction, kept so a new value can be
+// applied to the original colours rather than to already-corrected ones.
+// gamma_correct() fills it on the first call, which happens at startup.
+static void apply_gamma(long dg)
+{
+    if (!old_pal)
+        return;
+
+    double gamma = log(dg / 255.0) / log(16.0 / 255.0);
+
+    palette *fresh = new palette;
+    for (int i = 0; i < 256; i++)
+    {
+        uint8_t r, g, b;
+        old_pal->get(i, r, g, b);
+        fresh->set(i, (int)(pow(r / 255.0, gamma) * 255),
+                      (int)(pow(g / 255.0, gamma) * 255),
+                      (int)(pow(b / 255.0, gamma) * 255));
+    }
+
+    delete pal;
+    pal = fresh;
+    pal->load();
+}
+
+static void write_gamma(long dg)
+{
+    char *gammapath = join_strings(get_save_filename_prefix(), "gamma.lsp");
+    FILE *fp = open_FILE(gammapath, "wb");
+    if (fp)
+    {
+        fprintf(fp, "(setq darkest_gray %ld)\n", dg);
+        fclose(fp);
+
+        LSpace *sp = LSpace::Current;
+        LSpace::Current = &LSpace::Perm;
+        LSymbol::FindOrCreate("darkest_gray")->SetNumber(dg);
+        LSpace::Current = sp;
+    }
+    else
+        dprintf("Unable to write to file gamma.lsp\n");
+    SDL_free(gammapath);
+}
+
+int gamma_value()
+{
+    // The same answer the correction itself uses in a scripted run. The
+    // symbol still holds whatever the machine's gamma.lsp said, and a
+    // reference frame that showed that would differ from one recorded on
+    // any other machine.
+    if (abuse::harness::scripted_run())
+        return 16;
+
+    LSymbol *gs = LSymbol::Find("darkest_gray");
+    if (gs && DEFINEDP(gs->GetValue()))
+    {
+        long dg = lnumber_value(gs->GetValue());
+        return (int)(dg < 1 ? 1 : dg > 128 ? 128 : dg);
+    }
+    return 16;
+}
+
+void set_gamma_value(int dg)
+{
+    // A scripted run does not write the player's files. It can reach this
+    // through a dumped options screen, and the only thing that would
+    // achieve is changing the machine it ran on.
+    if (abuse::harness::scripted_run())
+        return;
+
+    if (dg < 1) dg = 1;
+    if (dg > 128) dg = 128;
+
+    write_gamma(dg);
+    apply_gamma(dg);
+}
+
 void gamma_correct(palette *&pal, int force_menu)
 {
     long dg=0,old_dg=0;
@@ -85,7 +162,7 @@ void gamma_correct(palette *&pal, int force_menu)
         old_pal = NULL;
     }
 
-    if(abuse::harness::headless())
+    if(abuse::harness::scripted_run())
     {
         // Scripted runs are compared pixel for pixel against golden frames.
         // Pin the ramp: a gamma.lsp written by an interactive run moves
