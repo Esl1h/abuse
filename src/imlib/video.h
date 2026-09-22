@@ -52,6 +52,16 @@ bool window_pixel_size(int &w, int &h);
 bool game_rect_to_window(int gx, int gy, int gw, int gh,
                          int &x, int &y, int &w, int &h);
 
+// Between the window's pixels and the game's, both ways.
+//
+// The game space here is the *logical* one, which for a 200 tall buffer is
+// 240 tall: that is the aspect correction, and mouse_yscale is what the
+// caller uses to get back to 200. Everything that reads or moves the
+// pointer goes through these, because the two presentation paths letterbox
+// the picture differently and only they know how.
+void window_to_game(float wx, float wy, float &gx, float &gy);
+void game_to_window(float gx, float gy, float &wx, float &wy);
+
 // Re-apply the presentation and filter options to the live renderer.
 void apply_presentation();
 void apply_filter();

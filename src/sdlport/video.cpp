@@ -495,6 +495,55 @@ bool game_rect_to_window(int gx, int gy, int gw, int gh,
     return true;
 }
 
+// The height the buffer is shown as: 200 rows are presented as 240, which
+// is the 1995 aspect correction. Same rule as fit() on the GPU side.
+static int presented_height()
+{
+    return yres == 200 ? 240 : yres;
+}
+
+void window_to_game(float wx, float wy, float &gx, float &gy)
+{
+    gx = wx;
+    gy = wy;
+
+    if (abuse::sdlport::gpu::running())
+    {
+        int px = 0, py = 0, pw = 0, ph = 0;
+        if (!abuse::sdlport::gpu::picture_rect(xres, yres, px, py, pw, ph)
+            || pw < 1 || ph < 1)
+            return;
+
+        gx = (wx - (float)px) * (float)xres / (float)pw;
+        gy = (wy - (float)py) * (float)presented_height() / (float)ph;
+        return;
+    }
+
+    if (renderer)
+        SDL_RenderCoordinatesFromWindow(renderer, wx, wy, &gx, &gy);
+}
+
+void game_to_window(float gx, float gy, float &wx, float &wy)
+{
+    wx = gx;
+    wy = gy;
+
+    if (abuse::sdlport::gpu::running())
+    {
+        int px = 0, py = 0, pw = 0, ph = 0;
+        if (!abuse::sdlport::gpu::picture_rect(xres, yres, px, py, pw, ph)
+            || xres < 1 || presented_height() < 1)
+            return;
+
+        wx = (float)px + gx * (float)pw / (float)xres;
+        wy = (float)py + gy * (float)ph / (float)presented_height();
+        return;
+    }
+
+    if (renderer)
+        SDL_RenderCoordinatesToWindow(renderer, gx, gy, &wx, &wy);
+}
+
 static int overlay_tex_w = 0;
 static int overlay_tex_h = 0;
 

@@ -79,7 +79,7 @@ void EventHandler::SysWarpMouse(ivec2 pos)
     // Calculate window position
     float fx = pos.x;
     float fy = pos.y / mouse_yscale;
-    SDL_RenderCoordinatesToWindow(renderer, fx, fy, &fx, &fy);
+    game_to_window(fx, fy, fx, fy);
     SDL_WarpMouseInWindow(window, fx, fy);
 }
 
@@ -187,8 +187,12 @@ void EventHandler::SysEvent(Event &ev)
     // same button is the jump.
     if (g_pad_click && !pad_faces_are_gameplay())
         buttons |= SDL_BUTTON_MASK(1);
-    // Make the window-relative position renderer-relative
-    SDL_RenderCoordinatesFromWindow(renderer, fx, fy, &fx, &fy);
+    // Make the window-relative position game-relative. Not through the
+    // renderer directly: on the GPU path there is none, and this quietly
+    // left the position in window pixels, four times too large at 1280
+    // wide. Every dialogue the 1995 code draws is picked with the pointer,
+    // so with the enhanced preset none of them could be clicked at all.
+    window_to_game(fx, fy, fx, fy);
     // Don't care about subpixels
     x = (int) fx;
     y = (int) (fy * mouse_yscale);
