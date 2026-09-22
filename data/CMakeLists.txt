@@ -17,6 +17,14 @@ if(NOT WIN32 AND NOT APPLE)
     endforeach()
 endif()
 
+# The override pack, or the part of it that is ours. The engine looks for
+# <datadir>/hd/<spe stem>/<entry>.png and swaps the picture in at load,
+# quantising it to the game palette; see src/imlib/hd.h. Anything a player
+# adds goes in the same tree and is not our business, but the title screen
+# of the Remastered mode is, and it ships.
+INSTALL(FILES hd/title/title_screen.png
+DESTINATION ${ASSETDIR}/hd/title)
+
 INSTALL(FILES
     abuse.lsp
     edit.lsp

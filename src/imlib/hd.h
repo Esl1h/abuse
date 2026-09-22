@@ -24,6 +24,17 @@
  *  because they are cut into a forward and a backward copy and the swap
  *  has to happen before either.
  *
+ *  **Never in the Original mode.** That mode is what the snapshots and the
+ *  replay hashes are compared against, so an installed pack must not reach
+ *  it; setup() turns this off there. Without that, a reference frame would
+ *  depend on whether the machine that recorded it happened to have a pack.
+ *
+ *  The repository ships one file of its own here, the Remastered mode's
+ *  title screen. Everything else under data/hd/ belongs to whoever put it
+ *  there: .gitignore keeps it out of the repository and
+ *  scripts/check-licenses.sh fails on it, because art nobody has accounted
+ *  for is exactly what that check is for.
+ *
  *  This software was released into the Public Domain.
  */
 

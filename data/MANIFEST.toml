@@ -12,8 +12,6 @@ ignore = [
     "READMD.md",        # a note inherited from upstream, no role in the game
     "MANIFEST.toml",    # this file
     "classic.sha256",   # checksums of the original data, not an asset
-    "hd",               # the HD override pack, distributed separately
-    "hd/**",            # and never in this repository; see src/imlib/hd.h
 ]
 allowed_licenses = [
     "public-domain",
@@ -165,6 +163,26 @@ modified = false
 # ============================================================
 # Desktop packaging (upstream Xenoveritas)
 # ============================================================
+
+# The override pack.
+#
+# It used to be ignored wholesale, on the reasoning that a pack would be
+# third-party art of uncertain licence and would never be in this
+# repository. The title screen below is ours and is registered like
+# anything else, so the blanket ignore went: any *other* file that appears
+# under data/hd/ now fails this check, which is what should happen to art
+# nobody has accounted for. A pack downloaded for testing will trip it;
+# that is the same warning working.
+
+[[asset]]
+path = "hd/title/title_screen.png"
+origin = "Abuse: Vrenna"
+license = "GPL-2.0-or-later"
+modified = true
+ai_tool = "Nano Banana Pro"
+ai_model = "Nano Banana Pro"
+ai_date = "2026-09-22"
+ai_note = "the title screen of the Remastered mode, cropped to 320x200 from doc/art/key-art-wordmark.png; the engine quantises it to the game palette on load"
 
 # Ours, and these must come before the freedesktop/** glob below: the
 # checker takes the first glob that matches.

@@ -25,7 +25,15 @@
 /data/classic/
 /data/sfx/
 /data/music/
-/data/hd/
+# The override pack stays out, with one exception: the pictures that are
+# ours. A pack downloaded for testing is third-party art of uncertain
+# licence and must not be committed by accident, which is what the first
+# line is for; the exceptions below are art this project made, registered
+# in data/MANIFEST.toml and shipped with the game.
+/data/hd/*
+!/data/hd/title/
+/data/hd/title/*
+!/data/hd/title/title_screen.png
 
 # ---------------------------------------------------------------------------
 # Local game state, in case someone runs from the tree

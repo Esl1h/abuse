@@ -43,7 +43,11 @@ for path in sorted(data_dir.rglob("*")):
     if not path.is_file():
         continue
     rel = path.relative_to(data_dir).as_posix()
-    if rel in ignore:
+    # fnmatch and not a set lookup: the list is documented as taking a
+    # glob, and half of it was written as globs, but an exact match was
+    # what it did. "hd/**" matched nothing and nobody noticed, because
+    # until one was installed there was no file under hd/ to match.
+    if rel in ignore or any(fnmatch.fnmatch(rel, i) for i in ignore):
         continue
     asset = exact.get(rel)
     if asset is None:
