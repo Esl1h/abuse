@@ -167,7 +167,8 @@ Test harness flags (`src/harness.cpp`):
 | `--state-hash` | Prints the state hash at the end |
 | `--hash-every N` | Also prints it every N ticks |
 | `--max-ticks N` | Ends the run |
-| `--dump-frames <t1,t2,...>` | Writes BMP frames at the given ticks |
+| `--dump-frames <t1,t2,...>` | Writes BMP frames at the given loop counts. One loop is one tick only when the run is headless; with a window it is one drawn frame |
+| `--dump-tick <t1,t2,...>` | Writes a frame at the given **level** ticks instead, and ends the run once it has them all. The same moment whatever the frame rate, which is what makes a windowed capture comparable |
 | `--dump-window` | Also writes the frame as presented, after scaling and letterboxing |
 | `--window-size W H` | Pins the window, which the presented frame depends on |
 | `--out <dir>` | Output directory for the dumps |
@@ -199,6 +200,13 @@ WINDOW=1 ./scripts/test-snapshots.sh build/dev/src/abuse   # the presented frame
 ./scripts/record-replay.sh build/dev/src/abuse levels/level00.spe tests/replays/x.rec
 clang-tidy -p build/dev $(git diff --name-only -- '*.cpp')
 ```
+
+`./scripts/test-gpu.sh build/dev/src/abuse` draws the same screens through both
+presentation paths and compares them with each other, which is the only automatic
+check the GPU path has. Not against the stored frames: a window read back from a
+real driver does not match one read back from SDL's dummy driver, and every stored
+frame is headless. It skips itself, with CTest's 77, wherever the GPU path cannot
+start, which includes every CI runner.
 
 `./scripts/check-licenses.sh` checks the data manifest and runs in CI.
 
