@@ -92,6 +92,13 @@ struct Options {
     char *playback = nullptr;
     char *level = nullptr;
     std::vector<long> dump_ticks;
+    // Frames are counted by the loop, which in a windowed run means once
+    // per drawn frame and so depends on how fast the machine is. These are
+    // level ticks instead: with interpolation off, which is the default,
+    // every frame drawn inside one tick is the same picture, so the first
+    // frame at or after a given tick is the same picture everywhere.
+    std::vector<long> dump_level_ticks;
+    std::vector<long> dumped_level_ticks;
     char const *out_dir = ".";
 };
 
@@ -263,7 +270,7 @@ char *absolute(char *path)
     return full;
 }
 
-void parse_tick_list(char const *raw)
+void parse_into(char const *raw, char const *flag, std::vector<long> &out)
 {
     char const *p = raw;
     while (*p)
@@ -272,14 +279,25 @@ void parse_tick_list(char const *raw)
         long tick = strtol(p, &end, 10);
         if (end == p)
         {
-            fprintf(stderr, "--dump-frames expects a comma separated list, got '%s'\n", raw);
+            fprintf(stderr, "%s expects a comma separated list, got '%s'\n",
+                    flag, raw);
             exit(2);
         }
-        opt.dump_ticks.push_back(tick);
+        out.push_back(tick);
         p = end;
         while (*p == ',')
             p++;
     }
+}
+
+void parse_tick_list(char const *raw)
+{
+    parse_into(raw, "--dump-frames", opt.dump_ticks);
+}
+
+void parse_level_tick_list(char const *raw)
+{
+    parse_into(raw, "--dump-tick", opt.dump_level_ticks);
 }
 
 // FNV-1a. The state is integer only, so no float formatting ambiguity.
@@ -395,6 +413,8 @@ void parse_args(int argc, char **argv)
             opt.playback = take_value(argc, argv, i, "--playback");
         else if (!strcmp(argv[i], "--level"))
             opt.level = take_value(argc, argv, i, "--level");
+        else if (!strcmp(argv[i], "--dump-tick"))
+            parse_level_tick_list(take_value(argc, argv, i, "--dump-tick"));
         else if (!strcmp(argv[i], "--dump-frames"))
             parse_tick_list(take_value(argc, argv, i, "--dump-frames"));
         else if (!strcmp(argv[i], "--out"))
@@ -662,6 +682,11 @@ bool headless()
     return opt.headless;
 }
 
+bool scripted_run()
+{
+    return opt.headless || opt.playback || opt.record || !g_script.empty();
+}
+
 void apply_seed()
 {
     if (opt.seed >= 0)
@@ -828,6 +853,14 @@ bool tick()
     if (demo_running && opt.playback && demo_man.current_state() == demo_manager::NORMAL)
         return false;
 
+    // Asked for frames at given level ticks and got them all: there is
+    // nothing left for this run to do. Worth ending on, because a windowed
+    // run waits on the display for every frame it draws, and playing out
+    // the rest of a replay for nothing costs most of a minute.
+    if (!opt.dump_level_ticks.empty()
+        && opt.dumped_level_ticks.size() == opt.dump_level_ticks.size())
+        return false;
+
     if (opt.max_ticks >= 0 && loop_ticks >= (uint64_t)opt.max_ticks)
         return false;
 
@@ -842,15 +875,55 @@ bool tick_is_wanted()
     for (long t : opt.dump_ticks)
         if ((uint64_t)t == loop_ticks)
             return true;
+
+    // The level-tick form fires once, on the first frame at or after the
+    // tick asked for, and remembers that it has.
+    if (current_level)
+    {
+        long const now = (long)current_level->tick_counter();
+        for (long t : opt.dump_level_ticks)
+        {
+            if (now < t)
+                continue;
+            bool done = false;
+            for (long d : opt.dumped_level_ticks)
+                if (d == t)
+                    done = true;
+            if (!done)
+                return true;
+        }
+    }
     return false;
+}
+
+// Marks the level ticks this frame satisfies, so the next frame does not
+// capture again.
+void note_level_tick_dumped()
+{
+    if (!current_level)
+        return;
+    long const now = (long)current_level->tick_counter();
+    for (long t : opt.dump_level_ticks)
+        if (now >= t)
+        {
+            bool done = false;
+            for (long d : opt.dumped_level_ticks)
+                if (d == t)
+                    done = true;
+            if (!done)
+                opt.dumped_level_ticks.push_back(t);
+        }
 }
 
 }
 
 void before_frame()
 {
-    if (opt.dump_ticks.empty() || !tick_is_wanted())
+    if ((opt.dump_ticks.empty() && opt.dump_level_ticks.empty())
+        || !tick_is_wanted())
         return;
+
+    note_level_tick_dumped();
 
     if (!opt.dump_window)
         return;

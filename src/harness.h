@@ -20,6 +20,17 @@ void parse_args(int argc, char **argv);
 
 bool headless();
 
+// True when something other than a person is driving: --headless, a
+// playback, a recording, or an input script.
+//
+// Not the same question as headless(). A scripted run can have a real
+// window, which is the only way to exercise the GPU path, and it still must
+// not read the machine it runs on: the gamepad is the one that bit.
+// SDL_EVENT_GAMEPAD_BUTTON_DOWN arrives as a key press, any key press stops
+// a demo playback (src/demo.cpp), and a pad on the desk therefore ended runs
+// at a different tick every time. Five of eight, measured.
+bool scripted_run();
+
 // --frame-alpha F. Forces the interpolated draw at a fixed point between two
 // ticks, which is the only way a scripted capture can show it: the harness
 // runs one frame per tick, where there is nothing to blend.

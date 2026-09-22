@@ -924,13 +924,21 @@ void setup( int argc, char **argv )
 
     // Initialize SDL with video and audio support.
     //
-    // No gamepad under the test harness. A scripted run must not read a
-    // physical device: a pad plugged into the machine changes the button
-    // labels the controls screen prints, and a held button would reach the
-    // action map and change what a replay does. Both are the host leaking
-    // into a result that is compared byte for byte.
+    // No gamepad in a scripted run. Such a run must not read a physical
+    // device: a pad plugged into the machine changes the button labels the
+    // controls screen prints, and a held button reaches the action map and
+    // changes what a replay does. Both are the host leaking into a result
+    // that is compared byte for byte.
+    //
+    // This used to ask headless() and so covered only the runs with no
+    // window. A windowed playback still opened the pad, and since a gamepad
+    // button arrives as a key press and any key press stops a demo
+    // (src/demo.cpp), a pad sitting on the desk ended those runs at a
+    // different tick every time: five of eight, with the start button as
+    // Esc and the back button as 'p' among the culprits. That is also the
+    // only way to exercise the GPU path, which needs a real window.
     SDL_InitFlags init = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
-    if( !abuse::harness::headless() )
+    if( !abuse::harness::scripted_run() )
         init |= SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD;
 
     if( !SDL_Init( init ) )
