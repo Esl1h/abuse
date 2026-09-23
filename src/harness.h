@@ -39,6 +39,11 @@ bool scripted_run();
 // other use of scripted_run() wants both.
 bool input_is_scripted();
 
+// True under --save-dialog, which opens the save picker on purpose to draw
+// it. It is the one caller allowed past the guard in load_game, and it
+// queues an Esc first so the picker has something to read.
+bool save_dialog_wanted();
+
 // --frame-alpha F. Forces the interpolated draw at a fixed point between two
 // ticks, which is the only way a scripted capture can show it: the harness
 // runs one frame per tick, where there is nothing to blend.

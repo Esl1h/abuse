@@ -692,6 +692,11 @@ bool input_is_scripted()
     return opt.headless || opt.playback || !g_script.empty();
 }
 
+bool save_dialog_wanted()
+{
+    return opt.save_dialog;
+}
+
 void apply_seed()
 {
     if (opt.seed >= 0)

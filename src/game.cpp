@@ -2917,7 +2917,10 @@ int main(int argc, char *argv[])
         // worth stopping for: everything else about it works, and a player who
         // picked that mode picked it for the original audio. Not under the
         // harness, which has no one to read it.
-        if (!abuse::harness::headless() && abuse::ui::classic_data_missing())
+        // Same trap as the save picker: this screen waits for a person.
+        // A windowed playback would sit in it forever.
+        if (!abuse::harness::input_is_scripted()
+            && abuse::ui::classic_data_missing())
             abuse::ui::run_classic_data_screen();
 
         g->get_input(); // prime the net

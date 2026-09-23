@@ -27,6 +27,7 @@
 #include "dprint.h"
 #include "cache.h"
 #include "gui.h"
+#include "harness.h"
 #include "dev.h"
 #include "id.h"
 #include "demo.h"
@@ -173,6 +174,19 @@ int show_load_icon()
 
 int load_game(int show_all, char const *title)   // return 0 if the player escapes, else return the number of the game to load
 {
+    // Nobody is going to answer this in a scripted run, and its event loop
+    // waits until somebody does. Reported as a playback that printed the
+    // video line and then sat there: the recording had the player open the
+    // save picker, and on playback the Lisp opened it again with no one to
+    // close it. A recorded session must not be able to stop its own replay.
+    //
+    // 0 is what the picker returns when the player presses Esc, so this is
+    // the same answer as dismissing it. --save-dialog is the one caller
+    // that means to open it, and it queues an Esc of its own first.
+    if (abuse::harness::input_is_scripted()
+        && !abuse::harness::save_dialog_wanted())
+        return 0;
+
     int total_saved=0;
     image *thumbnails[MAX_SAVE_GAMES];
     int start_num=0;
