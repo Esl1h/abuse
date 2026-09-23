@@ -1641,6 +1641,16 @@ Game::Game(int argc, char **argv)
   current_automap = NULL;
   current_level = NULL;
   refresh = 1;
+
+  // Before anything can read it, and that is the whole point. It used to be
+  // set at the end of this constructor, after the language screen and the
+  // gamma calibration had already run, so both of those read an
+  // uninitialised int. RUN_STATE is 0, which is what fresh memory tends to
+  // hold, so the pad's confirm button decided it was in gameplay and sent
+  // nothing: reported as neither screen answering the controller on a first
+  // run, while the keyboard worked.
+  state = START_STATE;
+
   the_game = this;
   top_menu = joy_win = NULL;
   old_view = first_view = NULL;
