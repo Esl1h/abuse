@@ -116,11 +116,16 @@ static void write_gamma(long dg)
 
 int gamma_value()
 {
-    // The same answer the correction itself uses in a scripted run. The
-    // symbol still holds whatever the machine's gamma.lsp said, and a
-    // reference frame that showed that would differ from one recorded on
-    // any other machine.
-    if (abuse::harness::scripted_run())
+    // The same answer the correction itself uses when the run is producing
+    // reference material. The symbol still holds whatever the machine's
+    // gamma.lsp said, and a reference frame that showed that would differ
+    // from one taken on any other machine.
+    //
+    // Not during a recording, though: that is a person playing, and they
+    // should see the brightness they calibrated. Reported as the game
+    // coming out too bright through record-played.sh and normal when
+    // started by hand, which is exactly this.
+    if (abuse::harness::input_is_scripted())
         return 16;
 
     LSymbol *gs = LSymbol::Find("darkest_gray");
@@ -134,10 +139,11 @@ int gamma_value()
 
 void set_gamma_value(int dg)
 {
-    // A scripted run does not write the player's files. It can reach this
-    // through a dumped options screen, and the only thing that would
-    // achieve is changing the machine it ran on.
-    if (abuse::harness::scripted_run())
+    // A run driven by a script or a playback does not write the player's
+    // files: it can reach this through a dumped options screen, and the
+    // only thing that would achieve is changing the machine it ran on. A
+    // recording is a person, and a person may change their own settings.
+    if (abuse::harness::input_is_scripted())
         return;
 
     if (dg < 1) dg = 1;
@@ -162,9 +168,9 @@ void gamma_correct(palette *&pal, int force_menu)
         old_pal = NULL;
     }
 
-    if(abuse::harness::scripted_run())
+    if(abuse::harness::input_is_scripted())
     {
-        // Scripted runs are compared pixel for pixel against golden frames.
+        // These runs are compared pixel for pixel against golden frames.
         // Pin the ramp: a gamma.lsp written by an interactive run moves
         // every snapshot without ever touching the state hash. The value
         // is the one the golden frames were recorded with.
