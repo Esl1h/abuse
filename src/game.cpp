@@ -3059,6 +3059,15 @@ int main(int argc, char *argv[])
 
         abuse::harness::finish();
 
+        // Close a recording that is still open. It is the state change that
+        // writes the file: set_state deletes the bFILE, and a bFILE that is
+        // never deleted is a buffer that is never flushed. Quitting used to
+        // skip that, so a session recorded with --record and ended with Esc
+        // left a file of nought bytes, which is what happened to the first
+        // replay anyone tried to record by playing.
+        if (demo_man.current_state() == demo_manager::RECORDING)
+            demo_man.set_state(demo_manager::NORMAL);
+
         net_uninit();
 
         if (net_crcs)

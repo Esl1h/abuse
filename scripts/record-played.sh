@@ -9,7 +9,10 @@
 #   ./scripts/record-played.sh build/release/src/abuse levels/level00.spe \
 #       tests/replays/level00-played.rec
 #
-# Play, then quit with Esc. The recording stops when the game does.
+# Play, then quit the usual way, with Esc and Quit. The file is written
+# when the recording stops, and quitting stops it; pressing Enter stops it
+# without leaving the game, which is how the 1995 code has always done it
+# and is useful for cutting a session short.
 #
 # Afterwards, to make it part of the suite:
 #
