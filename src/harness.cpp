@@ -687,6 +687,11 @@ bool scripted_run()
     return opt.headless || opt.playback || opt.record || !g_script.empty();
 }
 
+bool input_is_scripted()
+{
+    return opt.headless || opt.playback || !g_script.empty();
+}
+
 void apply_seed()
 {
     if (opt.seed >= 0)

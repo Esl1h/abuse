@@ -197,7 +197,8 @@ ctest --preset dev                                     # unit + replays + snapsh
 ./scripts/test-snapshots.sh build/dev/src/abuse        # the 320x200 frames
 WINDOW=1 ./scripts/test-snapshots.sh build/dev/src/abuse   # the presented frames
 ./scripts/update-golden.sh build/dev/src/abuse         # rewrite the references
-./scripts/record-replay.sh build/dev/src/abuse levels/level00.spe tests/replays/x.rec
+./scripts/record-replay.sh build/dev/src/abuse levels/level00.spe tests/replays/x.rec  # synthetic
+./scripts/record-played.sh build/release/src/abuse levels/level00.spe tests/replays/x.rec  # played
 clang-tidy -p build/dev $(git diff --name-only -- '*.cpp')
 ```
 

@@ -31,6 +31,14 @@ bool headless();
 // at a different tick every time. Five of eight, measured.
 bool scripted_run();
 
+// Narrower: the input itself comes from somewhere that is not a person.
+//
+// Recording is the difference. A recording run *is* a person playing, and
+// the whole point of it is to capture what they do, gamepad included; it
+// is only a scripted run in the sense that the harness is watching. Every
+// other use of scripted_run() wants both.
+bool input_is_scripted();
+
 // --frame-alpha F. Forces the interpolated draw at a fixed point between two
 // ticks, which is the only way a scripted capture can show it: the harness
 // runs one frame per tick, where there is nothing to blend.
