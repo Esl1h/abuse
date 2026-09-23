@@ -57,6 +57,9 @@ run_game() {
     fi
 }
 
+errors=$(mktemp)
+trap 'rm -f "$errors"' EXIT
+
 rc=0
 for rec in "${recs[@]}"; do
     name=$(basename "$rec" .rec)
@@ -75,14 +78,20 @@ for rec in "${recs[@]}"; do
         # No set +e/-e around this: this script runs without -e (see the
         # line at the top), and turning it on here would make the empty
         # grep below end the run instead of reporting the width.
+        # Kept rather than discarded: when one of these hangs on Windows,
+        # what it managed to print before being killed is the only clue
+        # anyone here will ever get about where it stopped.
         raw=$(run_game "$bin" --headless -nodelay --playback "$rec" \
-              --state-hash --viewport "$w" 200 -datadir ./data 2>/dev/null)
+              --state-hash --viewport "$w" 200 -datadir ./data 2>"$errors")
         status=$?
         hash=$(printf '%s\n' "$raw" | grep '^final' | grep -o 'hash=[0-9a-f]*')
 
         echo "  ${w}x200 took $(( $(date +%s) - started ))s"
         if [ "$status" -eq 124 ]; then
             echo "FAIL: $name at ${w}x200 was still running after ${bound}s"
+            echo "  $bin --headless -nodelay --playback $rec --state-hash --viewport $w 200 -datadir ./data"
+            printf '%s\n' "$raw" | tail -n 5 | sed 's/^/  out| /'
+            tail -n 15 "$errors" | sed 's/^/  err| /'
             rc=1
             continue
         fi
