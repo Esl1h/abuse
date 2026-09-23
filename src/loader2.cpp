@@ -497,9 +497,12 @@ void load_data(int argc, char **argv)
 // overwrites the symbols it defines.
 void load_language_table()
 {
+  // NULL means English, which is the base and has no file of its own. The
+  // reload below still has to happen: it is what undoes a translation that
+  // was applied before.
   char const *lang_file = abuse::i18n::language_lisp_file(abuse::i18n::language());
   if (!lang_file)
-    return;
+    lang_file = "";
 
   // The caller may be in tmp space, which is cleared regularly. The strings
   // have to outlive that, so the load goes into the permanent space, the same
@@ -507,12 +510,32 @@ void load_language_table()
   LSpace *sp = LSpace::Current;
   LSpace::Current = &LSpace::Perm;
 
-  char prog[128];
-  snprintf(prog, sizeof(prog), "(load \"%s\")\n", lang_file);
+  // English first, every time, and then the translation on top of it.
+  //
+  // A translation only defines the symbols it translates, so the table is
+  // whatever was loaded last, layer upon layer. Switching from French to
+  // English used to load nothing at all, because English has no file of
+  // its own, and the French strings simply stayed: reported as choosing
+  // English and getting French, with some lines still in English, which is
+  // exactly what a partial overlay looks like.
+  //
+  // Reloading the base costs a parse of english.lsp on each change, which
+  // happens on a first run and in the options screen and nowhere else.
+  char prog[160];
   char const *cs = prog;
-  // A missing translation is not fatal: English is already in place.
+  snprintf(prog, sizeof(prog),
+           "(progn (setq section 'game_section) (load \"lisp/english.lsp\"))\n");
   if (!LObject::Compile(cs)->Eval())
-    dprintf("Language file '%s' not found, staying in English\n", lang_file);
+    dprintf("english.lsp did not reload; the table may be mixed\n");
+
+  if (lang_file[0])
+  {
+    snprintf(prog, sizeof(prog), "(load \"%s\")\n", lang_file);
+    cs = prog;
+    // A missing translation is not fatal: English is already in place.
+    if (!LObject::Compile(cs)->Eval())
+      dprintf("Language file '%s' not found, staying in English\n", lang_file);
+  }
 
   LSpace::Current = sp;
 }
