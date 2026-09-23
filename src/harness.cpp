@@ -86,6 +86,12 @@ struct Options {
     int window_w = 0;
     int window_h = 0;
     long hash_every = 0;        // 0 = only when the run ends
+    // Capture every Nth frame. Nothing on this desktop can film the game:
+    // the session is Wayland, ffmpeg here has no pipewire input, and
+    // x11grab sees the XWayland root, which is black. The game filming
+    // itself is the way in, and the frames come out already cropped to the
+    // window with no desktop around them.
+    long dump_every = 0;
     long seed = -1;             // < 0 = leave jrand_init's value alone
     long max_ticks = -1;        // < 0 = no limit
     char *record = nullptr;
@@ -401,6 +407,8 @@ void parse_args(int argc, char **argv)
             opt.window_w = (int)take_number(argc, argv, i, "--window-size");
             opt.window_h = (int)take_number(argc, argv, i, "--window-size");
         }
+        else if (!strcmp(argv[i], "--dump-every"))
+            opt.dump_every = take_number(argc, argv, i, "--dump-every");
         else if (!strcmp(argv[i], "--hash-every"))
             opt.hash_every = take_number(argc, argv, i, "--hash-every");
         else if (!strcmp(argv[i], "--seed"))
@@ -882,6 +890,9 @@ namespace {
 
 bool tick_is_wanted()
 {
+    if (opt.dump_every > 0 && loop_ticks % (uint64_t)opt.dump_every == 0)
+        return true;
+
     for (long t : opt.dump_ticks)
         if ((uint64_t)t == loop_ticks)
             return true;
@@ -929,7 +940,8 @@ void note_level_tick_dumped()
 
 void before_frame()
 {
-    if ((opt.dump_ticks.empty() && opt.dump_level_ticks.empty())
+    if ((opt.dump_ticks.empty() && opt.dump_level_ticks.empty()
+         && opt.dump_every <= 0)
         || !tick_is_wanted())
         return;
 

@@ -175,7 +175,14 @@ public:
     JCFont *font() { return fnt; }
     // The font object is rebuilt when the language changes, and every widget
     // draws through this pointer.
-    void set_font(JCFont *f) { fnt = f; }
+    // Both, and that is the point. They are the same object from the
+    // constructor onwards and nothing ever sets them apart, but only one
+    // of them used to be updated here: a language change deletes the old
+    // font and builds a new one, and every titled window drawn afterwards
+    // read the freed one through frame_font(). AddressSanitizer caught it
+    // as a heap-use-after-free in JCFont::Size, from Jwindow::redraw, when
+    // the quit dialogue opened on a first run.
+    void set_font(JCFont *f) { fnt = f; wframe_fnt = f; }
 
     int key_pressed(int x)
     { return (x >= 0 && x < 512) ? key_state[x] : 0; }
