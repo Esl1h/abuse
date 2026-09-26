@@ -1,0 +1,93 @@
+name: Release
+
+# Builds what only a matrix can build, and attaches it to the release for
+# the tag that triggered this. The Linux packages are built by hand for
+# now, on the machine that can test them, and uploaded to the same release;
+# this job never deletes an asset it did not produce.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and attach to"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  windows:
+    name: Windows (zip)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DABUSE_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Stage
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/src/Release/*.exe dist/ 2>/dev/null || cp build/src/*.exe dist/
+          cp build/src/Release/*.dll dist/ 2>/dev/null || cp build/src/*.dll dist/
+          cp -r data dist/data
+          cp README.md BUILDING.md dist/
+          # The original sound and music are not redistributable and are in
+          # no package here; this is how the player fetches them.
+          cp scripts/fetch-classic-data.ps1 dist/
+
+      - name: Zip
+        shell: bash
+        run: cd dist && 7z a "../Abuse_Vrenna-${TAG}-windows-x64.zip" .
+
+      - name: Attach
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --prerelease --title "$TAG" \
+                 --notes "Assets are being uploaded."
+          gh release upload "$TAG" "Abuse_Vrenna-${TAG}-windows-x64.zip" --clobber
+
+  macos:
+    name: macOS (app bundle)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DABUSE_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Zip
+        run: |
+          cd build/src
+          # Neither signed nor notarised: Gatekeeper will refuse it until
+          # someone with a developer certificate signs it. Said in the
+          # release notes rather than discovered by the person downloading.
+          zip -r "../../Abuse_Vrenna-${TAG}-macos.zip" abuse.app
+
+      - name: Attach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --prerelease --title "$TAG" \
+                 --notes "Assets are being uploaded."
+          gh release upload "$TAG" "Abuse_Vrenna-${TAG}-macos.zip" --clobber
