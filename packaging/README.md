@@ -14,12 +14,50 @@ drift apart. They already had: the manifest asked for SDL3 3.2.0 while the
 build used 3.4.14, and pinned SDL_mixer to a branch, which Flathub does not
 accept.
 
-| Channel | Directory | Package name |
+| Channel | Built by | Package name |
 | --- | --- | --- |
 | Flathub | `flatpak/` | `io.github.Esl1h.AbuseVrenna` |
-| AUR | `aur/` | `abuse-vrenna`, `abuse-vrenna-git` |
-| AppImage | `appimage/` | `Abuse_Vrenna-x86_64.AppImage` |
-| Windows, macOS | (CI) | zip and dmg from the release workflow |
+| AppImage | `appimage/build-appimage.sh` | `Abuse_Vrenna-<version>-x86_64.AppImage` |
+| Tarball | `scripts/package-linux.sh tarball` | `Abuse_Vrenna-<version>-linux-x86_64.tar.gz` |
+| Debian | `scripts/package-linux.sh deb` | `abuse-vrenna_<version>_amd64.deb` |
+| Fedora | `scripts/package-linux.sh rpm` | `abuse-vrenna-<version>-1.x86_64.rpm` |
+| AUR | `aur/PKGBUILD` | `abuse-vrenna`, `abuse-vrenna-git` |
+| Windows | (CI, on a tag) | `Abuse_Vrenna-<tag>-windows-x64.zip` |
+
+## What the first real build taught
+
+None of this was built until 2026-09-25, and building it found five things
+a manifest nobody runs cannot show:
+
+- SDL3_mixer does not compile in tree: its example data copies onto itself
+  and ninja calls that a dependency cycle. Every Flatpak module builds out
+  of tree now.
+- `get_app_name()` in SDL_native_midi reads address one when the command
+  line holds no `/`, which is exactly how a Flatpak launches a game. See
+  `third_party/patches/`.
+- The AppImage could not find its data: the path is baked in at configure
+  time and lives under the mount point there. Its AppRun sets `ABUSE_PATH`.
+- A package must not write `libSDL3.so.0` into the system library
+  directory: dpkg refuses to install over Debian's `libsdl3-0`. Both
+  bundled libraries go to `<libdir>/abuse-vrenna/` and the binary finds
+  them through its RUNPATH.
+- What is bundled must be filtered out of the package's own dependencies,
+  or dnf asks the system for a library only this package has.
+
+Debian 13 ships SDL3 3.2, older than the 3.4 the pinned SDL3_mixer needs, so
+there CPM builds SDL3 as well and both libraries travel inside the package.
+On Fedora and Arch the system SDL3 is used and only the mixer travels.
+
+### Not yet, and why
+
+- **Snap**: the manifest is the easy part. It needs snapcraft plus LXD or
+  Multipass to build, and strict confinement moves the save directory out of
+  `~/.abuse`, which this project has decided not to rename. That means
+  classic confinement and a manual review, or a decision about saves.
+- **Nix**: cheap to write and impossible to verify here, because no machine
+  in this project has Nix. The work is teaching it to build offline: SDL3
+  and SDL3_mixer from nixpkgs, SDL_native_midi as a fixed-output fetch with
+  our patch in `patches`, and the tests off so doctest is not fetched.
 
 ## Identity
 

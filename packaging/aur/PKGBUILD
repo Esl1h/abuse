@@ -1,12 +1,18 @@
 # Maintainer: Esl1h <eslih@pm.me>
 #
-# NOT YET SUBMITTED. The source line points at a tag that does not exist and
-# the checksum is a placeholder; both are filled in when the first release is
-# tagged. `abuse-vrenna-git` is the same file with a VCS source and no
-# pkgver.
+# NOT YET SUBMITTED to the AUR: that needs an account and a push to
+# aur.archlinux.org, which is the maintainer's to do. The recipe itself is
+# built and installed in a clean Arch container before each release; see
+# scripts/package-linux.sh for the other three Linux packages.
+#
+# `abuse-vrenna-git` would be the same file with a VCS source and no pkgver.
 
 pkgname=abuse-vrenna
-pkgver=0.10.0
+# Arch forbids a hyphen in pkgver, and the tag has one. _tag is what the
+# release is called; pkgver is what pacman compares, and 0.9.0alpha.0 sorts
+# before 0.9.0, which is what a pre-release should do.
+_tag=v0.9.0-alpha.0
+pkgver=0.9.0alpha.0
 pkgrel=1
 pkgdesc="Modern port of Abuse (1995), the run-and-gun side-scroller with free aiming"
 arch=('x86_64' 'aarch64')
@@ -18,29 +24,31 @@ optdepends=('curl: downloading the original sound and music')
 # The package installs its own binary and its own data directory, so it does
 # not conflict with `abuse`, the SDL 1.2 port. The two can be installed side
 # by side and share nothing but the user's ~/.abuse from a legacy install.
-source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$_tag.tar.gz")
+sha256sums=('54d81ee02481fed5ce6b6f92fe27b4b7903d047c5ddd0f639678b9ddc160998e')
+
+_srcdir="$pkgname-${_tag#v}"
 
 build() {
-    cmake -S "abuse-$pkgver" -B build -G Ninja \
+    # Tests off on purpose: doctest is fetched at configure time and a clean
+    # chroot has no network during build().
+    cmake -S "$_srcdir" -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
+        -DABUSE_BUILD_TESTS=OFF \
         -DCPM_USE_LOCAL_PACKAGES=ON
     cmake --build build
-}
-
-check() {
-    # The window and snapshot suites need a display; the rest does not.
-    ctest --test-dir build --output-on-failure -E 'window|snapshots' || true
 }
 
 package() {
     DESTDIR="$pkgdir" cmake --install build
 
-    install -Dm644 "abuse-$pkgver/packaging/flatpak/io.github.Esl1h.AbuseVrenna.desktop" \
+    install -Dm644 "$_srcdir/packaging/flatpak/io.github.Esl1h.AbuseVrenna.desktop" \
         "$pkgdir/usr/share/applications/abuse-vrenna.desktop"
-    install -Dm644 "abuse-$pkgver/packaging/flatpak/io.github.Esl1h.AbuseVrenna.metainfo.xml" \
+    install -Dm644 "$_srcdir/packaging/flatpak/io.github.Esl1h.AbuseVrenna.metainfo.xml" \
         "$pkgdir/usr/share/metainfo/io.github.Esl1h.AbuseVrenna.metainfo.xml"
-    install -Dm755 "abuse-$pkgver/scripts/fetch-classic-data.sh" \
+    install -Dm755 "$_srcdir/scripts/fetch-classic-data.sh" \
         "$pkgdir/usr/bin/abuse-vrenna-fetch-classic-data"
+    install -Dm644 "$_srcdir/COPYING" \
+        "$pkgdir/usr/share/licenses/$pkgname/COPYING"
 }
