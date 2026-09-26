@@ -225,24 +225,29 @@
 
 	 (defun get_train_msg (message_num)
 	   (select message_num
-                   ;   0123456789012345678901234567890123456789012345678901234567890123456789
-		   ;  "--------------------------------------------------------------------"  ; V-A
-		   ; Please keep all strings below shorter than the above line.               ; V-A
-		   (0 "Aim gun with mouse, fire with left mouse button")
+                   ;   0123456789012345678901234567890123456
+		   ;  "-------------------------------------"
+		   ; Keep every string below inside that line. The old ruler here
+		   ; said seventy, and seventy wraps: draw_help divides the width
+		   ; of the view by the width of a glyph, which at 4:3 is 310 over
+		   ; 8 in the extended font, and thirty-seven is what was measured
+		   ; to still fit. Longer is not lost, it is wrapped onto a second
+		   ; line that covers more of the level.
+		   (0 "Aim: mouse/stick. Fire: click/trigger")
 		   ;(0 "Aim gun with mouse, fire with left mouse button") XXX: Mac Abuse
-		   (1 "Collect ammo to increase firing speed")
-                   (2 "Press the down key to activate objects. This is a switch.")
-		   (3 "This console saves the state of the game, press down")
-		   (4 "Press down to activate platform")
-		   (5 "Hold down the right mouse button to use special powers")
-		   (6 "Use the CTRL & INS keys to select weapons")
+		   (1 "Collect ammo to fire faster")
+                   (2 "Press down to use. This is a switch.")
+		   (3 "Press down here to save the game")
+		   (4 "Press down to start the platform")
+		   (5 "Special: right click or left trigger")
+		   (6 "Weapons: Ctrl/Insert or the shoulders")
 		   ;(5 "You can now use the special key to use your special powers") XXX: Mac Abuse
 		   ;(6 "You can now select weapons with the selection keys") XXX: Mac Abuse
-		   (7 "Press the up key to climb ladders")
-		   (8 "Press the down key to start!")
+		   (7 "Press up to climb")
+		   (8 "Press down to start!")
 
-		   (9 "Shoot hidden walls to destroy them")
-		   (10 "Shoot switch ball to activate")
+		   (9 "Shoot hidden walls to open them")
+		   (10 "Shoot the ball to activate")
 		   (11 "Press down to teleport")
 		   ))
 

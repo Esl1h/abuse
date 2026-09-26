@@ -321,5 +321,31 @@
 			    "Você sobreviveu ao impossível e chegou à Sala de Controle.  "
 			    "Ao puxar a alavanca, desviou o abastecimento de água e conteve o Abuse!\\n "
 			    "PARABÉNS!  VOCÊ É FERA!!!"))
+
+	 ;; As mensagens do tutorial. Estão aqui, e não como (setq ...), porque
+	 ;; no english.lsp elas são uma função: uma tradução que só redefinisse
+	 ;; símbolos nunca as alcançava, e por isso o tutorial continuava em
+	 ;; inglês em todos os idiomas.
+	 ;;
+	 ;; Curtas de propósito, e dizendo teclado e controle na mesma linha. O
+	 ;; limite é o que cabe numa linha da tarja: 37 glifos, medido.
+	 ;;
+	 ;; Nada de "A" nem "RT": o nome do botão muda conforme o controle, e o
+	 ;; jogo só sabe disso em C++. "gatilho" e "ombro" servem em qualquer um.
+	 (defun get_train_msg (message_num)
+	   (select message_num
+		   (0 "Mire: mouse/analógico. Atire: gatilho")
+		   (1 "Pegue munição: atira mais rápido")
+		   (2 "Aperte baixo. Isto é um interruptor.")
+		   (3 "Aperte baixo aqui para salvar")
+		   (4 "Aperte baixo para mover a plataforma")
+		   (5 "Especial: direito ou gatilho esquerdo")
+		   (6 "Armas: Ctrl/Insert ou os ombros")
+		   (7 "Aperte cima para subir")
+		   (8 "Aperte baixo para começar!")
+		   (9 "Atire nas paredes secretas")
+		   (10 "Atire na bola para acionar")
+		   (11 "Aperte baixo para teleportar")
+		   ))
 	)
 )

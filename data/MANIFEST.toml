@@ -123,6 +123,17 @@ origin = "Crack dot Com (abuse-lib), ajuste Xenoveritas"
 license = "public-domain"
 modified = true
 
+# The tutorial strings in get_train_msg were rewritten here: shorter, and
+# naming the gamepad as well as the keyboard. The rest of the file is Crack
+# dot Com's and untouched.
+
+[[asset]]
+path = "lisp/english.lsp"
+origin = "Crack dot Com (abuse-lib), tutorial text rewritten by this project"
+license = "public-domain"
+modified = true
+ai = { tool = "Claude Code", model = "claude-opus-5", date = "2026-09-25" }
+
 [[asset]]
 path = "addon/bong/bong.lsp"
 origin = "Crack dot Com (abuse-lib), ajuste Xenoveritas"
