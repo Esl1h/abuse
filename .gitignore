@@ -60,6 +60,9 @@
 
 # What packaging/appimage/build-appimage.sh writes.
 /*.AppImage
+
+# What scripts/package-linux.sh writes.
+/dist/
 CMakeUserPresets.json
 compile_commands.json
 /.cache/
