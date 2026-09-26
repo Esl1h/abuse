@@ -91,8 +91,13 @@ CPMAddPackage(
         "SDLMIXER_MIDI_TIMIDITY OFF"
 )
 if (ABUSE_ENABLE_NATIVE_MIDI)
+    find_package(Git REQUIRED)
     # This is really a fancy way to make this an optional, external dependency.
     # It's never used directly - instead, the source files are added to the sdlport target.
+    # PATCHES: get_app_name() adds one to what SDL_strrchr returned before
+    # testing it, so a command line with no '/' in it reads address one and
+    # the process dies in the MIDI probe. A Flatpak launches the game as
+    # "abuse-vrenna", with no path, which is how this was found.
     CPMAddPackage(
         NAME SDL3_native_midi
         # Version number is made up
@@ -100,6 +105,12 @@ if (ABUSE_ENABLE_NATIVE_MIDI)
         GITHUB_REPOSITORY libsdl-org/SDL_native_midi
         GIT_TAG 64236646bc50ba7a196c2cc05dad86f0bde3f55f
         EXCLUDE_FROM_ALL ON
+        # Not CPM's PATCHES keyword: that one needs the `patch` program,
+        # which the reference host does not have. See apply.cmake.
+        PATCH_COMMAND ${CMAKE_COMMAND}
+            -DGIT=${GIT_EXECUTABLE}
+            -DPATCH=${CMAKE_CURRENT_SOURCE_DIR}/third_party/patches/native-midi-app-name.patch
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/third_party/patches/apply.cmake
     )
 endif()
 if (ABUSE_BUILD_TESTS)

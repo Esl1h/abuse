@@ -37,6 +37,7 @@ modules:
   # than fetching them.
   - name: sdl3
     buildsystem: cmake-ninja
+    builddir: true
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DSDL_STATIC=OFF
@@ -48,6 +49,7 @@ modules:
 
   - name: sdl3-mixer
     buildsystem: cmake-ninja
+    builddir: true
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DSDLMIXER_SAMPLES=OFF
@@ -64,6 +66,7 @@ modules:
 
   - name: abuse-vrenna
     buildsystem: cmake-ninja
+    builddir: true
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       # Find SDL3 and SDL3_mixer in /app instead of fetching them.
@@ -84,10 +87,20 @@ modules:
         url: https://github.com/libsdl-org/SDL_native_midi.git
         commit: 64236646bc50ba7a196c2cc05dad86f0bde3f55f
         dest: third_party/SDL_native_midi
+      # CPM applies this itself when it fetches the dependency, and it does
+      # not fetch here: CPM_SDL3_native_midi_SOURCE points at the directory
+      # above. Without it the packaged game dies in the MIDI probe, because
+      # a Flatpak launches it as "abuse-vrenna", with no '/' in the command
+      # line. See third_party/patches/native-midi-app-name.patch.
+      - type: patch
+        path: ../../third_party/patches/native-midi-app-name.patch
+        dest: third_party/SDL_native_midi
+    # These run in the build directory, which builddir: true puts one level
+    # below the sources, hence the ../ on every path.
     post-install:
-      - install -Dm644 packaging/flatpak/io.github.Esl1h.AbuseVrenna.metainfo.xml
+      - install -Dm644 ../packaging/flatpak/io.github.Esl1h.AbuseVrenna.metainfo.xml
           /app/share/metainfo/io.github.Esl1h.AbuseVrenna.metainfo.xml
-      - install -Dm644 packaging/flatpak/io.github.Esl1h.AbuseVrenna.desktop
+      - install -Dm644 ../packaging/flatpak/io.github.Esl1h.AbuseVrenna.desktop
           /app/share/applications/io.github.Esl1h.AbuseVrenna.desktop
       # The icons install themselves, from data/CMakeLists.txt, into
       # /app/share/icons/hicolor. Nothing to do here.
@@ -95,4 +108,4 @@ modules:
       # The original data fetcher, which the player runs once from inside
       # the sandbox. It finds its checksum list beside the game data; see
       # scripts/fetch-classic-data.sh.
-      - install -Dm755 scripts/fetch-classic-data.sh /app/bin/fetch-classic-data
+      - install -Dm755 ../scripts/fetch-classic-data.sh /app/bin/fetch-classic-data

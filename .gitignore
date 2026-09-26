@@ -54,6 +54,9 @@
 # Build and tooling
 # ---------------------------------------------------------------------------
 /build*/
+
+# flatpak-builder's scratch space and the repository it exports into.
+/.flatpak-builder/
 CMakeUserPresets.json
 compile_commands.json
 /.cache/

@@ -1,0 +1,28 @@
+Fix a null dereference in get_app_name when argv[0] has no slash.
+
+SDL_strrchr returns NULL when the command line holds no '/', and the code
+adds one to it before testing, so the test sees 0x1 and strlen reads
+address one. The comment says "absolute worst case we get to a '\0'",
+which is true only when a slash was found.
+
+A Flatpak launches the game as "abuse-vrenna", with no path at all, so
+this crashed on the first run of the packaged build. Running it as
+./build/release/src/abuse never did, and neither did gdb, which execs the
+binary by its full path.
+
+Reported upstream: libsdl-org/SDL_native_midi.
+
+--- a/src/SDL_native_midi_alsa.c
++++ b/src/SDL_native_midi_alsa.c
+@@ -269,8 +269,9 @@
+     int fd = open(procfs_path, O_RDONLY);
+     if (fd >= 0) {
+         if (read(fd, cmdline, pathmax) > 0) {
+-            char *base = SDL_strrchr(cmdline, '/') + 1; /* Absolute worst case we get to a '\0' */
+-            if (base) {
++            char *slash = SDL_strrchr(cmdline, '/');
++            char *base = slash ? slash + 1 : cmdline;
++            {
+                 len = strlen(base);
+                 if (len)
+                     SDL_memmove(cmdline, base, len + 1);
