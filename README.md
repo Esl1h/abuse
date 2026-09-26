@@ -2,6 +2,10 @@
 
 <img src="doc/art/key-art-wordmark.png" alt="Abuse: Vrenna key art" width="420">
 
+[![CI](https://github.com/Esl1h/abuse-vrenna/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Esl1h/abuse-vrenna/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Esl1h/abuse-vrenna?include_prereleases&sort=semver)](https://github.com/Esl1h/abuse-vrenna/releases)
+[![Licence: GPL-2.0-or-later](https://img.shields.io/badge/licence-GPL--2.0--or--later-blue)](LICENSE)
+
 A modern port of Abuse (1995), named for Nick Vrenna, the man you play.
 
 ![Fighting a mutant in the prison corridors](doc/screenshots/gameplay.png)
