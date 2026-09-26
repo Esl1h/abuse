@@ -34,6 +34,8 @@
 !/data/hd/title/
 /data/hd/title/*
 !/data/hd/title/title_screen.png
+!/data/hd/title/title_screen.2.png
+!/data/hd/title/title_screen.3.png
 !/data/hd/frame/
 /data/hd/frame/*
 !/data/hd/frame/end_level_screen.png

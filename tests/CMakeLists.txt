@@ -26,7 +26,9 @@ add_executable(abuse_unit_tests
     unit/test_particles.cpp
     unit/test_dynlight.cpp
     unit/test_formats.cpp
+    unit/test_hd.cpp
     ${abuse_SOURCE_DIR}/src/compat.cpp
+    ${abuse_SOURCE_DIR}/src/imlib/hd.cpp
     ${abuse_SOURCE_DIR}/src/data/paths.cpp
     ${abuse_SOURCE_DIR}/src/data/config_file.cpp
     ${abuse_SOURCE_DIR}/src/render/options.cpp

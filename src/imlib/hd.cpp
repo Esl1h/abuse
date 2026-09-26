@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include <filesystem>
+#include <map>
 #include <string>
 
 // Only the PNG decoder: it is the one format the pack uses, and the rest
@@ -36,6 +37,7 @@ namespace abuse::hd {
 namespace {
 
 bool g_enabled = true;
+unsigned long long g_variant_seed = 0;
 
 // Where the pack lives, worked out once, as a path open_file understands.
 //
@@ -101,6 +103,54 @@ std::string safe_name(char const *name)
     return s;
 }
 
+// Which of an entry's variants this run uses.
+//
+// The choice is made once per entry and remembered, because find() is asked
+// again every time the cache reloads the object and a title screen that
+// changed while the menu was open would look like a glitch rather than a
+// feature.
+//
+// Not the game's RNG: that one is part of the simulation and drawing must
+// not disturb it. splitmix64, the same mixer the dynamic light uses.
+int variant_of(std::string const &base, int count)
+{
+    static std::map<std::string, int> chosen;
+
+    if (count <= 1 || g_variant_seed == 0)
+        return 1;
+
+    auto const it = chosen.find(base);
+    if (it != chosen.end())
+        return it->second;
+
+    unsigned long long x = g_variant_seed;
+    for (char const c : base)
+        x += (unsigned long long)(unsigned char)c * 0x9E3779B97F4A7C15ull;
+    x += 0x9E3779B97F4A7C15ull;
+    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
+    x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
+    x ^= x >> 31;
+
+    int const pick = (int)(x % (unsigned long long)count) + 1;
+    chosen[base] = pick;
+    return pick;
+}
+
+// name.png, name.2.png, ... name.9.png, counted from the first gap.
+int variant_count(std::string const &base)
+{
+    int n = 1;
+    while (n < 9)
+    {
+        std::error_code ec;
+        std::string const next = base + "." + (char)('1' + n) + ".png";
+        if (!std::filesystem::is_regular_file(next, ec))
+            break;
+        n++;
+    }
+    return n;
+}
+
 }
 
 image *load(char const *path, int want_w, int want_h);
@@ -115,6 +165,11 @@ void set_enabled(bool on)
     g_enabled = on;
 }
 
+void set_variant_seed(unsigned long long seed)
+{
+    g_variant_seed = seed;
+}
+
 bool available()
 {
     return g_enabled && !root().empty();
@@ -126,15 +181,20 @@ char *find(char const *spe_path, char const *name)
         return NULL;
 
     // Relative for open_file, absolute for the check. See root().
-    std::string const path =
-        root() + "/" + stem_of(spe_path) + "/" + safe_name(name) + ".png";
+    std::string const stem =
+        root() + "/" + stem_of(spe_path) + "/" + safe_name(name);
 
     char const *prefix = get_filename_prefix();
-    std::string const full = std::string(prefix ? prefix : "") + path;
+    std::string const full_stem = std::string(prefix ? prefix : "") + stem;
 
     std::error_code ec;
-    if (!std::filesystem::is_regular_file(full, ec))
+    if (!std::filesystem::is_regular_file(full_stem + ".png", ec))
         return NULL;
+
+    int const pick = variant_of(stem, variant_count(full_stem));
+    std::string const path =
+        pick == 1 ? stem + ".png"
+                  : stem + "." + (char)('0' + pick) + ".png";
 
     return strdup(path.c_str());
 }

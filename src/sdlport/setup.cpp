@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -1062,6 +1063,13 @@ void setup( int argc, char **argv )
 
     // Handle command-line parameters
     parseCommandLine( argc, argv );
+
+    // Which picture a pack with several of them shows this time. Left at
+    // zero for a scripted run, which always takes the first: the same rule
+    // as the locale and the gamepad, because a reference frame must not
+    // depend on the day it was recorded.
+    if( !abuse::harness::scripted_run() )
+        abuse::hd::set_variant_seed( (unsigned long long)time( NULL ) );
 
     // Neither the config nor the command line named one, so ask the system.
     // Except under the test harness: a snapshot taken on a host set to

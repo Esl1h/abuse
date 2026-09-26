@@ -29,8 +29,8 @@
  *  it; setup() turns this off there. Without that, a reference frame would
  *  depend on whether the machine that recorded it happened to have a pack.
  *
- *  The repository ships one file of its own here, the Remastered mode's
- *  title screen. Everything else under data/hd/ belongs to whoever put it
+ *  The repository ships files of its own here, the Remastered mode's title
+ *  screens and the picture between levels. Everything else under data/hd/ belongs to whoever put it
  *  there: .gitignore keeps it out of the repository and
  *  scripts/check-licenses.sh fails on it, because art nobody has accounted
  *  for is exactly what that check is for.
@@ -71,6 +71,17 @@ image *swap(char *&path, image *original);
 // Off turns the whole thing off regardless of what is on disk.
 bool enabled();
 void set_enabled(bool on);
+
+// Variants. A pack may offer more than one picture for the same entry, as
+// `name.png`, `name.2.png`, `name.3.png` and so on up to nine; the game
+// picks one per run and keeps it for the rest of that run, so the title
+// screen does not change while it is on screen.
+//
+// The pick comes from this seed. **Zero means always the first**, which is
+// what a scripted run sets: a test that picked at random would be a test
+// whose reference frame depends on the day it ran. setup() seeds it from
+// the clock otherwise.
+void set_variant_seed(unsigned long long seed);
 
 }
 
