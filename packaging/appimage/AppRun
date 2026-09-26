@@ -1,0 +1,18 @@
+#!/bin/sh
+# AppRun for the AppImage.
+#
+# The data path is baked into the binary at configure time, as
+# ${CMAKE_INSTALL_PREFIX}/share/games/abuse, and inside an AppImage that
+# prefix lives under the mount point rather than at /usr. Without this the
+# game starts, finds nothing, and says "Unable to open file art/dev.spe".
+#
+# ABUSE_PATH is the engine's own override, read in main(), and it is left
+# alone when the player has already set it.
+set -e
+
+HERE=$(dirname "$(readlink -f "$0")")
+
+export ABUSE_PATH="${ABUSE_PATH:-$HERE/usr/share/games/abuse}"
+export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH}"
+
+exec "$HERE/usr/bin/abuse-vrenna" "$@"

@@ -20,6 +20,12 @@ app_id=io.github.Esl1h.AbuseVrenna
 build=$root/build/appimage
 appdir=$build/AppDir
 
+# Named after the version the game prints, and not after the desktop entry:
+# linuxdeploy would call it "Abuse:_Vrenna-x86_64.AppImage", and a colon in a
+# file name is trouble in a URL, on Windows and in a shell.
+version=$(sed -n 's/^set(abuse_VERSION \(.*\))$/\1/p' "$root/CMakeLists.txt")
+export OUTPUT="Abuse_Vrenna-${version}-x86_64.AppImage"
+
 command -v linuxdeploy-x86_64.AppImage >/dev/null 2>&1 || {
     echo "linuxdeploy-x86_64.AppImage is not on PATH." >&2
     echo "Get it from https://github.com/linuxdeploy/linuxdeploy/releases" >&2
@@ -43,6 +49,7 @@ install -Dm755 "$root/scripts/fetch-classic-data.sh" \
 linuxdeploy-x86_64.AppImage \
     --appdir "$appdir" \
     --executable "$appdir/usr/bin/abuse-vrenna" \
+    --custom-apprun "$here/AppRun" \
     --desktop-file "$root/packaging/flatpak/$app_id.desktop" \
     --icon-file "$root/data/freedesktop/icons/hicolor/256x256/apps/$app_id.png" \
     --icon-filename "$app_id" \
