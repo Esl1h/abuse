@@ -58,12 +58,26 @@ for cpm_name, module, field in (("SDL3", "sdl3", "tag"),
 # placed where CPM_SDL3_native_midi_SOURCE points.
 want = wanted("SDL3_native_midi")
 got = None
+patched = False
 for s in modules["abuse-vrenna"]["sources"]:
-    if s.get("dest", "").endswith("SDL_native_midi"):
+    if not s.get("dest", "").endswith("SDL_native_midi"):
+        continue
+    # By type, not by dest alone: the patch below sits at the same dest and
+    # carries no commit, and reading that one turned this check red.
+    if s.get("type") == "git":
         got = s.get("commit")
+    elif s.get("type") == "patch":
+        patched = True
 if got != want:
     errors.append(f"SDL3_native_midi: the build fetches {want}, "
                   f"the manifest pins {got}")
+
+# CPM applies this itself where it fetches the dependency. Here it does not
+# fetch, so the manifest has to apply it, and without it the packaged game
+# dies in the MIDI probe on a command line with no '/' in it.
+if not patched:
+    errors.append("SDL3_native_midi: the app name patch is not applied; "
+                  "see third_party/patches/native-midi-app-name.patch")
 
 # A Flathub build has no network, so anything CPM would fetch at configure
 # time has to be switched off or supplied above.
