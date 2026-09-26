@@ -30,9 +30,15 @@ option(ABUSE_ENABLE_NATIVE_MIDI "Use SDL3_native_midi to play music" ON)
 option(ABUSE_BUILD_TESTS "Build the unit tests and register them with CTest" ON)
 
 # To avoid downloading a package, configure CPM
+# 3.4, and not the 3.2 this asked for until a Debian package was built: the
+# SDL3_mixer below calls SDL_PutAudioStreamPlanarData and
+# SDL_PutAudioStreamDataNoCopy, which arrived in 3.4. With 3.2 accepted, a
+# distribution that ships 3.2 satisfied the check and then failed to compile
+# the mixer. Where the system SDL3 is older than this, CPM builds the pinned
+# one from source and src/CMakeLists.txt installs it beside the game.
 CPMAddPackage(
     NAME SDL3
-    VERSION 3.2.0
+    VERSION 3.4.0
     GITHUB_REPOSITORY libsdl-org/SDL
     GIT_TAG release-3.4.14
 )
@@ -158,16 +164,22 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Packaging
 
-set(CPACK_PACKAGE_NAME "Abuse")
-set(CPACK_PACKAGE_VENDOR "Crack-Dot-Com")
+# For CMAKE_INSTALL_FULL_LIBDIR below. src/CMakeLists.txt includes this too,
+# for the install rules; including it twice costs nothing.
+include(GNUInstallDirs)
+
+set(CPACK_PACKAGE_NAME "abuse-vrenna")
+set(CPACK_PACKAGE_VENDOR "Abuse: Vrenna")
+set(CPACK_PACKAGE_VERSION ${abuse_VERSION})
 set(CPACK_PACKAGE_VERSION_MAJOR ${abuse_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${abuse_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${abuse_VERSION_PATCH})
-#set(CPACK_PACKAGE_DESCRIPTION_FILE "README.md")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Abuse game")
-#set(CPACK_PACKAGE_ICON "doc/abuse.bmp")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Modern port of Abuse (1995)")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/Esl1h/abuse-vrenna")
+set(CPACK_PACKAGE_CONTACT "Esli Silva <eslih@pm.me>")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
-set(CPACK_PACKAGE_EXECUTABLES "abuse;Abuse")
+set(CPACK_PACKAGE_EXECUTABLES "abuse-vrenna;Abuse: Vrenna")
+set(CPACK_STRIP_FILES ON)
 if (WIN32)
     set(CPACK_GENERATOR "WIX;ZIP")
     # This doesn't make sense for a Windows archive
@@ -176,6 +188,66 @@ elseif(APPLE)
     set(CPACK_GENERATOR "DragNDrop;TGZ")
 else()
     set(CPACK_GENERATOR "TGZ")
+
+    # The native packages. Which of the three generators is asked for is the
+    # caller's business, hence scripts/package-linux.sh; the settings below
+    # only say what each one should contain when it is.
+    #
+    # The dependency lists are deliberately short. SDL3 is the only library
+    # this asks a distribution for: SDL3_mixer is built here and installed
+    # beside the game, because no distribution packages it yet, and the
+    # binary finds it through a RUNPATH of $ORIGIN/../${CMAKE_INSTALL_LIBDIR}.
+    set(CPACK_DEBIAN_PACKAGE_SECTION "games")
+    # Worked out from what the binary actually links against, which differs
+    # by distribution: where SDL3 comes from the system it is a dependency,
+    # and where it was built here it is inside the package instead.
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+
+    set(CPACK_RPM_PACKAGE_GROUP "Amusements/Games")
+    set(CPACK_RPM_PACKAGE_LICENSE "GPL-2.0-or-later")
+    set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+    # A game provides nothing to anything else. Without this, a bundled
+    # libSDL3_mixer.so.0 would be advertised as this package providing the
+    # library, which is not something another package should ever satisfy
+    # from here.
+    set(CPACK_RPM_PACKAGE_AUTOPROV OFF)
+
+    # And what is bundled must not be required either. rpm reads the
+    # binary's NEEDED list and asks for every name in it; with the providing
+    # side turned off above, a bundled libSDL3_mixer.so.0 became a
+    # dependency nothing on the system could satisfy and dnf refused to
+    # install the package. Only the libraries this build actually brought
+    # with it are filtered, so a system SDL3 stays a real dependency.
+    set(_bundled "")
+    if(SDL3_ADDED)
+        list(APPEND _bundled "libSDL3\\.so")
+    endif()
+    if(SDL3_mixer_ADDED)
+        list(APPEND _bundled "libSDL3_mixer\\.so")
+    endif()
+    if(_bundled)
+        string(JOIN "|" _bundled_re ${_bundled})
+        set(CPACK_RPM_SPEC_MORE_DEFINE
+            "%define __requires_exclude ^(${_bundled_re}).*$")
+    endif()
+
+    # dpkg-shlibdeps reports a private directory as a library with no
+    # package behind it, which is an error unless it is told where to look.
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS
+        "${CMAKE_INSTALL_FULL_LIBDIR}/abuse-vrenna")
+    # The game data is not a candidate for byte compiling or stripping, and
+    # /usr/share/games is owned by the filesystem package.
+    set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
+        "/usr/share/games" "/usr/share/icons/hicolor"
+        "/usr/share/icons/hicolor/16x16" "/usr/share/icons/hicolor/16x16/apps"
+        "/usr/share/icons/hicolor/32x32" "/usr/share/icons/hicolor/32x32/apps"
+        "/usr/share/icons/hicolor/48x48" "/usr/share/icons/hicolor/48x48/apps"
+        "/usr/share/icons/hicolor/64x64" "/usr/share/icons/hicolor/64x64/apps"
+        "/usr/share/icons/hicolor/128x128" "/usr/share/icons/hicolor/128x128/apps"
+        "/usr/share/icons/hicolor/256x256" "/usr/share/icons/hicolor/256x256/apps"
+        "/usr/share/icons/hicolor/512x512" "/usr/share/icons/hicolor/512x512/apps"
+        "/usr/share/icons/hicolor/scalable" "/usr/share/icons/hicolor/scalable/apps")
 endif()
 # WIX-specific
 set(CPACK_WIX_UPGRADE_GUID "3A89DEB1-B520-4DF5-B44D-96A0EBB27DC0")

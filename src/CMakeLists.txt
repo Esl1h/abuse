@@ -235,16 +235,23 @@ else()
     # Both names go in, because what the loader asks for is the SONAME and
     # what the target points at is the real file; they are two entries and
     # not a symlink because install(FILES) writes files.
+    #
+    # Into a directory of our own, and not into the system one: a .deb that
+    # writes /usr/lib/x86_64-linux-gnu/libSDL3.so.0 refuses to install,
+    # because that path belongs to Debian's libsdl3-0. Measured by building
+    # the package and installing it in a clean container.
     foreach(lib SDL3 SDL3_mixer)
         if(${lib}_ADDED)
             install(FILES
                 $<TARGET_FILE:${lib}::${lib}>
                 $<TARGET_SONAME_FILE:${lib}::${lib}>
-                DESTINATION ${CMAKE_INSTALL_LIBDIR})
+                DESTINATION ${CMAKE_INSTALL_LIBDIR}/abuse-vrenna)
         endif()
     endforeach()
 
     # So the binary finds them next door instead of only in a system path.
+    # Where a distribution packages the library, nothing was installed above
+    # and this directory does not exist, so the system copy is what loads.
     set_target_properties(abuse PROPERTIES
-        INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+        INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}/abuse-vrenna")
 endif()
