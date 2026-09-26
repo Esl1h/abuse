@@ -54,7 +54,10 @@ Colour const kPick     = rgba(255, 220, 120);
 // An empty weapon slot: present enough to be counted, faint enough not to
 // be mistaken for something being carried.
 
-bool g_classic = true;      // until the HUD covers everything the strip shows
+// The Remastered default since 2026-09-25. The Original mode is unaffected:
+// classic_hud() forces the 1995 strip there whatever this says, because that
+// strip is part of the picture the snapshots compare.
+bool g_classic = false;
 bool g_pinned = false;
 
 // The weapon icons, the same ones the strip draws, registered once. The strip

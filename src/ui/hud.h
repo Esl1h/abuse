@@ -9,9 +9,9 @@
  *  resolution overlay instead, so it stays sharp, and it has room for things
  *  the strip has no cells for.
  *
- *  It replaces the strip when it is on. `hud=classic` in abuserc keeps the
- *  strip, and the Original mode always keeps it: that mode is the reference
- *  the snapshots compare against.
+ *  It is what the Remastered mode draws. `hud=classic` in abuserc asks for
+ *  the strip instead, and the Original mode always keeps the strip: that mode
+ *  is the reference the snapshots compare against.
  *
  *  This software was released into the Public Domain.
  */

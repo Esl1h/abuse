@@ -257,7 +257,7 @@ void createRCFile( char *rcfile )
         fputs( "; The world still advances 15 times a second either way.\n", fd );
         fputs( ";interpolate=off\n\n", fd );
         fputs( "; HUD: classic is the 1995 status bar, modern the overlay one.\n", fd );
-        fputs( ";hud=modern\n\n", fd );
+        fputs( ";hud=classic\n\n", fd );
         fputs( "; Start menu: modern is the list, classic the strip of icons.\n", fd );
         fputs( ";startmenu=classic\n\n", fd );
         fputs( "; Language of the in-game text: en, fr, de, pt_BR.\n", fd );
