@@ -4,9 +4,13 @@ project(abuse C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(abuse_VERSION 0.10.0)
+# Ours, not upstream's. Xenoveritas was at 0.10.0; this fork numbers itself
+# by its own plan, which is v0.9.0-alpha.N while the phases close and 1.0.0
+# when they are done. A tag and the number the game prints have to be the
+# same string, or the bug report says a version nobody can check out.
+set(abuse_VERSION 0.9.0-alpha.0)
 set(abuse_VERSION_MAJOR 0)
-set(abuse_VERSION_MINOR 10)
+set(abuse_VERSION_MINOR 9)
 set(abuse_VERSION_PATCH 0)
 set(abuse_VERSION_TWEAK 0)
 

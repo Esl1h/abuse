@@ -89,9 +89,20 @@
   </screenshots>
 
   <releases>
-    <release version="0.10.0" date="2026-09-20">
+    <release version="0.9.0-alpha.0" date="2026-09-25" type="development">
       <description>
-        <p>Development release. Not yet published.</p>
+        <p>First published pre-release. Playable, and not finished.</p>
+        <ul>
+          <li>Runs on SDL3, with gamepad support and a remappable action map</li>
+          <li>English and Brazilian Portuguese, chosen on the first run</li>
+          <li>Original and Remastered modes; the Original one is untouched 1995</li>
+          <li>New HUD, start menu and title art in the Remastered mode</li>
+          <li>Coloured dynamic light, particles, camera shake, optional CRT lines</li>
+        </ul>
+        <p>
+          The Remastered mode has no sound of its own yet: it borrows the
+          original set when that data is installed.
+        </p>
       </description>
     </release>
   </releases>
