@@ -57,6 +57,9 @@
 
 # flatpak-builder's scratch space and the repository it exports into.
 /.flatpak-builder/
+
+# What packaging/appimage/build-appimage.sh writes.
+/*.AppImage
 CMakeUserPresets.json
 compile_commands.json
 /.cache/
