@@ -61,8 +61,16 @@ jobs:
                  --notes "Assets are being uploaded."
           gh release upload "$TAG" "Abuse_Vrenna-${TAG}-windows-x64.zip" --clobber
 
+  # macOS builds, and nothing is published from it.
+  #
+  # What the build leaves in build/src/abuse.app is the executable and an
+  # Info.plist, 496 KB of it: no game data, no SDL dylibs. The first tag
+  # published that, and a download that cannot start is worse than no
+  # download. A usable bundle has to install the data into
+  # Contents/Resources and carry its libraries, and it has to be signed and
+  # notarised or Gatekeeper refuses it. That is a task of its own.
   macos:
-    name: macOS (app bundle)
+    name: macOS (builds only)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,20 +82,3 @@ jobs:
 
       - name: Build
         run: cmake --build build
-
-      - name: Zip
-        run: |
-          cd build/src
-          # Neither signed nor notarised: Gatekeeper will refuse it until
-          # someone with a developer certificate signs it. Said in the
-          # release notes rather than discovered by the person downloading.
-          zip -r "../../Abuse_Vrenna-${TAG}-macos.zip" abuse.app
-
-      - name: Attach
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release view "$TAG" >/dev/null 2>&1 \
-            || gh release create "$TAG" --prerelease --title "$TAG" \
-                 --notes "Assets are being uploaded."
-          gh release upload "$TAG" "Abuse_Vrenna-${TAG}-macos.zip" --clobber
